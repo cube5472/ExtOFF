@@ -141,7 +141,7 @@ fun Project.setupAppCommon(projectName: String = "") {
                 isEnable = true
                 isUniversalApk = false
                 reset()
-                include("x86", "x86_64", "armeabi-v7a", "arm64-v8a")
+                include("arm64-v8a")
             }
         }
     }
@@ -225,7 +225,7 @@ fun Project.setupApp() {
                 (output as? VariantOutputImpl)?.let { variantOutputImpl ->
                     val versionName = variantOutputImpl.versionName.orNull.orEmpty()
                     variantOutputImpl.outputFileName.set(variantOutputImpl.outputFileName.get()
-                        .replace(project.name, "Exclave-$versionName")
+                        .replace(project.name, "Ex-Ultra-$versionName")
                         .replace("-release", "")
                         .replace("-oss", "")
                     )
