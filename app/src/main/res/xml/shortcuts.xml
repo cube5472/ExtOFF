@@ -8,16 +8,6 @@
         <intent
             android:action="android.intent.action.MAIN"
             android:targetClass="io.nekohasekai.sagernet.QuickToggleShortcut"
-            android:targetPackage="com.github.dyhkwong.sagernet" />
-    </shortcut>
-    <shortcut
-        android:icon="@drawable/ic_qu_camera_launcher"
-        android:shortcutId="scan"
-        android:shortcutLongLabel="@string/add_profile_methods_scan_qr_code"
-        android:shortcutShortLabel="@string/add_profile_methods_scan_qr_code">
-        <intent
-            android:action="android.intent.action.MAIN"
-            android:targetClass="io.nekohasekai.sagernet.ui.ScannerActivity"
-            android:targetPackage="com.github.dyhkwong.sagernet" />
+            android:targetPackage="${applicationId}" />
     </shortcut>
 </shortcuts>
