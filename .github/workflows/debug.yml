@@ -1,4 +1,4 @@
-name: ExtOFF Debug
+name: ExtOFF
 on:
   push:
     branches:
