@@ -46,6 +46,9 @@
             @style/ThemeOverlay.MaterialComponents.MaterialAlertDialog.SagerNet
         </item>
 
+        <item name="coalAppBarColor">?colorPrimary</item>
+        <item name="coalBorderColor">@android:color/transparent</item>
+
     </style>
 
     <style name="Theme.SagerNet.Dialog" parent="Theme.MaterialComponents.DayNight.Dialog.Alert">
@@ -132,6 +135,13 @@
         <item name="rippleColor">@color/chip_ripple_color</item>
     </style>
 
+    <!-- ExtPoint: card with thin accent border for coal themes -->
+    <style name="Widget.ExtPoint.CardView.Coal" parent="Widget.MaterialComponents.CardView">
+        <item name="cardBackgroundColor">?attr/colorSurface</item>
+        <item name="strokeColor">?attr/coalBorderColor</item>
+        <item name="strokeWidth">1dp</item>
+    </style>
+
     <style name="Theme.SagerNet.Black">
         <item name="colorPrimary">@color/material_light_black</item>
         <item name="colorPrimaryDark">@color/black</item>
@@ -164,6 +174,10 @@
         <item name="colorSurface">@color/coal_surface</item>
         <item name="android:navigationBarColor">@color/coal_black</item>
 
+        <item name="coalAppBarColor">@color/coal_black</item>
+        <item name="coalBorderColor">@color/coal_turquoise</item>
+        <item name="materialCardViewStyle">@style/Widget.ExtPoint.CardView.Coal</item>
+
         <item name="selectedColorPrimary">@color/coal_turquoise</item>
         <item name="fabColorBackground">?colorPrimary</item>
         <item name="itemShapeFillColor">@color/coal_shape</item>
@@ -187,6 +201,10 @@
         <item name="android:colorBackground">@color/coal_black</item>
         <item name="colorSurface">@color/coal_surface</item>
         <item name="android:navigationBarColor">@color/coal_black</item>
+
+        <item name="coalAppBarColor">@color/coal_black</item>
+        <item name="coalBorderColor">@color/coal_pink</item>
+        <item name="materialCardViewStyle">@style/Widget.ExtPoint.CardView.Coal</item>
 
         <item name="selectedColorPrimary">@color/coal_pink</item>
         <item name="fabColorBackground">?colorPrimary</item>
@@ -403,6 +421,10 @@
         <item name="android:colorBackground">@color/coal_surface</item>
         <item name="colorSurface">@color/coal_surface</item>
 
+        <item name="coalAppBarColor">@color/coal_black</item>
+        <item name="coalBorderColor">@color/coal_turquoise</item>
+        <item name="materialCardViewStyle">@style/Widget.ExtPoint.CardView.Coal</item>
+
         <item name="selectedColorPrimary">@color/coal_turquoise</item>
         <item name="fabColorBackground">?colorPrimary</item>
         <item name="itemShapeFillColor">@color/coal_shape</item>
@@ -423,6 +445,10 @@
         <item name="android:windowBackground">@color/coal_surface</item>
         <item name="android:colorBackground">@color/coal_surface</item>
         <item name="colorSurface">@color/coal_surface</item>
+
+        <item name="coalAppBarColor">@color/coal_black</item>
+        <item name="coalBorderColor">@color/coal_pink</item>
+        <item name="materialCardViewStyle">@style/Widget.ExtPoint.CardView.Coal</item>
 
         <item name="selectedColorPrimary">@color/coal_pink</item>
         <item name="fabColorBackground">?colorPrimary</item>

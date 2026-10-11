@@ -38,5 +38,7 @@
         <item name="materialAlertDialogTheme">
             @style/ThemeOverlay.MaterialComponents.MaterialAlertDialog.SagerNet
         </item>
+        <item name="coalAppBarColor">?colorPrimary</item>
+        <item name="coalBorderColor">@android:color/transparent</item>
     </style>
 </resources>

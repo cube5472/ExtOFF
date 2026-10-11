@@ -2,7 +2,7 @@
 <com.google.android.material.appbar.AppBarLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/appbar"
-    android:background="?attr/colorPrimary"
+    android:background="@drawable/bg_appbar_border"
     android:layout_width="match_parent"
     android:layout_height="?attr/actionBarSize"
     android:elevation="4dp">
@@ -11,7 +11,7 @@
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="?attr/colorPrimary"
+        android:background="@drawable/bg_appbar_border"
         android:theme="?actionBarTheme"
         android:touchscreenBlocksFocus="false"
         app:popupTheme="@style/ThemeOverlay.AppCompat.DayNight"

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ExtPoint: app bar background = solid color + thin bottom border (theme aware).
+     The stroked layer is shifted out of bounds on top/left/right,
+     so only the bottom edge of the stroke stays visible. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="?attr/coalAppBarColor" />
+        </shape>
+    </item>
+    <item
+        android:top="-2dp"
+        android:left="-2dp"
+        android:right="-2dp">
+        <shape android:shape="rectangle">
+            <stroke
+                android:width="2dp"
+                android:color="?attr/coalBorderColor" />
+        </shape>
+    </item>
+</layer-list>

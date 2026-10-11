@@ -49,7 +49,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="bottom"
             android:nextFocusUp="@+id/fab"
-            app:backgroundTint="?colorPrimary"
+            app:backgroundTint="?attr/coalAppBarColor"
             app:contentInsetStart="0dp"
             app:fabAlignmentMode="center"
             app:fabCradleMargin="5dp"

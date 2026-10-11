@@ -16,7 +16,7 @@
         android:id="@+id/group_tab"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="?colorPrimary"
+        android:background="?attr/coalAppBarColor"
         android:elevation="4dp"
         android:visibility="gone"
         app:tabIndicatorColor="?tabIndicatorColor"
@@ -29,9 +29,36 @@
         app:tabTextColor="?tabTextColor"
         app:tabUnboundedRipple="false" />
 
-    <androidx.viewpager2.widget.ViewPager2
-        android:id="@+id/group_pager"
+    <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="match_parent">
+
+        <androidx.viewpager2.widget.ViewPager2
+            android:id="@+id/group_pager"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <!-- ExtPoint: narrow URL test counter, tap to cancel -->
+        <TextView
+            android:id="@+id/url_test_counter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|center_horizontal"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/bg_url_test_counter"
+            android:clickable="true"
+            android:focusable="true"
+            android:elevation="8dp"
+            android:paddingStart="18dp"
+            android:paddingEnd="18dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:textColor="@color/white"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:visibility="gone"
+            tools:text="12/50" />
+
+    </FrameLayout>
 
 </LinearLayout>
