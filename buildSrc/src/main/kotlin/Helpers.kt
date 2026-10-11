@@ -225,7 +225,7 @@ fun Project.setupApp() {
                 (output as? VariantOutputImpl)?.let { variantOutputImpl ->
                     val versionName = variantOutputImpl.versionName.orNull.orEmpty()
                     variantOutputImpl.outputFileName.set(variantOutputImpl.outputFileName.get()
-                        .replace(project.name, "Ex-Ultra-$versionName")
+                        .replace(project.name, "ExtPoint-$versionName")
                         .replace("-release", "")
                         .replace("-oss", "")
                     )

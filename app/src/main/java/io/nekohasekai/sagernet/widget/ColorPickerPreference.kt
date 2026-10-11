@@ -22,7 +22,9 @@ package io.nekohasekai.sagernet.widget
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.Resources
+import android.graphics.Color
 import android.graphics.drawable.Drawable
+import android.graphics.drawable.GradientDrawable
 import android.util.AttributeSet
 import android.view.View
 import android.view.ViewGroup
@@ -126,6 +128,29 @@ class ColorPickerPreference
                         persistInt(i + 1)
                         dialog.dismiss()
                         callChangeListener(i + 1)
+                    }
+                }
+                addView(view)
+            }
+
+            // ExtPoint coal themes: black circle with colored outline
+            val coalThemes = listOf(
+                io.nekohasekai.sagernet.utils.Theme.COAL_TURQUOISE to ContextCompat.getColor(context, R.color.coal_turquoise),
+                io.nekohasekai.sagernet.utils.Theme.COAL_PINK to ContextCompat.getColor(context, R.color.coal_pink),
+            )
+            for ((id, color) in coalThemes) {
+                val outline = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(Color.BLACK)
+                    setStroke(dp2px(4), color)
+                }
+                val view = ImageView(context).apply {
+                    layoutParams = ViewGroup.LayoutParams(dp2px(64), dp2px(64))
+                    setImageDrawable(outline)
+                    setOnClickListener {
+                        persistInt(id)
+                        dialog.dismiss()
+                        callChangeListener(id)
                     }
                 }
                 addView(view)

@@ -1,6 +1,6 @@
-# Exclave
+# ExtPoint
 
-Exclave is a proxy client.
+ExtPoint is a proxy client based on Exclave, featuring custom coal-black themes.
 
 <details>
 
@@ -36,15 +36,9 @@ Some supported protocols:
 
 ## Download
 
-- Exclave
+- ExtPoint
 
-  [Download from GitHub releases](https://github.com/ExclaveNetwork/Exclave/releases)
-
-  [Download from F-Droid](https://f-droid.org/packages/com.github.dyhkwong.sagernet)
-
-  SHA-256 hash of the signing certificate: `e9fe39e1ce254c50c2f9470a757b378c0b7cc536119867f7691405b592e6994b`
-
-  The default flavor (versions without `-legacy` suffix) supports Android 6.0+. The legacy flavor (versions with `-legacy` suffix, with some Gradle dependencies pinned to old versions) supports Android 5.0+. The legacy flavor is for old devices only and using it on new devices may lead to [unexpected behaviors](https://issuetracker.google.com/issues/519796838). The support for the legacy flavor is on a best-efforts basis and may be ended at any time.
+  Build it from source or via GitHub Actions (Debug Build workflow).
 
 - NaïveProxy Plugin
 

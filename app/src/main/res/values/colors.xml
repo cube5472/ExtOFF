@@ -26,6 +26,17 @@
         <item>@color/material_light_black</item>
     </integer-array>
 
+    <!-- ExtPoint coal themes -->
+    <color name="coal_black">#000000</color>
+    <color name="coal_surface">#0A0A0A</color>
+    <color name="coal_shape">#161616</color>
+    <color name="coal_turquoise">#00E5C3</color>
+    <color name="coal_turquoise_100">#B8FFF4</color>
+    <color name="coal_turquoise_300">#4DFFE0</color>
+    <color name="coal_pink">#FF5C93</color>
+    <color name="coal_pink_100">#FFC2D8</color>
+    <color name="coal_pink_300">#FF8FB4</color>
+
     <color name="material_amber_100">#FFECB3</color>
     <color name="material_amber_200">#FFE082</color>
     <color name="material_amber_300">#FFD54F</color>
