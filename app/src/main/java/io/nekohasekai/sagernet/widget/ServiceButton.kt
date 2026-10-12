@@ -22,6 +22,7 @@
 package io.nekohasekai.sagernet.widget
 
 import android.content.Context
+import android.graphics.Color
 import android.graphics.drawable.Drawable
 import android.os.Build
 import android.util.AttributeSet
@@ -42,6 +43,7 @@ import io.nekohasekai.sagernet.FabStyle
 import io.nekohasekai.sagernet.R
 import io.nekohasekai.sagernet.bg.BaseService
 import io.nekohasekai.sagernet.database.DataStore
+import io.nekohasekai.sagernet.ktx.dp2px
 import io.nekohasekai.sagernet.ktx.getColorAttr
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -115,6 +117,16 @@ class ServiceButton @JvmOverloads constructor(
     }
     private val iconStopping by lazy { AnimatedState(R.drawable.ic_service_stopping) }
     private val animationQueue = ArrayDeque<AnimatedState>()
+
+    init {
+        // Coal themes: draw the accent border programmatically so it does not
+        // depend on the (possibly outdated) layout XML being applied.
+        val borderColor = context.getColorAttr(R.attr.coalBorderColor)
+        if (borderColor != Color.TRANSPARENT) {
+            strokeColor = borderColor
+            strokeWidth = dp2px(2)
+        }
+    }
 
     private var checked = false
     private var delayedAnimation: Job? = null
