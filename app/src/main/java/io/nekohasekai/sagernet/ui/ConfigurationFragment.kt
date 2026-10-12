@@ -739,8 +739,13 @@ class ConfigurationFragment @JvmOverloads constructor(
             }
 
             val testJobs = mutableListOf<Job>()
-            repeat(6) {
+            // 3 workers instead of 6: six concurrent Xray cores plus six TLS
+            // handshakes contend for CPU on a phone and visibly skew the
+            // measured latency upwards. Stagger the starts as well so the
+            // tests do not all burst at t=0.
+            repeat(3) { index ->
                 testJobs.add(launch {
+                    delay(index * 250L)
                     while (isActive) {
                         val profile = profiles.poll() ?: break
                         profile.status = 0
