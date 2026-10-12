@@ -40,12 +40,10 @@ import androidx.vectordrawable.graphics.drawable.AnimatedVectorDrawableCompat
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.progressindicator.BaseProgressIndicator
 import com.google.android.material.progressindicator.DeterminateDrawable
-import com.google.android.material.shape.MaterialShapeDrawable
 import io.nekohasekai.sagernet.FabStyle
 import io.nekohasekai.sagernet.R
 import io.nekohasekai.sagernet.bg.BaseService
 import io.nekohasekai.sagernet.database.DataStore
-import io.nekohasekai.sagernet.ktx.dp2pxf
 import io.nekohasekai.sagernet.ktx.getColorAttr
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -123,13 +121,36 @@ class ServiceButton @JvmOverloads constructor(
     init {
         // Coal themes: draw the accent border programmatically so it does not
         // depend on the (possibly outdated) layout XML being applied.
-        // NOTE: Material 1.14 removed FloatingActionButton.setStrokeColor/setStrokeWidth,
-        // so the border is applied to the underlying MaterialShapeDrawable instead.
+        // Material 1.14 changelog:
+        //  * FloatingActionButton.setStrokeColor/setStrokeWidth were REMOVED;
+        //  * the strokeColor/strokeWidth XML attributes are no longer read;
+        //  * the background is now RippleDrawable(LayerDrawable[border, shape]),
+        //    so a plain `background as MaterialShapeDrawable` cast fails;
+        //  * the only surviving knob is app:borderWidth, which creates a
+        //    BorderDrawable tinted with the *background* color (invisible on
+        //    coal themes). Its color can only be changed through the
+        //    package-private BorderDrawable.setBorderTint — hence reflection.
+        // NOTE: app:borderWidth must be set in layout_main.xml, otherwise
+        // borderDrawable is never created and there is nothing to tint.
+        // Release builds obfuscate these internals, so app/proguard-rules.pro
+        // keeps the members used below.
         val borderColor = context.getColorAttr(R.attr.coalBorderColor)
         if (borderColor != Color.TRANSPARENT) {
-            (background as? MaterialShapeDrawable)?.apply {
-                strokeColor = ColorStateList.valueOf(borderColor)
-                strokeWidth = dp2pxf(2)
+            try {
+                val impl = FloatingActionButton::class.java
+                    .getDeclaredField("impl").apply { isAccessible = true }
+                    .get(this)
+                val borderDrawable = impl?.javaClass
+                    ?.getDeclaredField("borderDrawable")?.apply { isAccessible = true }
+                    ?.get(impl)
+                if (borderDrawable != null) {
+                    borderDrawable.javaClass
+                        .getDeclaredMethod("setBorderTint", ColorStateList::class.java)
+                        .apply { isAccessible = true }
+                        .invoke(borderDrawable, ColorStateList.valueOf(borderColor))
+                }
+            } catch (_: Exception) {
+                // Material internals changed again: a missing border beats a crash.
             }
         }
     }
