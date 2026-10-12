@@ -76,8 +76,10 @@ fun Project.setupCommon(projectName: String = "") {
         lint.checkReleaseBuilds = false
         lint.warningsAsErrors = true
         packaging.jniLibs.useLegacyPackaging = true
-        // Do not strip symbols by AGP to improve reproducibility. Symbols are manually stripped in advanced.
-        packaging.jniLibs.keepDebugSymbols.add("**/*.so")
+        // Let AGP strip native libraries (llvm-strip). With keepDebugSymbols set
+        // to "**/*.so" an unstripped core build (lib core debug) shipped ~25 MB of
+        // symtab/DWARF per ABI. Stripping is a no-op for already-stripped inputs,
+        // so this is pure insurance against a future regression.
         packaging.resources.excludes.addAll(
             listOf(
                 "**/*.kotlin_*",
@@ -117,14 +119,6 @@ fun Project.setupAppCommon(projectName: String = "") {
         }
 
         defaultConfig.targetSdk = 37
-        buildTypes.getByName("release") {
-            @Suppress("UnstableApiUsage")
-            vcsInfo.include = false
-            signingConfigs.findByName("release")?.let {
-                signingConfig = it
-            }
-            ndk.debugSymbolLevel = "NONE"
-        }
         // Fixed debug keystore committed to the repo: all CI builds share the
         // same signing key so a new APK installs over the old one. (Without this
         // each GitHub Actions runner generates a random debug keystore and the
@@ -138,6 +132,19 @@ fun Project.setupAppCommon(projectName: String = "") {
                 keyAlias = "androiddebugkey"
                 keyPassword = "android"
             }
+        }
+        buildTypes.getByName("release") {
+            @Suppress("UnstableApiUsage")
+            vcsInfo.include = false
+            // CI has no release keystore: sign the release APK with the fixed
+            // debug keystore so the release build (R8-minified, ~2x smaller than
+            // the debug one) still installs and upgrades cleanly.
+            val release = signingConfigs.findByName("release")
+            when {
+                release != null -> signingConfig = release
+                fixedDebugKeystore.exists() -> signingConfig = signingConfigs.getByName("debug")
+            }
+            ndk.debugSymbolLevel = "NONE"
         }
         buildTypes.getByName("debug") {
             applicationIdSuffix = "debug"
