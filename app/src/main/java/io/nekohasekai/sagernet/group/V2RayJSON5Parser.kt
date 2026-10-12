@@ -88,6 +88,12 @@ fun parseV2Ray5Outbound(outbound: JsonObject): List<AbstractBean> {
                                 } ?: tlsConfig.getStringArray("next_protocol")?.also {
                                     v2rayBean.alpn = it.joinToString("\n")
                                 }
+                                // NextClave: uTLS fingerprint from the server data.
+                                (tlsConfig.getString("fingerprint", ignoreCase = true)
+                                    ?: tlsConfig.getString("utlsFingerprint", ignoreCase = true))
+                                    ?.takeIf { it.isNotEmpty() && !it.equals("none", true) }?.also {
+                                        v2rayBean.utlsFingerprint = normalizeUtlsFingerprint(it)
+                                    }
                                 tlsConfig.getArray("certificate")?.asReversed()?.forEach { certificate ->
                                     when (certificate.getString("usage")) {
                                         null, "ENCIPHERMENT" -> {
