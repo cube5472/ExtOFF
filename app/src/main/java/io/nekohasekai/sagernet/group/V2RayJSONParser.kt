@@ -94,6 +94,12 @@ fun parseV2RayOutbound(outbound: JsonObject): List<AbstractBean> {
                                 tlsSettings.getString("serverName")?.also {
                                     v2rayBean.sni = it
                                 }
+                                // NextClave: uTLS fingerprint from the server data.
+                                tlsSettings.getString("fingerprint")?.takeIf {
+                                    it.isNotEmpty() && !it.equals("none", true)
+                                }?.also {
+                                    v2rayBean.utlsFingerprint = normalizeUtlsFingerprint(it)
+                                }
                                 tlsSettings.getStringArray("alpn")?.also {
                                     v2rayBean.alpn = it.joinToString("\n")
                                 } ?: tlsSettings.getString("alpn")?.also {
@@ -1484,6 +1490,12 @@ fun parseV2RayOutbound(outbound: JsonObject): List<AbstractBean> {
                         tlsConfig?.also { tlsSettings ->
                             tlsSettings.getString("serverName")?.also {
                                 anytlsBean.sni = it
+                            }
+                            // NextClave: uTLS fingerprint from the server data.
+                            tlsSettings.getString("fingerprint")?.takeIf {
+                                it.isNotEmpty() && !it.equals("none", true)
+                            }?.also {
+                                anytlsBean.utlsFingerprint = normalizeUtlsFingerprint(it)
                             }
                             tlsSettings.getStringArray("alpn")?.also {
                                 anytlsBean.alpn = it.joinToString("\n")
