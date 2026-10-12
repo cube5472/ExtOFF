@@ -456,6 +456,7 @@
         <item>Randomized</item>
         <item>RandomizedALPN</item>
         <item>RandomizedNoALPN</item>
+        <item>Random</item>
         <item>IOS_Auto</item>
         <item>Android_11_OkHttp</item>
         <item>Edge_Auto</item>
@@ -506,6 +507,7 @@
         <item>hellorandomized</item>
         <item>hellorandomizedalpn</item>
         <item>hellorandomizednoalpn</item>
+        <item>random</item>
         <item>helloios_auto</item>
         <item>helloandroid_11_okhttp</item>
         <item>helloedge_auto</item>
