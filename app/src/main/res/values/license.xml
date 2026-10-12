@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="license_gpl_v3_only" translatable="false">ExtPoint Edition</string>
-    <string name="license_gpl_v3_or_later" translatable="false">ExtPoint Edition</string>
+    <string name="license_gpl_v3_only" translatable="false">NextClave Edition</string>
+    <string name="license_gpl_v3_or_later" translatable="false">NextClave Edition</string>
 </resources>

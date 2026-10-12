@@ -2,6 +2,17 @@
 <menu xmlns:tools="http://schemas.android.com/tools"
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
+    <!-- NextClave: quick actions in the toolbar -->
+    <item
+        android:id="@+id/action_connection_url_test"
+        android:icon="@drawable/ic_baseline_speed_24"
+        android:title="@string/connection_test_url_test"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/action_update_subscription"
+        android:icon="@drawable/ic_baseline_update_24"
+        android:title="@string/update_subscription"
+        app:showAsAction="always" />
     <item
         android:id="@+id/action_search"
         android:title="@android:string/search_go"
@@ -125,9 +136,6 @@
         android:title="@string/connection_test">
         <menu>
             <item
-                android:id="@+id/action_connection_url_test"
-                android:title="@string/connection_test_url_test" />
-            <item
                 android:id="@+id/action_connection_test_clear_results"
                 android:title="@string/connection_test_clear_results" />
             <item
@@ -135,9 +143,6 @@
                 android:title="@string/connection_test_delete_unavailable" />
         </menu>
     </item>
-    <item
-        android:id="@+id/action_update_subscription"
-        android:title="@string/update_subscription" />
     <item
         android:id="@+id/action_order"
         android:title="@string/group_order">

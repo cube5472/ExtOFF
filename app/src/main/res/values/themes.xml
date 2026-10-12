@@ -135,8 +135,8 @@
         <item name="rippleColor">@color/chip_ripple_color</item>
     </style>
 
-    <!-- ExtPoint: card with thin accent border for coal themes -->
-    <style name="Widget.ExtPoint.CardView.Coal" parent="Widget.MaterialComponents.CardView">
+    <!-- NextClave: card with thin accent border for coal themes -->
+    <style name="Widget.NextClave.CardView.Coal" parent="Widget.MaterialComponents.CardView">
         <item name="cardBackgroundColor">?attr/colorSurface</item>
         <item name="strokeColor">?attr/coalBorderColor</item>
         <item name="strokeWidth">1dp</item>
@@ -161,7 +161,7 @@
     </style>
 
 
-    <!-- ExtPoint coal themes: pure black background with colored outline accents -->
+    <!-- NextClave coal themes: pure black background with colored outline accents -->
     <style name="Theme.SagerNet.CoalTurquoise" parent="Theme.SagerNet.Black">
         <item name="colorPrimary">@color/coal_turquoise</item>
         <item name="colorPrimaryDark">@color/coal_black</item>
@@ -176,10 +176,11 @@
 
         <item name="coalAppBarColor">@color/coal_black</item>
         <item name="coalBorderColor">@color/coal_turquoise</item>
-        <item name="materialCardViewStyle">@style/Widget.ExtPoint.CardView.Coal</item>
+        <item name="materialCardViewStyle">@style/Widget.NextClave.CardView.Coal</item>
+        <item name="elevationOverlayEnabled">false</item>
 
         <item name="selectedColorPrimary">@color/coal_turquoise</item>
-        <item name="fabColorBackground">?colorPrimary</item>
+        <item name="fabColorBackground">@color/coal_black</item>
         <item name="itemShapeFillColor">@color/coal_shape</item>
         <item name="tabIndicatorColor">@color/coal_turquoise</item>
         <item name="tabRippleColor">@color/coal_turquoise</item>
@@ -204,10 +205,11 @@
 
         <item name="coalAppBarColor">@color/coal_black</item>
         <item name="coalBorderColor">@color/coal_pink</item>
-        <item name="materialCardViewStyle">@style/Widget.ExtPoint.CardView.Coal</item>
+        <item name="materialCardViewStyle">@style/Widget.NextClave.CardView.Coal</item>
+        <item name="elevationOverlayEnabled">false</item>
 
         <item name="selectedColorPrimary">@color/coal_pink</item>
-        <item name="fabColorBackground">?colorPrimary</item>
+        <item name="fabColorBackground">@color/coal_black</item>
         <item name="itemShapeFillColor">@color/coal_shape</item>
         <item name="tabIndicatorColor">@color/coal_pink</item>
         <item name="tabRippleColor">@color/coal_pink</item>
@@ -423,10 +425,11 @@
 
         <item name="coalAppBarColor">@color/coal_black</item>
         <item name="coalBorderColor">@color/coal_turquoise</item>
-        <item name="materialCardViewStyle">@style/Widget.ExtPoint.CardView.Coal</item>
+        <item name="materialCardViewStyle">@style/Widget.NextClave.CardView.Coal</item>
+        <item name="elevationOverlayEnabled">false</item>
 
         <item name="selectedColorPrimary">@color/coal_turquoise</item>
-        <item name="fabColorBackground">?colorPrimary</item>
+        <item name="fabColorBackground">@color/coal_black</item>
         <item name="itemShapeFillColor">@color/coal_shape</item>
 
         <item name="accentOrTextSecondary">?colorAccent</item>
@@ -448,10 +451,11 @@
 
         <item name="coalAppBarColor">@color/coal_black</item>
         <item name="coalBorderColor">@color/coal_pink</item>
-        <item name="materialCardViewStyle">@style/Widget.ExtPoint.CardView.Coal</item>
+        <item name="materialCardViewStyle">@style/Widget.NextClave.CardView.Coal</item>
+        <item name="elevationOverlayEnabled">false</item>
 
         <item name="selectedColorPrimary">@color/coal_pink</item>
-        <item name="fabColorBackground">?colorPrimary</item>
+        <item name="fabColorBackground">@color/coal_black</item>
         <item name="itemShapeFillColor">@color/coal_shape</item>
 
         <item name="accentOrTextSecondary">?colorAccent</item>
