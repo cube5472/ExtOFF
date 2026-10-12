@@ -60,14 +60,20 @@ jobs:
         run: |
           echo "sdk.dir=${ANDROID_HOME}" > local.properties
           ./gradlew :app:downloadAssets
-          ./gradlew :app:assembleOssDebug :app:assembleLegacyDebug
+          # Build RELEASE variants (R8 + resource shrinking) signed with the
+          # committed debug.keystore. Debug variants skip R8, so their
+          # unminified dex made every APK roughly 40 MB; the release ones land
+          # at ~24 MB, matching upstream releases. Note: release APKs use the
+          # plain applicationId (no ".debug" suffix), so they install
+          # side-by-side with previously installed debug builds.
+          ./gradlew :app:assembleOssRelease :app:assembleLegacyRelease
       - name: Upload Artifacts
         uses: actions/upload-artifact@v7
         with:
           name: APKs
-          path: app/build/outputs/apk/oss/debug
+          path: app/build/outputs/apk/oss/release
       - name: Upload Artifacts
         uses: actions/upload-artifact@v7
         with:
           name: APKs-legacy
-          path: app/build/outputs/apk/legacy/debug
+          path: app/build/outputs/apk/legacy/release
