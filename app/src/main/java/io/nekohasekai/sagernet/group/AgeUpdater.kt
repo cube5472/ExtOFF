@@ -23,6 +23,7 @@ package io.nekohasekai.sagernet.group
 import androidx.core.net.toUri
 import io.nekohasekai.sagernet.R
 import io.nekohasekai.sagernet.SagerNet
+import io.nekohasekai.sagernet.GroupOrder
 import io.nekohasekai.sagernet.database.DataStore
 import io.nekohasekai.sagernet.database.GroupManager
 import io.nekohasekai.sagernet.database.ProxyEntity
@@ -187,6 +188,13 @@ object AgeUpdater : GroupUpdater() {
         val updated = mutableMapOf<String, String>()
         val deleted = toDelete.map { it.displayName() }
 
+        // NextClave: preserve the manual (ORIGIN) drag order across
+        // subscription updates, same as RawUpdater.
+        val preserveManualOrder = proxyGroup.order == GroupOrder.ORIGIN
+        val manualOrderBase = if (preserveManualOrder) {
+            SagerDatabase.proxyDao.getByGroup(proxyGroup.id).maxOfOrNull { it.userOrder } ?: 0L
+        } else 0L
+        var manualOrderSeq = 0L
         var userOrder = 1L
         var changed = toDelete.size
         for ((name, bean) in nameMap.entries) {
@@ -201,7 +209,7 @@ object AgeUpdater : GroupUpdater() {
                         toUpdate.add(entity)
                         updated[entity.displayName()] = name
                     }
-                    entity.userOrder != userOrder -> {
+                    !preserveManualOrder && entity.userOrder != userOrder -> {
                         entity.putBean(bean)
                         toUpdate.add(entity)
                         entity.userOrder = userOrder
@@ -210,7 +218,10 @@ object AgeUpdater : GroupUpdater() {
             } else {
                 changed++
                 SagerDatabase.proxyDao.addProxy(ProxyEntity(
-                    groupId = proxyGroup.id, userOrder = userOrder
+                    groupId = proxyGroup.id,
+                    userOrder = if (preserveManualOrder) {
+                        manualOrderBase + (++manualOrderSeq)
+                    } else userOrder
                 ).apply {
                     putBean(bean)
                 })

@@ -25,6 +25,7 @@ import io.nekohasekai.sagernet.R
 import io.nekohasekai.sagernet.SagerNet
 import io.nekohasekai.sagernet.database.DataStore
 import io.nekohasekai.sagernet.database.GroupManager
+import io.nekohasekai.sagernet.GroupOrder
 import io.nekohasekai.sagernet.database.ProxyEntity
 import io.nekohasekai.sagernet.database.ProxyGroup
 import io.nekohasekai.sagernet.database.SagerDatabase
@@ -198,6 +199,15 @@ object RawUpdater : GroupUpdater() {
         val updated = mutableMapOf<String, String>()
         val deleted = toDelete.map { it.displayName() }
 
+        // NextClave: when the group is in manual (ORIGIN) order, keep the
+        // user's drag arrangement across subscription updates: existing
+        // profiles keep their userOrder, new profiles are appended at the
+        // end. Otherwise the subscription order wins, as upstream.
+        val preserveManualOrder = proxyGroup.order == GroupOrder.ORIGIN
+        val manualOrderBase = if (preserveManualOrder) {
+            SagerDatabase.proxyDao.getByGroup(proxyGroup.id).maxOfOrNull { it.userOrder } ?: 0L
+        } else 0L
+        var manualOrderSeq = 0L
         var userOrder = 1L
         var changed = toDelete.size
         for ((name, bean) in nameMap.entries) {
@@ -212,7 +222,7 @@ object RawUpdater : GroupUpdater() {
                         toUpdate.add(entity)
                         updated[entity.displayName()] = name
                     }
-                    entity.userOrder != userOrder -> {
+                    !preserveManualOrder && entity.userOrder != userOrder -> {
                         entity.putBean(bean)
                         toUpdate.add(entity)
                         entity.userOrder = userOrder
@@ -221,7 +231,10 @@ object RawUpdater : GroupUpdater() {
             } else {
                 changed++
                 SagerDatabase.proxyDao.addProxy(ProxyEntity(
-                    groupId = proxyGroup.id, userOrder = userOrder
+                    groupId = proxyGroup.id,
+                    userOrder = if (preserveManualOrder) {
+                        manualOrderBase + (++manualOrderSeq)
+                    } else userOrder
                 ).apply {
                     putBean(bean)
                 })
