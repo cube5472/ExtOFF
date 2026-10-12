@@ -1080,7 +1080,11 @@ class ConfigurationFragment @JvmOverloads constructor(
                 undoManager = UndoSnackbarManager(activity as MainActivity, adapter)
             }
 
-            if (!parent.select && proxyGroup.type == GroupType.BASIC) {
+            // NextClave: allow manual drag reordering for every group type
+            // (BASIC and SUBSCRIPTION alike). See commitMove: the resulting
+            // order is stored as userOrder and the group switches to ORIGIN
+            // so the manual arrangement is actually visible.
+            if (!parent.select) {
                 ItemTouchHelper(object : ItemTouchHelper.SimpleCallback(
                     ItemTouchHelper.UP or ItemTouchHelper.DOWN, ItemTouchHelper.START
                 ) {
@@ -1260,6 +1264,16 @@ class ConfigurationFragment @JvmOverloads constructor(
             fun commitMove() = runOnDefaultDispatcher {
                 updated.forEach { SagerDatabase.proxyDao.updateProxy(it) }
                 updated.clear()
+                // NextClave: if the group was sorted by name/delay, a manual
+                // drag would be invisible after the next reload — switch the
+                // group to manual (ORIGIN) order once the user drags a node.
+                if (proxyGroup.order != GroupOrder.ORIGIN) {
+                    proxyGroup.order = GroupOrder.ORIGIN
+                    SagerDatabase.groupDao.updateGroup(proxyGroup)
+                    onMainDispatcher {
+                        checkOrderMenu()
+                    }
+                }
             }
 
             fun remove(pos: Int) {

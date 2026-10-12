@@ -151,7 +151,9 @@ class MainActivity : ThemedActivity(),
                 null
             )
         }
-        binding.stats.setOnClickListener { if (state == BaseService.State.Connected) binding.stats.testConnection() }
+        // NextClave: tap on the bottom bar detects the node IP + country flag
+        // (with latency) and keeps the result displayed.
+        binding.stats.setOnClickListener { if (state == BaseService.State.Connected) binding.stats.showNodeAddress() }
 
         setContentView(binding.root)
 
