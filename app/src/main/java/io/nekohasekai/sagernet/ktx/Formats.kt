@@ -156,6 +156,28 @@ fun parseBackupLines(text: String): List<AbstractBean> {
     return entities
 }
 
+// NextClave: keep the imported uTLS fingerprint in sync with what the server
+// data (share link "fp=" / JSON "fingerprint" / Clash "client-fingerprint")
+// actually says. Share links usually carry the short Xray names ("chrome"),
+// while the editor dropdown uses the raw utls ClientHelloID names
+// ("hellochrome_auto"); map the common short names so the selected value is
+// visible in the UI. Unknown values are stored as-is — the core understands
+// every valid uTLS identifier, they are just not in the dropdown.
+fun normalizeUtlsFingerprint(value: String): String = when (value.lowercase()) {
+    "chrome" -> "hellochrome_auto"
+    "firefox" -> "hellofirefox_auto"
+    "safari" -> "hellosafari_auto"
+    "ios" -> "helloios_auto"
+    "android" -> "helloandroid_11_okhttp"
+    "edge" -> "helloedge_auto"
+    "360" -> "hello360_auto"
+    "qq" -> "helloqq_auto"
+    "randomized" -> "hellorandomized"
+    "randomizedalpn" -> "hellorandomizedalpn"
+    "randomizednoalpn" -> "hellorandomizednoalpn"
+    else -> value
+}
+
 fun <T : Serializable> T.applyDefaultValues(): T {
     initializeDefaultValues()
     return this
