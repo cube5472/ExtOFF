@@ -125,10 +125,27 @@ fun Project.setupAppCommon(projectName: String = "") {
             }
             ndk.debugSymbolLevel = "NONE"
         }
+        // Fixed debug keystore committed to the repo: all CI builds share the
+        // same signing key so a new APK installs over the old one. (Without this
+        // each GitHub Actions runner generates a random debug keystore and the
+        // signature changes on every build, forcing a clean install.)
+        val fixedDebugKeystore = rootProject.file("debug.keystore")
+        if (fixedDebugKeystore.exists()) {
+            signingConfigs.maybeCreate("debug").apply {
+                storeFile = fixedDebugKeystore
+                storeType = "PKCS12"
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
+        }
         buildTypes.getByName("debug") {
             applicationIdSuffix = "debug"
             isDebuggable = true
             isJniDebuggable = true
+            if (fixedDebugKeystore.exists()) {
+                signingConfig = signingConfigs.getByName("debug")
+            }
         }
         dependenciesInfo.includeInApk = false
         dependenciesInfo.includeInBundle = false
