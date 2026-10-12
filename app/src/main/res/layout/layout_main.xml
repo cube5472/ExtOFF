@@ -40,7 +40,7 @@
             android:nextFocusDown="@+id/stats"
             app:backgroundTint="?fabColorBackground"
             app:strokeColor="?attr/coalBorderColor"
-            app:strokeWidth="1dp"
+            app:strokeWidth="2dp"
             app:layout_anchor="@id/stats"
             app:pressedTranslationZ="6dp"
             app:srcCompat="@drawable/ic_service_idle" />

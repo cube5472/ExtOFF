@@ -710,7 +710,7 @@ class ConfigurationFragment @JvmOverloads constructor(
         counterView.isGone = false
         counterView.text = "…"
 
-        // ExtPoint: narrow counter overlay instead of full dialog; tap to cancel
+        // NextClave: narrow counter overlay instead of full dialog; tap to cancel
         var mainJob: Job? = null
         counterView.setOnClickListener {
             counterView.isGone = true
@@ -1585,9 +1585,10 @@ class ConfigurationFragment @JvmOverloads constructor(
                         val isInsecure = DataStore.profileSecurityAdvisory && proxyEntity.requireBean().isInsecure
                         onMainDispatcher {
                             if (isInsecure) {
-                                shareLayer.setBackgroundColor(Color.RED)
+                                // small subtle warning icon instead of the ugly red square
+                                shareLayer.setBackgroundColor(Color.TRANSPARENT)
                                 shareButton.setImageResource(R.drawable.ic_baseline_warning_24)
-                                shareButton.setColorFilter(Color.WHITE)
+                                shareButton.setColorFilter(requireContext().getColour(R.color.material_red_400))
                             } else {
                                 shareLayer.setBackgroundColor(Color.TRANSPARENT)
                                 shareButton.setImageResource(R.drawable.ic_social_share)

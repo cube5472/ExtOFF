@@ -56,7 +56,7 @@ object Theme {
     const val COAL_TURQUOISE = 22
     const val COAL_PINK = 23
 
-    private fun defaultTheme() = PINK
+    private fun defaultTheme() = COAL_TURQUOISE
 
     fun apply(context: Context) {
         context.setTheme(getTheme())
