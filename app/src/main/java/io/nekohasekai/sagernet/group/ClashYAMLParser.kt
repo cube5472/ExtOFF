@@ -256,6 +256,13 @@ fun parseClashProxy(proxy: Map<String, Any?>): List<AbstractBean> {
             if (bean.security == "tls") {
                 bean.alpn = proxy.getStringArray("alpn")?.joinToString("\n")
                 bean.allowInsecure = proxy.getBoolean("skip-cert-verify") == true
+                // NextClave: uTLS fingerprint from the server data
+                // (mihomo "client-fingerprint").
+                proxy.getString("client-fingerprint")?.takeIf {
+                    it.isNotEmpty() && !it.equals("none", true)
+                }?.also {
+                    bean.utlsFingerprint = normalizeUtlsFingerprint(it)
+                }
                 proxy.getString("fingerprint")?.replace(":", "")?.trim()?.takeIf { it.isNotEmpty() }?.also {
                     bean.pinnedPeerCertificateSha256 = it
                     bean.allowInsecure = true
@@ -367,6 +374,10 @@ fun parseClashProxy(proxy: Map<String, Any?>): List<AbstractBean> {
                 bean.security = "reality"
                 bean.realityPublicKey = it.getString("public-key")?.ifEmpty { return listOf() }
                 bean.realityShortId = it.getString("short-id")
+                // NextClave: Reality handshake fingerprint from the server data.
+                proxy.getString("client-fingerprint")?.takeIf { it.isNotEmpty() }?.also {
+                    bean.realityFingerprint = it
+                }
             }
 
             if (bean.type == "tcp" && bean.headerType != null && bean.headerType == "http") {
