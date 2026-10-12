@@ -174,6 +174,11 @@ fun parseV2Ray(link: String): StandardV2RayBean {
             url.queryParameter("alpn")?.let {
                 bean.alpn = it.split(",").joinToString("\n")
             }
+            // NextClave: uTLS fingerprint from the server link ("fp="),
+            // so imported nodes are not stuck on "disabled".
+            url.queryParameter("fp")?.takeIf { it.isNotEmpty() && !it.equals("none", true) }?.let {
+                bean.utlsFingerprint = normalizeUtlsFingerprint(it)
+            }
             if (bean is VLESSBean) {
                 url.queryParameter("flow")?.let {
                     when (it) {
@@ -242,6 +247,10 @@ fun parseV2Ray(link: String): StandardV2RayBean {
         "reality" -> {
             url.queryParameter("sni")?.let {
                 bean.sni = it
+            }
+            // NextClave: Reality handshake fingerprint from the server link.
+            url.queryParameter("fp")?.takeIf { it.isNotEmpty() && !it.equals("none", true) }?.let {
+                bean.realityFingerprint = it
             }
             url.queryParameter("pbk")?.let {
                 try {
@@ -565,6 +574,10 @@ private fun parseV2RayN(json: JsonObject): VMessBean {
             encryption = it
         }
         name = json.getString("ps")?.takeIf { it.isNotEmpty() }
+        // NextClave: uTLS fingerprint from the server data (v2rayN "fp" field).
+        json.getString("fp")?.takeIf { it.isNotEmpty() && !it.equals("none", true) }?.let {
+            utlsFingerprint = normalizeUtlsFingerprint(it)
+        }
     }
 
     val net = json.getString("net")
