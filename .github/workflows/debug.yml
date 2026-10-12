@@ -41,7 +41,11 @@ jobs:
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
         run: |
-          ./run lib core debug
+          # Build the core exactly like the release workflow does (stripped:
+          # -ldflags="-s -buildid=", -trimpath). The old "core debug" variant
+          # skipped the strip flags, which made libgojni.so (and thus every
+          # debug APK) roughly twice as large as the upstream release builds.
+          ./run lib core
       - name: Upload Artifacts
         uses: actions/upload-artifact@v7
         with:
