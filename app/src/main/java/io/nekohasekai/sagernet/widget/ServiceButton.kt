@@ -22,6 +22,7 @@
 package io.nekohasekai.sagernet.widget
 
 import android.content.Context
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.drawable.Drawable
 import android.os.Build
@@ -39,11 +40,12 @@ import androidx.vectordrawable.graphics.drawable.AnimatedVectorDrawableCompat
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.progressindicator.BaseProgressIndicator
 import com.google.android.material.progressindicator.DeterminateDrawable
+import com.google.android.material.shape.MaterialShapeDrawable
 import io.nekohasekai.sagernet.FabStyle
 import io.nekohasekai.sagernet.R
 import io.nekohasekai.sagernet.bg.BaseService
 import io.nekohasekai.sagernet.database.DataStore
-import io.nekohasekai.sagernet.ktx.dp2px
+import io.nekohasekai.sagernet.ktx.dp2pxf
 import io.nekohasekai.sagernet.ktx.getColorAttr
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -121,10 +123,14 @@ class ServiceButton @JvmOverloads constructor(
     init {
         // Coal themes: draw the accent border programmatically so it does not
         // depend on the (possibly outdated) layout XML being applied.
+        // NOTE: Material 1.14 removed FloatingActionButton.setStrokeColor/setStrokeWidth,
+        // so the border is applied to the underlying MaterialShapeDrawable instead.
         val borderColor = context.getColorAttr(R.attr.coalBorderColor)
         if (borderColor != Color.TRANSPARENT) {
-            strokeColor = borderColor
-            strokeWidth = dp2px(2)
+            (background as? MaterialShapeDrawable)?.apply {
+                strokeColor = ColorStateList.valueOf(borderColor)
+                strokeWidth = dp2pxf(2)
+            }
         }
     }
 
