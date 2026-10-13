@@ -284,6 +284,15 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                             }
                             .build())
                         .build())
+                    // ExtPoint: homage to the modder
+                    .addCard(MaterialAboutCard.Builder()
+                        .outline(false)
+                        .addItem(MaterialAboutTitleItem.Builder()
+                            .icon(R.drawable.mod_avatar)
+                            .text("/ мод ext.point")
+                            .desc("/ для RKN OFF LINE")
+                            .build())
+                        .build())
                     .build()
             } catch (_: IllegalStateException) {
                 return MaterialAboutList.Builder().build()

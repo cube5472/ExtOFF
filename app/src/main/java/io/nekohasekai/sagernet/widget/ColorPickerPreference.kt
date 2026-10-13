@@ -25,6 +25,7 @@ import android.content.res.Resources
 import android.graphics.Color
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.LayerDrawable
 import android.util.AttributeSet
 import android.view.View
 import android.view.ViewGroup
@@ -137,16 +138,31 @@ class ColorPickerPreference
             val coalThemes = listOf(
                 io.nekohasekai.sagernet.utils.Theme.COAL_TURQUOISE to ContextCompat.getColor(context, R.color.coal_turquoise),
                 io.nekohasekai.sagernet.utils.Theme.COAL_PINK to ContextCompat.getColor(context, R.color.coal_pink),
+                io.nekohasekai.sagernet.utils.Theme.COAL_BLACK to ContextCompat.getColor(context, R.color.coal_green),
             )
             for ((id, color) in coalThemes) {
-                val outline = GradientDrawable().apply {
+                val inner = GradientDrawable().apply {
                     shape = GradientDrawable.OVAL
                     setColor(Color.BLACK)
                     setStroke(dp2px(4), color)
                 }
+                // the near-black outline of the coal black swatch needs a hairline
+                // gray ring to stay visible/selectable inside the dark dialog
+                val drawable = if (id == io.nekohasekai.sagernet.utils.Theme.COAL_BLACK) {
+                    val ring = GradientDrawable().apply {
+                        shape = GradientDrawable.OVAL
+                        setColor(Color.TRANSPARENT)
+                        setStroke(dp2px(1), Color.parseColor("#6B6B6B"))
+                    }
+                    LayerDrawable(arrayOf(ring, inner)).apply {
+                        setLayerInset(1, dp2px(1), dp2px(1), dp2px(1), dp2px(1))
+                    }
+                } else {
+                    inner
+                }
                 val view = ImageView(context).apply {
                     layoutParams = ViewGroup.LayoutParams(dp2px(64), dp2px(64))
-                    setImageDrawable(outline)
+                    setImageDrawable(drawable)
                     setOnClickListener {
                         persistInt(id)
                         dialog.dismiss()

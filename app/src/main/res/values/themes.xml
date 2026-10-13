@@ -162,6 +162,32 @@
 
 
     <!-- NextClave coal themes: pure black background with colored outline accents -->
+    <style name="Theme.SagerNet.Dialog.CoalBlack" parent="Theme.SagerNet.Dialog.Black">
+        <item name="colorPrimary">@color/coal_green</item>
+        <item name="colorPrimaryDark">@color/coal_black</item>
+        <item name="colorAccent">@color/coal_green</item>
+        <item name="colorMaterial100">@color/coal_green_100</item>
+        <item name="colorMaterial300">@color/coal_green_300</item>
+
+        <item name="android:windowBackground">@color/coal_surface</item>
+        <item name="android:colorBackground">@color/coal_surface</item>
+        <item name="colorSurface">@color/coal_surface</item>
+
+        <item name="coalAppBarColor">@color/coal_black</item>
+        <item name="coalBorderColor">@color/coal_green</item>
+        <item name="materialCardViewStyle">@style/Widget.NextClave.CardView.Coal</item>
+        <item name="elevationOverlayEnabled">false</item>
+
+        <item name="selectedColorPrimary">@color/coal_green_100</item>
+        <item name="fabColorBackground">@color/coal_black</item>
+        <item name="itemShapeFillColor">@color/coal_shape</item>
+
+        <item name="accentOrTextSecondary">?android:textColorSecondary</item>
+        <item name="accentOrTextPrimary">?android:textColorPrimary</item>
+        <item name="primaryOrTextSecondary">?android:textColorSecondary</item>
+        <item name="primaryOrTextPrimary">?android:textColorPrimary</item>
+    </style>
+
     <style name="Theme.SagerNet.CoalTurquoise" parent="Theme.SagerNet.Black">
         <item name="colorPrimary">@color/coal_turquoise</item>
         <item name="colorPrimaryDark">@color/coal_black</item>
@@ -218,6 +244,35 @@
         <item name="accentOrTextPrimary">?colorAccent</item>
         <item name="primaryOrTextSecondary">?colorPrimary</item>
         <item name="primaryOrTextPrimary">?colorPrimary</item>
+    </style>
+
+    <style name="Theme.SagerNet.CoalBlack" parent="Theme.SagerNet.Black">
+        <item name="colorPrimary">@color/coal_green</item>
+        <item name="colorPrimaryDark">@color/coal_black</item>
+        <item name="colorAccent">@color/coal_green</item>
+        <item name="colorMaterial100">@color/coal_green_100</item>
+        <item name="colorMaterial300">@color/coal_green_300</item>
+
+        <item name="android:windowBackground">@color/coal_black</item>
+        <item name="android:colorBackground">@color/coal_black</item>
+        <item name="colorSurface">@color/coal_surface</item>
+        <item name="android:navigationBarColor">@color/coal_black</item>
+
+        <item name="coalAppBarColor">@color/coal_black</item>
+        <item name="coalBorderColor">@color/coal_green</item>
+        <item name="materialCardViewStyle">@style/Widget.NextClave.CardView.Coal</item>
+        <item name="elevationOverlayEnabled">false</item>
+
+        <item name="selectedColorPrimary">@color/coal_green_100</item>
+        <item name="fabColorBackground">@color/coal_black</item>
+        <item name="itemShapeFillColor">@color/coal_shape</item>
+        <item name="tabIndicatorColor">@color/coal_green</item>
+        <item name="tabRippleColor">@color/coal_green</item>
+
+        <item name="accentOrTextSecondary">?android:textColorSecondary</item>
+        <item name="accentOrTextPrimary">?android:textColorPrimary</item>
+        <item name="primaryOrTextSecondary">?android:textColorSecondary</item>
+        <item name="primaryOrTextPrimary">?android:textColorPrimary</item>
     </style>
 
     <style name="Theme.SagerNet.LightBlack">

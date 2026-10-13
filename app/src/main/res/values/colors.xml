@@ -36,6 +36,9 @@
     <color name="coal_pink">#FF5C93</color>
     <color name="coal_pink_100">#FFC2D8</color>
     <color name="coal_pink_300">#FF8FB4</color>
+    <color name="coal_green">#0F2B24</color>
+    <color name="coal_green_100">#35705E</color>
+    <color name="coal_green_300">#1C4034</color>
 
     <color name="material_amber_100">#FFECB3</color>
     <color name="material_amber_200">#FFE082</color>

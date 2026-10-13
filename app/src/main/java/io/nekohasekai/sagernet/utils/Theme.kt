@@ -55,6 +55,7 @@ object Theme {
 
     const val COAL_TURQUOISE = 22
     const val COAL_PINK = 23
+    const val COAL_BLACK = 24
 
     private fun defaultTheme() = COAL_TURQUOISE
 
@@ -98,6 +99,7 @@ object Theme {
             BLACK -> if (usingNightMode()) R.style.Theme_SagerNet_Black else R.style.Theme_SagerNet_LightBlack
             COAL_TURQUOISE -> R.style.Theme_SagerNet_CoalTurquoise
             COAL_PINK -> R.style.Theme_SagerNet_CoalPink
+            COAL_BLACK -> R.style.Theme_SagerNet_CoalBlack
             DYNAMIC -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) R.style.Theme_SagerNet_Dynamic else getTheme(defaultTheme())
             else -> getTheme(defaultTheme())
         }
@@ -127,6 +129,7 @@ object Theme {
             BLACK -> if (usingNightMode()) R.style.Theme_SagerNet_Dialog_Black else R.style.Theme_SagerNet_Dialog_LightBlack
             COAL_TURQUOISE -> R.style.Theme_SagerNet_Dialog_CoalTurquoise
             COAL_PINK -> R.style.Theme_SagerNet_Dialog_CoalPink
+            COAL_BLACK -> R.style.Theme_SagerNet_Dialog_CoalBlack
             DYNAMIC -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) R.style.Theme_SagerNet_Dialog_Dynamic else getDialogTheme(defaultTheme())
             else -> getDialogTheme(defaultTheme())
         }
