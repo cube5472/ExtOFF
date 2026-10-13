@@ -206,7 +206,8 @@ class ConfigurationFragment @JvmOverloads constructor(
 
         TabLayoutMediator(tabLayout, groupPager) { tab, position ->
             if (adapter.groupList.size > position) {
-                tab.text = adapter.groupList[position].displayName()
+                // NextClave: tab title includes the proxy count, e.g. "Sub (25)"
+                tab.text = adapter.tabTitle(position)
             }
             tab.view.setOnLongClickListener { // clear toast
                 true
@@ -795,6 +796,31 @@ class ConfigurationFragment @JvmOverloads constructor(
         var groupList: ArrayList<ProxyGroup> = ArrayList()
         var groupFragments: HashMap<Long, GroupFragment> = HashMap()
 
+        // NextClave: cached proxy counts per group id, used by tabTitle()
+        // ("subscription chips" show how many nodes a group contains)
+        val groupCounts = HashMap<Long, Int>()
+
+        fun tabTitle(position: Int): String {
+            val group = groupList[position]
+            val count = groupCounts[group.id]
+            return if (count != null && count > 0) "${group.displayName()} ($count)" else group.displayName()
+        }
+
+        fun refreshCounts() = runOnDefaultDispatcher {
+            val ids = ArrayList(groupList.map { it.id })
+            val counts = HashMap<Long, Int>()
+            for (id in ids) {
+                counts[id] = SagerDatabase.proxyDao.countByGroup(id).toInt()
+            }
+            onMainDispatcher {
+                groupCounts.clear()
+                groupCounts.putAll(counts)
+                for (i in groupList.indices) {
+                    tabLayout.getTabAt(i)?.text = tabTitle(i)
+                }
+            }
+        }
+
         fun reload(now: Boolean = false) {
 
             if (!select) {
@@ -835,6 +861,7 @@ class ConfigurationFragment @JvmOverloads constructor(
                 runFunc {
                     groupList = newGroupList
                     notifyDataSetChanged()
+                    refreshCounts()
                     if (set) groupPager.setCurrentItem(selectedGroupIndex, false)
                     val hideTab = groupList.size < 2
                     tabLayout.isGone = hideTab
@@ -882,6 +909,7 @@ class ConfigurationFragment @JvmOverloads constructor(
 
                 notifyItemInserted(groupList.size - 1)
                 tabLayout.getTabAt(groupList.size - 1)?.select()
+                refreshCounts()
             }
         }
 
@@ -901,6 +929,7 @@ class ConfigurationFragment @JvmOverloads constructor(
             tabLayout.post {
                 tabLayout.getTabAt(index)?.text = group.displayName()
             }
+            refreshCounts()
         }
 
         override suspend fun groupUpdated(groupId: Long) = Unit
@@ -909,6 +938,8 @@ class ConfigurationFragment @JvmOverloads constructor(
             if (groupList.find { it.id == profile.groupId } == null) {
                 DataStore.selectedGroup = profile.groupId
                 reload()
+            } else {
+                refreshCounts()
             }
         }
 
@@ -920,6 +951,8 @@ class ConfigurationFragment @JvmOverloads constructor(
             val group = groupList.find { it.id == groupId } ?: return
             if (group.ungrouped && SagerDatabase.proxyDao.countByGroup(groupId) == 0L) {
                 reload()
+            } else {
+                refreshCounts()
             }
         }
     }
@@ -1519,8 +1552,8 @@ class ConfigurationFragment @JvmOverloads constructor(
                 }
 
                 profileAddress.text = address
-                (trafficText.parent as View).isGone = (!showTraffic || proxyEntity.status <= 0) && address.isEmpty()
-
+                // NextClave: the address/traffic row always occupies its space,
+                // so the card size never changes when traffic appears on connect.
                 if (proxyEntity.status <= 0) {
                     if (showTraffic) {
                         profileStatus.text = trafficText.text
@@ -1663,12 +1696,8 @@ class ConfigurationFragment @JvmOverloads constructor(
                     )
                 }
 
-                var address = proxyEntity.displayAddress()
-                if (proxyEntity.requireBean().name.isEmpty() || !parent.alwaysShowAddress) {
-                    address = ""
-                }
-
-                (trafficText.parent as View).isGone = (!showTraffic || proxyEntity.status <= 0) && address.isEmpty()
+                // NextClave: the address/traffic row always occupies its space
+                // (reserved in layout), so the card size never jumps.
 
                 if (proxyEntity.status <= 0) {
                     if (showTraffic) {
