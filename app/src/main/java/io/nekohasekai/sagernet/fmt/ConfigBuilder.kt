@@ -505,7 +505,12 @@ fun buildV2RayConfig(
         outbounds = mutableListOf()
 
         routing = RoutingObject().apply {
-            domainStrategy = DataStore.domainStrategy
+            // NextClave: URL test measures the same way as v2rayNG/NekoBox do:
+            // the test URL's domain is passed through the proxy and resolved
+            // SERVER-side. Resolving it locally first (IPIfNonMatch etc. with
+            // remote DoH servers through the tunnel) adds seconds and wildly
+            // inflates the reported latency.
+            domainStrategy = if (forTest) "AsIs" else DataStore.domainStrategy
 
             rules = mutableListOf()
 
@@ -628,7 +633,7 @@ fun buildV2RayConfig(
                         }
                     }
 
-                    var currentDomainStrategy = DataStore.outboundDomainStrategy
+                    var currentDomainStrategy = if (forTest) "AsIs" else DataStore.outboundDomainStrategy
 
                     if (proxyEntity.needExternal()) {
                         val localPort = mkPort()
@@ -1952,7 +1957,7 @@ fun buildV2RayConfig(
                         currentOutbound.domainStrategy = currentDomainStrategy
                     }
 
-                    if (!(currentOutbound.domainStrategy == null && DataStore.outboundDomainStrategyForServer == "AsIs")
+                    if (!forTest && !(currentOutbound.domainStrategy == null && DataStore.outboundDomainStrategyForServer == "AsIs")
                         && !(currentOutbound.domainStrategy == "AsIs" && DataStore.outboundDomainStrategyForServer == "AsIs")
                         && currentOutbound.domainStrategy != DataStore.outboundDomainStrategyForServer) {
                         currentOutbound.dialDomainStrategy = DataStore.outboundDomainStrategyForServer
@@ -2617,7 +2622,16 @@ fun buildV2RayConfig(
         }
 
         var hasDnsTagDirect = false
-        if (bypassDomain.isNotEmpty() || bypassDomainSkipFakeDns.isNotEmpty() || bootstrapDomain.isNotEmpty()) {
+        if (forTest) {
+            // NextClave: URL test does not need the configured remote DNS
+            // (DoH through the cold tunnel would add seconds). Routing is
+            // forced to AsIs above, so nothing queries the DNS module for the
+            // test URL; keep only the fast system resolver around in case an
+            // outbound still has to resolve something (WireGuard endpoint etc.).
+            dns.servers.add(DnsObject.StringOrServerObject().apply {
+                valueX = "localhost"
+            })
+        } else if (bypassDomain.isNotEmpty() || bypassDomainSkipFakeDns.isNotEmpty() || bootstrapDomain.isNotEmpty()) {
             dns.servers.addAll(remoteDNS.map {
                 DnsObject.StringOrServerObject().apply {
                     valueY = DnsObject.ServerObject().apply {

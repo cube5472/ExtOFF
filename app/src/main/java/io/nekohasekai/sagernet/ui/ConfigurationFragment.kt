@@ -739,13 +739,13 @@ class ConfigurationFragment @JvmOverloads constructor(
             }
 
             val testJobs = mutableListOf<Job>()
-            // 3 workers instead of 6: six concurrent Xray cores plus six TLS
-            // handshakes contend for CPU on a phone and visibly skew the
-            // measured latency upwards. Stagger the starts as well so the
-            // tests do not all burst at t=0.
-            repeat(3) { index ->
+            // NextClave: 2 workers with a wide stagger. Every worker runs a
+            // full separate Xray core and a full TLS handshake; parallel cores
+            // contend for CPU on a phone and skew the measured latency upwards
+            // (v2rayNG tests strictly sequentially — hence its lower numbers).
+            repeat(2) { index ->
                 testJobs.add(launch {
-                    delay(index * 250L)
+                    delay(index * 500L)
                     while (isActive) {
                         val profile = profiles.poll() ?: break
                         profile.status = 0

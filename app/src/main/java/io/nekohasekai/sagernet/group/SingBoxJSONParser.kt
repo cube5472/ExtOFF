@@ -162,6 +162,17 @@ fun parseSingBoxOutbound(outbound: JsonObject): List<AbstractBean> {
                                     // https://github.com/SagerNet/sing-box/pull/1934
                                     v2rayBean.alpn = "h3"
                                 }
+                                // NextClave: uTLS fingerprint from the server data
+                                // (sing-box "tls": {"utls": {"enabled": true, "fingerprint": "chrome"}}).
+                                var utlsFp: String? = null
+                                tls.getObject("utls")?.also { utls ->
+                                    utls.getString("fingerprint")?.takeIf {
+                                        it.isNotEmpty() && !it.equals("none", true)
+                                    }?.also {
+                                        utlsFp = it
+                                        v2rayBean.utlsFingerprint = normalizeUtlsFingerprint(it)
+                                    }
+                                }
                                 /*if (v2rayBean.alpn == null && type == "http") {
                                     // sing-box does not support HTTP/2 CONNECT
                                     v2rayBean.alpn = "http/1.1"
@@ -223,6 +234,12 @@ fun parseSingBoxOutbound(outbound: JsonObject): List<AbstractBean> {
                                             }
                                             reality.getString("short_id")?.also {
                                                 v2rayBean.realityShortId = it
+                                            }
+                                            // NextClave: for REALITY the config builder emits the
+                                            // fingerprint from realityFingerprint, so keep it in sync
+                                            // with tls.utls.fingerprint from the server data.
+                                            utlsFp?.takeIf { v2rayBean.realityFingerprint.isEmpty() }?.also {
+                                                v2rayBean.realityFingerprint = it
                                             }
                                         }
                                     }

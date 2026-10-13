@@ -65,6 +65,7 @@ class StatsBar @JvmOverloads constructor(
         // currently selected profile, so it stays displayed after reconnects.
         private var cachedProfileId = 0L
         private var cachedAddressText: String? = null
+        private var cachedCountryCode: String? = null
     }
 
     override fun getBehavior(): YourBehavior {
@@ -270,7 +271,16 @@ class StatsBar @JvmOverloads constructor(
                     else withTimeoutOrNull(10_000L) {
                         InetAddress.getAllByName(host).firstOrNull()?.hostAddress
                     } ?: return@async null
-                    ip to lookupCountryCode(ip)
+                    // NextClave: fresh lookup with several providers; if all
+                    // of them fail, fall back to the country cached for this
+                    // profile so the flag does not blink away.
+                    val fresh = withTimeoutOrNull(20_000L) { lookupCountryCode(ip) }
+                    if (fresh != null) {
+                        cachedCountryCode = fresh
+                        cachedProfileId = profileId
+                    }
+                    val country = fresh ?: cachedCountryCode?.takeIf { cachedProfileId == profileId }
+                    ip to country
                 } catch (e: Exception) {
                     Logs.w(e)
                     null
@@ -299,31 +309,61 @@ class StatsBar @JvmOverloads constructor(
             }
         }
     }
-
-    private suspend fun lookupCountryCode(ip: String): String? = withTimeoutOrNull(8_000L) {
-        try {
-            val client = Libexclavecore.newHttpClient().apply {
-                if (SagerNet.started && DataStore.startedProfile > 0) {
-                    useUDS(SagerNet.deviceStorage.noBackupFilesDir.toString() + "/ipc.sock")
-                }
-            }
-            // HTTPS first, plain-HTTP fallback (both free, no API key).
-            val body = try {
-                client.newRequest().apply {
-                    setURL("https://get.geojs.io/v1/ip/country/" + ip + ".json")
-                }.execute().contentString
-            } catch (_: Exception) {
-                client.newRequest().apply {
-                    setURL("http://ip-api.com/json/" + ip + "?fields=countryCode")
-                }.execute().contentString
-            }
-            val json = parseJson(body).asJsonObject
-            (json.get("country_code") ?: json.get("countryCode"))?.asString
-                ?.takeIf { it.length == 2 }?.uppercase()
-        } catch (e: Exception) {
-            Logs.w(e)
-            null
+    // NextClave: several free geo providers, each on its own HTTP client.
+    // geojs.io through the tunnel first (the app's own direct network may be
+    // unusable), then the same API directly, then two more fallbacks. A
+    // single silent failure used to lose the flag entirely.
+    private suspend fun lookupCountryCode(ip: String): String? {
+        if (SagerNet.started && DataStore.startedProfile > 0) {
+            withTimeoutOrNull(6_000L) { geojsCountry(ip, viaTunnel = true) }?.let { return it }
         }
+        withTimeoutOrNull(6_000L) { geojsCountry(ip, viaTunnel = false) }?.let { return it }
+        withTimeoutOrNull(6_000L) { ipApiCountry(ip) }?.let { return it }
+        withTimeoutOrNull(6_000L) { ipWhoIsCountry(ip) }?.let { return it }
+        return null
+    }
+
+    private suspend fun geojsCountry(ip: String, viaTunnel: Boolean): String? = try {
+        val client = Libexclavecore.newHttpClient().apply {
+            if (viaTunnel) {
+                useUDS(SagerNet.deviceStorage.noBackupFilesDir.toString() + "/ipc.sock")
+            }
+        }
+        val body = client.newRequest().apply {
+            setURL("https://get.geojs.io/v1/ip/country/$ip.json")
+        }.execute().contentString
+        // geojs.io answer: {"country":"US","country_3":"USA","ip":...,"name":...}
+        // the alpha-2 code lives in the "country" field (NOT "country_code") —
+        // that mismatch is why the flag never showed.
+        parseJson(body).asJsonObject.get("country")?.asString
+            ?.takeIf { it.length == 2 }?.uppercase()
+    } catch (e: Exception) {
+        Logs.w(e)
+        null
+    }
+
+    private suspend fun ipApiCountry(ip: String): String? = try {
+        val client = Libexclavecore.newHttpClient()
+        val body = client.newRequest().apply {
+            setURL("http://ip-api.com/json/$ip?fields=countryCode")
+        }.execute().contentString
+        parseJson(body).asJsonObject.get("countryCode")?.asString
+            ?.takeIf { it.length == 2 }?.uppercase()
+    } catch (e: Exception) {
+        Logs.w(e)
+        null
+    }
+
+    private suspend fun ipWhoIsCountry(ip: String): String? = try {
+        val client = Libexclavecore.newHttpClient()
+        val body = client.newRequest().apply {
+            setURL("https://ipwho.is/$ip")
+        }.execute().contentString
+        parseJson(body).asJsonObject.get("country_code")?.asString
+            ?.takeIf { it.length == 2 }?.uppercase()
+    } catch (e: Exception) {
+        Logs.w(e)
+        null
     }
 
     private fun flagEmoji(countryCode: String): String {
