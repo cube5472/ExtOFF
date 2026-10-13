@@ -4,6 +4,11 @@ go 1.26.0
 
 require github.com/exclavenetwork/libexclavecore v0.0.0-20260916015005-9c96e6f87afd
 
+// NextClave: use a local copy of the binding module with a fixed UrlTest
+// (two warm attempts with keep-alive, report the minimum - v2rayNG method).
+// The patch lives in ./patched/libexclavecore and is picked up by CI.
+replace github.com/exclavenetwork/libexclavecore => ./patched/libexclavecore
+
 require (
 	filippo.io/age v1.3.2 // indirect
 	filippo.io/hpke v0.4.0 // indirect
