@@ -112,6 +112,35 @@ class ConfigurationFragment @JvmOverloads constructor(
     val selectedGroup get() = if (tabLayout.isGone && adapter.groupList.size > 0) adapter.groupList[0] else (if (adapter.groupList.size > 0 && tabLayout.selectedTabPosition > -1) adapter.groupList[tabLayout.selectedTabPosition] else ProxyGroup())
     val alwaysShowAddress by lazy { DataStore.alwaysShowAddress }
 
+    // NextClave: node count cache for subscription group tabs (chips).
+    private val groupNodeCounts = mutableMapOf<Long, Int>()
+
+    private fun tabLabel(group: ProxyGroup): String {
+        val base = group.displayName()
+        if (group.type != GroupType.SUBSCRIPTION) return base
+        val count = groupNodeCounts[group.id] ?: return base
+        return "$base · $count"
+    }
+
+    private fun updateGroupTabTexts() {
+        adapter.groupList.forEachIndexed { index, group ->
+            tabLayout.getTabAt(index)?.text = tabLabel(group)
+        }
+    }
+
+    private fun refreshGroupNodeCounts() {
+        runOnDefaultDispatcher {
+            for (group in adapter.groupList) {
+                if (group.type != GroupType.SUBSCRIPTION) continue
+                val count = SagerDatabase.proxyDao.countByGroup(group.id).toInt()
+                if (groupNodeCounts[group.id] != count) {
+                    groupNodeCounts[group.id] = count
+                    onMainDispatcher { updateGroupTabTexts() }
+                }
+            }
+        }
+    }
+
     val updateSelectedCallback = object : ViewPager2.OnPageChangeCallback() {
         override fun onPageScrolled(
             position: Int, positionOffset: Float, positionOffsetPixels: Int
@@ -206,7 +235,7 @@ class ConfigurationFragment @JvmOverloads constructor(
 
         TabLayoutMediator(tabLayout, groupPager) { tab, position ->
             if (adapter.groupList.size > position) {
-                tab.text = adapter.groupList[position].displayName()
+                tab.text = tabLabel(adapter.groupList[position])
             }
             tab.view.setOnLongClickListener { // clear toast
                 true
@@ -842,6 +871,7 @@ class ConfigurationFragment @JvmOverloads constructor(
                         groupPager.registerOnPageChangeCallback(updateSelectedCallback)
                     }
                 }
+                refreshGroupNodeCounts()
             }
         }
 
@@ -898,17 +928,21 @@ class ConfigurationFragment @JvmOverloads constructor(
             if (index == -1) return
 
             tabLayout.post {
-                tabLayout.getTabAt(index)?.text = group.displayName()
+                tabLayout.getTabAt(index)?.text = tabLabel(group)
+                refreshGroupNodeCounts()
             }
         }
 
-        override suspend fun groupUpdated(groupId: Long) = Unit
+        override suspend fun groupUpdated(groupId: Long) {
+            refreshGroupNodeCounts()
+        }
 
         override suspend fun onAdd(profile: ProxyEntity) {
             if (groupList.find { it.id == profile.groupId } == null) {
                 DataStore.selectedGroup = profile.groupId
                 reload()
             }
+            refreshGroupNodeCounts()
         }
 
         override suspend fun onUpdated(profileId: Long, trafficStats: TrafficStats) = Unit
@@ -920,6 +954,7 @@ class ConfigurationFragment @JvmOverloads constructor(
             if (group.ungrouped && SagerDatabase.proxyDao.countByGroup(groupId) == 0L) {
                 reload()
             }
+            refreshGroupNodeCounts()
         }
     }
 
@@ -1492,25 +1527,6 @@ class ConfigurationFragment @JvmOverloads constructor(
                 profileName.text = proxyEntity.displayName()
                 profileType.text = proxyEntity.displayType()
 
-                var rx = proxyEntity.rx
-                var tx = proxyEntity.tx
-
-                val stats = proxyEntity.stats
-                if (stats != null) {
-                    rx += stats.rxTotal
-                    tx += stats.txTotal
-                }
-
-                val showTraffic = rx + tx != 0L
-                trafficText.isVisible = showTraffic
-                if (showTraffic) {
-                    trafficText.text = view.context.getString(
-                        R.string.traffic,
-                        FormatFileSizeCompat.formatFileSize(view.context, tx, DataStore.useIECUnit),
-                        FormatFileSizeCompat.formatFileSize(view.context, rx, DataStore.useIECUnit)
-                    )
-                }
-
                 var address = proxyEntity.displayAddress()
 
                 if (proxyEntity.requireBean().name.isEmpty() || !parent.alwaysShowAddress) {
@@ -1518,20 +1534,13 @@ class ConfigurationFragment @JvmOverloads constructor(
                 }
 
                 profileAddress.text = address
-                (trafficText.parent as View).isGone = (!showTraffic || proxyEntity.status <= 0) && address.isEmpty()
 
-                if (proxyEntity.status <= 0) {
-                    if (showTraffic) {
-                        profileStatus.text = trafficText.text
-                        profileStatus.setTextColor(requireContext().getColorAttr(android.R.attr.textColorSecondary))
-                        trafficText.text = ""
-                    } else {
-                        profileStatus.text = ""
-                    }
-                } else if (proxyEntity.status == 1) {
-                    profileStatus.text = getString(R.string.available, proxyEntity.ping)
-                    profileStatus.setTextColor(requireContext().getColour(R.color.material_green_500))
-                } else {
+                // NextClave: keep the card height constant — live traffic is
+                // rendered inside the status row, the extra row holds only
+                // the address (see renderTrafficAndStatus).
+                renderTrafficAndStatus(proxyEntity, address)
+
+                if (proxyEntity.status >= 2) {
                     profileStatus.setTextColor(requireContext().getColour(R.color.material_red_500))
                     if (proxyEntity.status == 2) {
                         profileStatus.text = proxyEntity.error
@@ -1637,12 +1646,13 @@ class ConfigurationFragment @JvmOverloads constructor(
 
             }
 
-            fun updateTraffic(proxyEntity: ProxyEntity) {
-                val parent = parent ?: return
-                if (!::entity.isInitialized) return
-
-                entity.stats = proxyEntity.stats
-
+            // NextClave: the extra traffic/address row used to appear the
+            // moment a profile started moving traffic, making the connected
+            // card visibly taller than the rest. Keep that row for the
+            // address only and show live traffic inside the status row
+            // instead, so the card keeps exactly the same size whether the
+            // node is idle or connected.
+            private fun renderTrafficAndStatus(proxyEntity: ProxyEntity, address: String) {
                 var rx = proxyEntity.rx
                 var tx = proxyEntity.tx
 
@@ -1653,31 +1663,42 @@ class ConfigurationFragment @JvmOverloads constructor(
                 }
 
                 val showTraffic = rx + tx != 0L
-                trafficText.isVisible = showTraffic
-                if (showTraffic) {
-                    trafficText.text = view.context.getString(
-                        R.string.traffic,
-                        FormatFileSizeCompat.formatFileSize(view.context, tx, DataStore.useIECUnit),
-                        FormatFileSizeCompat.formatFileSize(view.context, rx, DataStore.useIECUnit)
-                    )
-                }
+                val trafficStr = if (showTraffic) view.context.getString(
+                    R.string.traffic,
+                    FormatFileSizeCompat.formatFileSize(view.context, tx, DataStore.useIECUnit),
+                    FormatFileSizeCompat.formatFileSize(view.context, rx, DataStore.useIECUnit)
+                ) else ""
 
-                var address = proxyEntity.displayAddress()
-                if (proxyEntity.requireBean().name.isEmpty() || !parent.alwaysShowAddress) {
+                (trafficText.parent as View).isGone = address.isEmpty()
+                trafficText.isVisible = showTraffic && address.isNotEmpty()
+                trafficText.text = trafficStr
+
+                if (proxyEntity.status <= 0) {
+                    profileStatus.text = trafficStr
+                    profileStatus.setTextColor(view.context.getColorAttr(android.R.attr.textColorSecondary))
+                } else if (proxyEntity.status == 1) {
+                    if (showTraffic && address.isEmpty()) {
+                        profileStatus.text = trafficStr
+                        profileStatus.setTextColor(view.context.getColorAttr(android.R.attr.textColorSecondary))
+                    } else {
+                        profileStatus.text = view.context.getString(R.string.available, proxyEntity.ping)
+                        profileStatus.setTextColor(view.context.getColour(R.color.material_green_500))
+                    }
+                }
+            }
+
+            fun updateTraffic(proxyEntity: ProxyEntity) {
+                val parent = parent ?: return
+                if (!::entity.isInitialized) return
+
+                entity.stats = proxyEntity.stats
+
+                var address = entity.displayAddress()
+                if (entity.requireBean().name.isEmpty() || !parent.alwaysShowAddress) {
                     address = ""
                 }
 
-                (trafficText.parent as View).isGone = (!showTraffic || proxyEntity.status <= 0) && address.isEmpty()
-
-                if (proxyEntity.status <= 0) {
-                    if (showTraffic) {
-                        profileStatus.text = trafficText.text
-                        profileStatus.setTextColor(requireContext().getColorAttr(android.R.attr.textColorSecondary))
-                        trafficText.text = ""
-                    } else {
-                        profileStatus.text = ""
-                    }
-                }
+                renderTrafficAndStatus(entity, address)
             }
 
             fun showCode(link: String) {
