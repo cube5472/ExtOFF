@@ -59,11 +59,17 @@
             app:hideOnScroll="true"
             app:layout_scrollFlags="enterAlways|scroll">
 
+            <!-- NextClave: top padding pushes the text lines below the cradled FAB
+                 (FAB dips 56dp/2 = 28dp into the bar when centered); otherwise the
+                 centered button overlaps the one-line traffic rates -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="16dp">
+                android:paddingStart="16dp"
+                android:paddingTop="40dp"
+                android:paddingEnd="16dp"
+                android:paddingBottom="16dp">
 
                 <!-- NextClave: up/down rates on a single line -->
                 <LinearLayout
