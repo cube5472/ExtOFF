@@ -99,7 +99,11 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         // app settings
         findPreference<ColorPickerPreference>(Key.APP_THEME)!!.setOnPreferenceChangeListener { _, newTheme ->
             val theme = Theme.getTheme(newTheme as Int)
+            // NextClave: persist early so Theme.getNightMode() sees the NEW
+            // theme and forces night mode for coal themes immediately.
+            DataStore.appTheme = newTheme
             app.setTheme(theme)
+            Theme.applyNightTheme()
             requireActivity().apply {
                 ActivityCompat.recreate(this)
             }

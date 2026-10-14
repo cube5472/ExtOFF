@@ -136,7 +136,29 @@ object Theme {
     }
 
     var currentNightMode = -1
+
+    // NextClave: coal themes paint hardcoded black surfaces (windowBackground
+    // / colorBackground / colorSurface) while text colors are resolved from
+    // the DayNight resource set. In system light mode the light palette
+    // (dark text) lands on those black surfaces and the whole UI becomes
+    // unreadable. Coal themes are dark-only — they must always resolve the
+    // night resource set, regardless of the system setting.
+    // Mirrors the fallbacks of getTheme(): unset (0) and pre-12 dynamic
+    // fall back to defaultTheme() which is a coal theme.
+    fun isDarkOnlyTheme(): Boolean {
+        val theme = DataStore.appTheme
+        val resolved = when {
+            theme == 0 -> defaultTheme()
+            theme == DYNAMIC && Build.VERSION.SDK_INT < Build.VERSION_CODES.S -> defaultTheme()
+            else -> theme
+        }
+        return resolved == COAL_TURQUOISE || resolved == COAL_PINK || resolved == COAL_BLACK
+    }
+
     fun getNightMode(): Int {
+        if (isDarkOnlyTheme()) {
+            return AppCompatDelegate.MODE_NIGHT_YES
+        }
         if (currentNightMode == -1) {
             currentNightMode = DataStore.nightTheme
         }
@@ -153,6 +175,7 @@ object Theme {
     }
 
     fun usingNightMode(): Boolean {
+        if (isDarkOnlyTheme()) return true
         return when (DataStore.nightTheme) {
             1 -> true
             2 -> false
