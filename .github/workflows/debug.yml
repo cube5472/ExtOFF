@@ -41,10 +41,13 @@ jobs:
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
         run: |
-          # Build the core exactly like the release workflow does (stripped:
-          # -ldflags="-s -buildid=", -trimpath). The old "core debug" variant
-          # skipped the strip flags, which made libgojni.so (and thus every
-          # debug APK) roughly twice as large as the upstream release builds.
+          # NextClave v15: the core ships PREBUILT (byte-exact libgojni.so from
+          # the known-good 0.17.56 build, committed at app/libs/libexclavecore.aar).
+          # CI no longer compiles the core: Go/NDK toolchain drift between runner
+          # image updates is the prime suspect for inflated URL-test readings
+          # (same source pin, go 1.27.1 vs 1.27.2 = different binary).
+          # bin/lib/core/build.sh enforces the same skip as a second layer.
+          # To rebuild the core anyway: NEXTCLAVE_FORCE_CORE_BUILD=1.
           ./run lib core
       - name: Upload Artifacts
         uses: actions/upload-artifact@v7
