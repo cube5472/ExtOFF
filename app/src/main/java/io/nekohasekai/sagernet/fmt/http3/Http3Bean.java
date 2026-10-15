@@ -47,8 +47,6 @@ public class Http3Bean extends AbstractBean {
     public String mtlsCertificate;
     public String mtlsCertificatePrivateKey;
     public String serverNameToVerify;
-    public Boolean connectUDP;
-    public String uriTemplate;
 
     @Override
     public void initializeDefaultValues() {
@@ -67,13 +65,11 @@ public class Http3Bean extends AbstractBean {
         if (mtlsCertificate == null) mtlsCertificate = "";
         if (mtlsCertificatePrivateKey == null) mtlsCertificatePrivateKey = "";
         if (serverNameToVerify == null) serverNameToVerify = "";
-        if (connectUDP == null) connectUDP = false;
-        if (uriTemplate == null) uriTemplate = "";
     }
 
     @Override
     public void serialize(ByteBufferOutput output) {
-        output.writeInt(7);
+        output.writeInt(6);
         super.serialize(output);
         output.writeString(username);
         output.writeString(password);
@@ -91,8 +87,6 @@ public class Http3Bean extends AbstractBean {
         output.writeBoolean(echEnabled);
         output.writeString(serverNameToVerify);
         output.writeString(echQueryName);
-        output.writeBoolean(connectUDP);
-        output.writeString(uriTemplate);
     }
 
     @Override
@@ -132,10 +126,6 @@ public class Http3Bean extends AbstractBean {
         if (version >= 6) {
             echQueryName = input.readString();
         }
-        if (version >= 7) {
-            connectUDP = input.readBoolean();
-            uriTemplate = input.readString();
-        }
     }
 
     @Override
@@ -162,8 +152,6 @@ public class Http3Bean extends AbstractBean {
         bean.echEnabled = echEnabled;
         bean.echConfigList = echConfigList;
         bean.echQueryName = echQueryName;
-        bean.connectUDP = connectUDP;
-        bean.uriTemplate = uriTemplate;
     }
 
     @NotNull

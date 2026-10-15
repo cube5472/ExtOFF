@@ -48,8 +48,6 @@ class NaiveSettingsActivity : ProfileSettingsActivity<NaiveBean>() {
         DataStore.serverSNI = sni
         DataStore.serverCertificates = certificate
         DataStore.serverSingUot = singUoT
-        DataStore.serverNaiveTunnelTimeout = tunnelTimeout
-        DataStore.serverNaiveIdleTimeout = idleTimeout
     }
 
     override fun NaiveBean.serialize() {
@@ -65,8 +63,6 @@ class NaiveSettingsActivity : ProfileSettingsActivity<NaiveBean>() {
         sni = DataStore.serverSNI
         certificate = DataStore.serverCertificates
         singUoT = DataStore.serverSingUot
-        tunnelTimeout = DataStore.serverNaiveTunnelTimeout
-        idleTimeout = DataStore.serverNaiveIdleTimeout
     }
 
     override fun PreferenceFragmentCompat.createPreferences(
@@ -89,14 +85,6 @@ class NaiveSettingsActivity : ProfileSettingsActivity<NaiveBean>() {
 
         findPreference<PreferenceCategory>(Key.SERVER_SING_UOT_CATEGORY)!!.isVisible =
             DataStore.experimentalFlagsProperties.getBooleanProperty("singuot")
-
-        findPreference<EditTextPreference>(Key.SERVER_NAIVE_TUNNEL_TIMEOUT)!!.apply {
-            setOnBindEditTextListener(EditTextPreferenceModifiers.Number)
-        }
-
-        findPreference<EditTextPreference>(Key.SERVER_NAIVE_IDLE_TIMEOUT)!!.apply {
-            setOnBindEditTextListener(EditTextPreferenceModifiers.Number)
-        }
     }
 
 }

@@ -27,7 +27,6 @@ import io.nekohasekai.sagernet.database.DataStore
 import io.nekohasekai.sagernet.fmt.AbstractBean
 import io.nekohasekai.sagernet.fmt.anytls.AnyTLSBean
 import io.nekohasekai.sagernet.fmt.http.HttpBean
-import io.nekohasekai.sagernet.fmt.http3.Http3Bean
 import io.nekohasekai.sagernet.fmt.hysteria2.Hysteria2Bean
 import io.nekohasekai.sagernet.fmt.naive.NaiveBean
 import io.nekohasekai.sagernet.fmt.shadowsocks.ShadowsocksBean
@@ -226,13 +225,6 @@ fun parseSingBoxOutbound(outbound: JsonObject): List<AbstractBean> {
                                     v2rayBean.pinnedPeerCertificatePublicKeySha256 = Base64.encode(it)
                                     v2rayBean.allowInsecure = true
                                 }
-                                tls.getByteArrayArray("certificate_sha256")?.takeIf { it.isNotEmpty() }?.also {
-                                    v2rayBean.pinnedPeerCertificateSha256 = it.joinToString("\n") { it.toHexString() }
-                                    v2rayBean.allowInsecure = true
-                                } ?: tls.getByteArray("certificate_sha256")?.takeIf { it.isNotEmpty() }?.also {
-                                    v2rayBean.pinnedPeerCertificateSha256 = it.toHexString()
-                                    v2rayBean.allowInsecure = true
-                                }
                                 tls.getObject("reality")?.also { reality ->
                                     reality.getBoolean("enabled")?.also { enabled ->
                                         if (enabled) {
@@ -302,27 +294,6 @@ fun parseSingBoxOutbound(outbound: JsonObject): List<AbstractBean> {
                     outbound.getString("password")?.also {
                         v2rayBean.password = it
                     }
-                    if (v2rayBean.security == "tls") {
-                        outbound.getInt("version")?.takeIf { it == 3 }?.also {
-                            return listOf(Http3Bean().apply {
-                                serverAddress = v2rayBean.serverAddress
-                                serverPort = v2rayBean.serverPort
-                                name = v2rayBean.name
-                                username = v2rayBean.username
-                                password = v2rayBean.password
-                                sni = v2rayBean.sni
-                                certificates = v2rayBean.certificates
-                                pinnedPeerCertificatePublicKeySha256 = v2rayBean.pinnedPeerCertificatePublicKeySha256
-                                pinnedPeerCertificateSha256 = v2rayBean.pinnedPeerCertificateSha256
-                                allowInsecure = v2rayBean.allowInsecure
-                                /*echEnabled = v2rayBean.echEnabled
-                                echConfigList = v2rayBean.echConfigList
-                                echQueryName = v2rayBean.echQueryName*/
-                                mtlsCertificate = v2rayBean.mtlsCertificate
-                                mtlsCertificatePrivateKey = v2rayBean.mtlsCertificatePrivateKey
-                            })
-                        }
-                    }
                 }
                 "shadowsocks" -> {
                     v2rayBean as ShadowsocksBean
@@ -335,10 +306,6 @@ fun parseSingBoxOutbound(outbound: JsonObject): List<AbstractBean> {
                     }
                     outbound.getString("plugin")?.takeIf { it.isNotEmpty() }?.also { pluginId ->
                         if (pluginId != "obfs-local" && pluginId != "v2ray-plugin") return listOf()
-                        // In sing-box, v2ray-plugin quic mode sends ALPN "h3" but nobody complains about it.
-                        // Let's assume nobody uses v2ray-plugin quic mode in sing-box. Keep it broken.
-                        // https://github.com/SagerNet/sing-box/pull/1934
-                        // https://github.com/ExclaveNetwork/Exclave/issues/488
                         v2rayBean.plugin = PluginOptions(pluginId, outbound.getString("plugin_opts")).toString(trimId = false)
                     }
                 }
@@ -395,13 +362,11 @@ fun parseSingBoxOutbound(outbound: JsonObject): List<AbstractBean> {
             }
             if (v2rayBean.security == "reality") {
                 when (v2rayBean.type) {
-                    null, "tcp", "http", "grpc", "splithttp" -> {}
+                    "tcp", "http", "grpc", "splithttp" -> {}
                     else -> return listOf()
                 }
             }
-            if (v2rayBean is VLESSBean && v2rayBean.flow == "xtls-rprx-vision-udp443"
-                && v2rayBean.security != null && v2rayBean.security != "none"
-                && v2rayBean.type != null && v2rayBean.type != "tcp") {
+            if (v2rayBean is VLESSBean && v2rayBean.security != "none" && v2rayBean.flow == "xtls-rprx-vision-udp443" && v2rayBean.type != "tcp") {
                 return listOf()
             }
             return listOf(v2rayBean)
@@ -507,13 +472,6 @@ fun parseSingBoxOutbound(outbound: JsonObject): List<AbstractBean> {
                         allowInsecure = true
                     } ?: tls.getByteArray("certificate_public_key_sha256")?.takeIf { it.isNotEmpty() }?.also {
                         pinnedPeerCertificatePublicKeySha256 = Base64.encode(it)
-                        allowInsecure = true
-                    }
-                    tls.getByteArrayArray("certificate_sha256")?.takeIf { it.isNotEmpty() }?.also {
-                        pinnedPeerCertificateSha256 = it.joinToString("\n") { it.toHexString() }
-                        allowInsecure = true
-                    } ?: tls.getByteArray("certificate_sha256")?.takeIf { it.isNotEmpty() }?.also {
-                        pinnedPeerCertificateSha256 = it.toHexString()
                         allowInsecure = true
                     }
                     tls.getObject("ech")?.also { ech ->
@@ -647,13 +605,6 @@ fun parseSingBoxOutbound(outbound: JsonObject): List<AbstractBean> {
                         allowInsecure = true
                     } ?: tls.getByteArray("certificate_public_key_sha256")?.takeIf { it.isNotEmpty() }?.also {
                         pinnedPeerCertificatePublicKeySha256 = Base64.encode(it)
-                        allowInsecure = true
-                    }
-                    tls.getByteArrayArray("certificate_sha256")?.takeIf { it.isNotEmpty() }?.also {
-                        pinnedPeerCertificateSha256 = it.joinToString("\n") { it.toHexString() }
-                        allowInsecure = true
-                    } ?: tls.getByteArray("certificate_sha256")?.takeIf { it.isNotEmpty() }?.also {
-                        pinnedPeerCertificateSha256 = it.toHexString()
                         allowInsecure = true
                     }
                     /*tls.getObject("ech")?.also { ech ->
@@ -828,13 +779,6 @@ fun parseSingBoxOutbound(outbound: JsonObject): List<AbstractBean> {
                                 allowInsecure = true
                             } ?: tls.getByteArray("certificate_public_key_sha256")?.takeIf { it.isNotEmpty() }?.also {
                                 pinnedPeerCertificatePublicKeySha256 = Base64.encode(it)
-                                allowInsecure = true
-                            }
-                            tls.getByteArrayArray("certificate_sha256")?.takeIf { it.isNotEmpty() }?.also {
-                                pinnedPeerCertificateSha256 = it.joinToString("\n") { it.toHexString() }
-                                allowInsecure = true
-                            } ?: tls.getByteArray("certificate_sha256")?.takeIf { it.isNotEmpty() }?.also {
-                                pinnedPeerCertificateSha256 = it.toHexString()
                                 allowInsecure = true
                             }
                             tls.getObject("reality")?.also { reality ->

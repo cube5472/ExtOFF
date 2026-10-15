@@ -52,8 +52,6 @@ class Http3SettingsActivity : ProfileSettingsActivity<Http3Bean>() {
         DataStore.serverMtlsCertificate = mtlsCertificate
         DataStore.serverMtlsCertificatePrivateKey = mtlsCertificatePrivateKey
         DataStore.serverServerNameToVerify = serverNameToVerify
-        DataStore.serverHTTPConnectUDP = connectUDP
-        DataStore.serverHTTPConnectUDPURITemplate = uriTemplate
     }
 
     override fun Http3Bean.serialize() {
@@ -74,8 +72,6 @@ class Http3SettingsActivity : ProfileSettingsActivity<Http3Bean>() {
         mtlsCertificate = DataStore.serverMtlsCertificate
         mtlsCertificatePrivateKey = DataStore.serverMtlsCertificatePrivateKey
         serverNameToVerify = DataStore.serverServerNameToVerify
-        connectUDP = DataStore.serverHTTPConnectUDP
-        uriTemplate = DataStore.serverHTTPConnectUDPURITemplate
     }
 
     override fun PreferenceFragmentCompat.createPreferences(
@@ -97,13 +93,6 @@ class Http3SettingsActivity : ProfileSettingsActivity<Http3Bean>() {
         echEnabled.setOnPreferenceChangeListener { _, newValue ->
             echConfigList.isEnabled = newValue as Boolean
             echQueryName.isEnabled = newValue
-            true
-        }
-        val connectUDP = findPreference<SwitchPreference>(Key.SERVER_HTTP_CONNECT_UDP)!!
-        val uriTemplate = findPreference<EditTextPreference>(Key.SERVER_HTTP_CONNECT_UDP_URI_TEMPLATE)!!
-        uriTemplate.isEnabled = connectUDP.isChecked
-        connectUDP.setOnPreferenceChangeListener { _, newValue ->
-            uriTemplate.isEnabled = newValue as Boolean
             true
         }
     }

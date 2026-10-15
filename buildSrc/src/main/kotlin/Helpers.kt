@@ -67,11 +67,7 @@ fun Project.requireLocalProperties(): Properties {
 fun Project.setupCommon(projectName: String = "") {
     android.apply {
         buildToolsVersion = "37.0.0"
-        compileSdk {
-            version = release(37) {
-                minorApiLevel = 2
-            }
-        }
+        compileSdk = 37
         defaultConfig.minSdk = if (projectName.lowercase() == "naive") 24 else 21
         compileOptions.sourceCompatibility = JavaVersion.VERSION_21
         compileOptions.targetCompatibility = JavaVersion.VERSION_21
@@ -227,7 +223,7 @@ fun Project.setupApp() {
         compileOptions.isCoreLibraryDesugaringEnabled = true
         flavorDimensions.add("vendor")
         productFlavors.create("oss") {
-            minSdk = 24
+            minSdk = 23
         }
         productFlavors.create("legacy") {
             minSdk = 21
