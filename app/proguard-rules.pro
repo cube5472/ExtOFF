@@ -21,10 +21,6 @@
     void setBorderTint(android.content.res.ColorStateList);
 }
 
-# coreLibraryDesugaring: j$ runtime classes are merged at the L8 stage; keep R8
-# from aborting if a pre-desugared input (e.g. a rebuilt AAR) references one.
--dontwarn j$.util.DesugarCollections
-
 -dontobfuscate
 -keepattributes SourceFile
 

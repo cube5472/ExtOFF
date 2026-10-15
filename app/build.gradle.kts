@@ -10,6 +10,34 @@ setupApp()
 
 android {
     namespace = "io.nekohasekai.sagernet"
+
+    // The prebuilt core AAR carries the byte-exact known-good libgojni.so under
+    // libs/<abi>/. AGP does not reliably merge natives of file-dependency AARs
+    // (merged_native_libs blame only ever lists maven deps), so extract the .so
+    // from the AAR into a build-dir jniLibs folder and let the regular project
+    // jniLibs pipeline pick it up. Keeps the core single-sourced in the AAR.
+    packaging {
+        jniLibs.pickFirsts.add("**/libgojni.so")
+    }
+    sourceSets.getByName("main") {
+        jniLibs.srcDir(layout.buildDirectory.dir("extracted-core-jniLibs").get().asFile)
+    }
+}
+
+val extractCoreJniLibs = tasks.register<Copy>("extractCoreJniLibs") {
+    from(zipTree(file("libs/libexclavecore.aar"))) {
+        include("libs/**/libgojni.so")
+        // flatten libs/<abi>/libgojni.so -> <abi>/libgojni.so
+        eachFile { relativePath = RelativePath(true, *relativePath.segments.drop(1).toTypedArray()) }
+        includeEmptyDirs = false
+    }
+    into(layout.buildDirectory.dir("extracted-core-jniLibs"))
+}
+
+tasks.whenTaskAdded {
+    if (name.startsWith("merge") && name.endsWith("JniLibFolders")) {
+        dependsOn(extractCoreJniLibs)
+    }
 }
 
 ksp {
