@@ -46,7 +46,6 @@ fun parseNaive(link: String): NaiveBean {
         sni = url.queryParameter("sni")
         // TODO: validate extraHeaders
         extraHeaders = url.queryParameter("extra-headers")?.replace("\r\n", "\n")
-        insecureConcurrency = url.queryParameter("insecure-concurrency")?.toIntOrNull()
         name = url.fragment
     }
 }
@@ -77,9 +76,6 @@ fun NaiveBean.toUri(proxyOnly: Boolean = false): String {
         }
         if (name.isNotEmpty()) {
             builder.fragment = name
-        }
-        if (insecureConcurrency > 0) {
-            builder.addQueryParameter("insecure-concurrency", "$insecureConcurrency")
         }
         if (sni.isNotEmpty()) {
             builder.addQueryParameter("sni", sni)
@@ -119,6 +115,12 @@ fun NaiveBean.buildNaiveConfig(port: Int, username: String = "", password: Strin
         }
         if (noPostQuantum) {
             addProperty("no-post-quantum", true)
+        }
+        if (tunnelTimeout > 0) {
+            addProperty("tunnel-timeout", tunnelTimeout)
+        }
+        if (idleTimeout > 0) {
+            addProperty("idle-timeout", idleTimeout)
         }
     })
 }

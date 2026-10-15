@@ -831,6 +831,12 @@ fun buildV2RayConfig(
                                                         pass = bean.password
                                                     })
                                                 }
+                                                if (bean.connectUDP) {
+                                                    connectUDP = true
+                                                    if (bean.uriTemplate.isNotEmpty()) {
+                                                        uriTemplate = bean.uriTemplate
+                                                    }
+                                                }
                                             })
                                         }
                                     )
@@ -1516,6 +1522,12 @@ fun buildV2RayConfig(
                                         port = bean.serverPort
                                         if (bean.username.isNotEmpty()) username = bean.username
                                         if (bean.password.isNotEmpty()) password = bean.password
+                                        if (bean.connectUDP) {
+                                            connectUDP = true
+                                            if (bean.uriTemplate.isNotEmpty()) {
+                                                uriTemplate = bean.uriTemplate
+                                            }
+                                        }
                                     }
                                 )
                                 streamSettings = StreamSettingsObject().apply {
@@ -2484,15 +2496,12 @@ fun buildV2RayConfig(
                     // too dirty to read server addresses from a custom outbound config
                     // let users provide them manually
                     bean.serverAddresses.listByLineOrComma().forEach {
-                        when {
-                            it.isEmpty() -> {}
-                            !Libexclavecore.isIP(it) -> {
-                                bypassDomainSkipFakeDns.add("full:$it")
-                            }
+                        if (it.isNotEmpty() && !Libexclavecore.isIP(it)) {
+                            bypassDomainSkipFakeDns.add("full:$it")
                         }
                     }
                 } else {
-                    if (!Libexclavecore.isIP(serverAddress)) {
+                    if (serverAddress.isNotEmpty() && !Libexclavecore.isIP(serverAddress)) {
                         bypassDomainSkipFakeDns.add("full:$serverAddress")
                     }
                     when (bean) {
@@ -2500,7 +2509,7 @@ fun buildV2RayConfig(
                             if (bean.echEnabled && bean.echConfigList.isEmpty()) {
                                 if (bean.echQueryName.isNotEmpty()) {
                                     bypassDomainSkipFakeDns.add("full:${bean.echQueryName}")
-                                } else {
+                                } else if (bean.sni.isNotEmpty()) {
                                     bypassDomainSkipFakeDns.add("full:${bean.sni}")
                                 }
                             }
@@ -2509,7 +2518,7 @@ fun buildV2RayConfig(
                             if (bean.echEnabled && bean.echConfigList.isEmpty()) {
                                 if (bean.echQueryName.isNotEmpty()) {
                                     bypassDomainSkipFakeDns.add("full:${bean.echQueryName}")
-                                } else {
+                                } else if (bean.sni.isNotEmpty()) {
                                     bypassDomainSkipFakeDns.add("full:${bean.sni}")
                                 }
                             }
@@ -2518,7 +2527,7 @@ fun buildV2RayConfig(
                             if (bean.echEnabled && bean.echConfigList.isEmpty()) {
                                 if (bean.echQueryName.isNotEmpty()) {
                                     bypassDomainSkipFakeDns.add("full:${bean.echQueryName}")
-                                } else {
+                                } else if (bean.sni.isNotEmpty()) {
                                     bypassDomainSkipFakeDns.add("full:${bean.sni}")
                                 }
                             }
@@ -2527,7 +2536,7 @@ fun buildV2RayConfig(
                             if (bean.echEnabled && bean.echConfigList.isEmpty()) {
                                 if (bean.echQueryName.isNotEmpty()) {
                                     bypassDomainSkipFakeDns.add("full:${bean.echQueryName}")
-                                } else {
+                                } else if (bean.sni.isNotEmpty()) {
                                     bypassDomainSkipFakeDns.add("full:${bean.sni}")
                                 }
                             }
@@ -2536,7 +2545,7 @@ fun buildV2RayConfig(
                             if (bean.echEnabled && bean.echConfigList.isEmpty()) {
                                 if (bean.echQueryName.isNotEmpty()) {
                                     bypassDomainSkipFakeDns.add("full:${bean.echQueryName}")
-                                } else {
+                                } else if (bean.sni.isNotEmpty()) {
                                     bypassDomainSkipFakeDns.add("full:${bean.sni}")
                                 }
                             }
@@ -2545,7 +2554,7 @@ fun buildV2RayConfig(
                             if (bean.echEnabled && bean.echConfigList.isEmpty()) {
                                 if (bean.echQueryName.isNotEmpty()) {
                                     bypassDomainSkipFakeDns.add("full:${bean.echQueryName}")
-                                } else {
+                                } else if (bean.sni.isNotEmpty()) {
                                     bypassDomainSkipFakeDns.add("full:${bean.sni}")
                                 }
                             }
@@ -2554,7 +2563,7 @@ fun buildV2RayConfig(
                             if (bean.echEnabled && bean.echConfigList.isEmpty()) {
                                 if (bean.echQueryName.isNotEmpty()) {
                                     bypassDomainSkipFakeDns.add("full:${bean.echQueryName}")
-                                } else {
+                                } else if (bean.sni.isNotEmpty()) {
                                     bypassDomainSkipFakeDns.add("full:${bean.sni}")
                                 }
                             }
@@ -2596,10 +2605,10 @@ fun buildV2RayConfig(
                 if (it.lowercase() != "localhost" && it.lowercase() != "fakedns") {
                     if (it.contains("://")) {
                         val url = Libexclavecore.parseURL(it)
-                        if (!Libexclavecore.isIP(url.host)) {
+                        if (url.host.isNotEmpty() && !Libexclavecore.isIP(url.host)) {
                             bypassDomainSkipFakeDns.add("full:${url.host}")
                         }
-                    } else if (!Libexclavecore.isIP(it)) {
+                    } else if (it.isNotEmpty() && !Libexclavecore.isIP(it)) {
                         bypassDomainSkipFakeDns.add("full:$it")
                     }
                 }
@@ -2611,10 +2620,10 @@ fun buildV2RayConfig(
                 if (it.lowercase() != "localhost" && it.lowercase() != "fakedns") {
                     if (it.contains("://")) {
                         val url = Libexclavecore.parseURL(it)
-                        if (!Libexclavecore.isIP(url.host)) {
+                        if (url.host.isNotEmpty() && !Libexclavecore.isIP(url.host)) {
                             bootstrapDomain.add("full:${url.host}")
                         }
-                    } else if (!Libexclavecore.isIP(it)) {
+                    } else if (it.isNotEmpty() && !Libexclavecore.isIP(it)) {
                         bootstrapDomain.add("full:$it")
                     }
                 }

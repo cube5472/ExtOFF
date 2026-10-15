@@ -112,6 +112,13 @@ class ConfigurationFragment @JvmOverloads constructor(
     val selectedGroup get() = if (tabLayout.isGone && adapter.groupList.size > 0) adapter.groupList[0] else (if (adapter.groupList.size > 0 && tabLayout.selectedTabPosition > -1) adapter.groupList[tabLayout.selectedTabPosition] else ProxyGroup())
     val alwaysShowAddress by lazy { DataStore.alwaysShowAddress }
 
+    fun refreshAllSelections() {
+        if (!::adapter.isInitialized) return
+        adapter.groupFragments.values.forEach {
+            it.refreshSelection()
+        }
+    }
+
     val updateSelectedCallback = object : ViewPager2.OnPageChangeCallback() {
         override fun onPageScrolled(
             position: Int, positionOffset: Float, positionOffsetPixels: Int
@@ -1018,13 +1025,17 @@ class ConfigurationFragment @JvmOverloads constructor(
         val parent get() = parentFragment as? ConfigurationFragment
         fun requirePrent() = requireParentFragment() as ConfigurationFragment
 
+        fun refreshSelection() {
+            if (::adapter.isInitialized) {
+                adapter.refreshSelection()
+            }
+        }
+
         override fun onResume() {
             super.onResume()
-
             if (::adapter.isInitialized) {
-                if (adapter.itemCount == 0) {
-                    runOnDefaultDispatcher { adapter.reloadProfiles() }
-                }
+                if (adapter.itemCount == 0) runOnDefaultDispatcher { adapter.reloadProfiles() }
+                adapter.refreshSelection()
             } else {
                 onViewCreated(requireView(), null)
             }
@@ -1227,14 +1238,24 @@ class ConfigurationFragment @JvmOverloads constructor(
                 return configurationIdList.size
             }
             var activeSelectionId: Long = -1
+            var activeStarted: Boolean = false
+            var activeStartedProfile: Long = -1
 
             fun refreshSelection() {
                 val newId = DataStore.selectedProxy
-                if (activeSelectionId == newId) return
-                val oldId = activeSelectionId
-                activeSelectionId = newId
+                val newStarted = SagerNet.started
+                val newStartedProfile = DataStore.startedProfile
 
-                listOf(oldId, newId).forEach { id ->
+                if (activeSelectionId == newId && activeStarted == newStarted && activeStartedProfile == newStartedProfile) return
+
+                val oldId = activeSelectionId
+                val oldStartedProfile = activeStartedProfile
+
+                activeSelectionId = newId
+                activeStarted = newStarted
+                activeStartedProfile = newStartedProfile
+
+                listOf(oldId, newId, oldStartedProfile, newStartedProfile).filter { it != -1L }.distinct().forEach { id ->
                     val index = configurationIdList.indexOf(id)
                     if (index != -1) notifyItemChanged(index, "PAYLOAD_SELECTION_CHANGE")
                 }
@@ -1245,16 +1266,25 @@ class ConfigurationFragment @JvmOverloads constructor(
                 position: Int,
                 payloads: MutableList<Any>
             ) {
-                if (payloads.contains("PAYLOAD_SELECTION_CHANGE")) {
-                    val entityId = configurationIdList[position]
-
-                    val isSelected = (entityId == activeSelectionId)
-                    val isStarted = isSelected && SagerNet.started && DataStore.startedProfile == entityId
-
-                    holder.selectedView.visibility = if (isSelected) View.VISIBLE else View.INVISIBLE
-                    holder.deleteButton.isEnabled = !isStarted
-                } else {
+                if (payloads.isEmpty()) {
                     super.onBindViewHolder(holder, position, payloads)
+                    return
+                }
+
+                val entityId = configurationIdList[position]
+
+                if (payloads.contains("PAYLOAD_SELECTION_CHANGE")) {
+                    holder.updateSelectionState(entityId)
+                }
+
+                if (payloads.contains("PAYLOAD_STATE_UPDATE")) {
+                    getItemAt(position)?.let { profile ->
+                        if (holder.entity.id == profile.id) {
+                            holder.updateState(profile)
+                        } else {
+                            holder.bind(profile)
+                        }
+                    }
                 }
             }
 
@@ -1362,7 +1392,7 @@ class ConfigurationFragment @JvmOverloads constructor(
                         undoManager.flush()
                     }
                     configurationList[profile.id] = profile
-                    notifyItemChanged(index)
+                    notifyItemChanged(index, "PAYLOAD_STATE_UPDATE")
                 }
             }
 
@@ -1489,17 +1519,18 @@ class ConfigurationFragment @JvmOverloads constructor(
 
                 if (parent.select) {
                     view.setOnClickListener {
-                        (requireActivity() as SelectCallback).returnProfile(proxyEntity.id)
+                        (requireActivity() as SelectCallback).returnProfile(entity.id)
                     }
                 } else {
                     val pa = activity as MainActivity
 
                     view.setOnClickListener {
                         runOnDefaultDispatcher {
+                            val id = entity.id
                             var update: Boolean
                             profileAccess.withLock {
-                                update = DataStore.selectedProxy != proxyEntity.id
-                                DataStore.selectedProxy = proxyEntity.id
+                                update = DataStore.selectedProxy != id
+                                DataStore.selectedProxy = id
                             }
 
                             if (update) {
@@ -1519,18 +1550,86 @@ class ConfigurationFragment @JvmOverloads constructor(
                                 }
                             }
                         }
-
                     }
                 }
+
+                profileStatus.setOnClickListener {
+                    if (entity.status == 3) {
+                        alert(entity.error ?: "<?>").show()
+                    }
+                }
+
+                editButton.setOnClickListener {
+                    entity.settingIntent(it.context, proxyGroup.type == GroupType.SUBSCRIPTION)?.let {
+                        editProfileLauncher.launch(it)
+                    }
+                }
+
+                deleteButton.setOnClickListener { view ->
+                    view.post {
+                        adapter.let {
+                            val profile = entity
+                            val index = it.configurationIdList.indexOf(profile.id)
+                            if (index >= 0) {
+                                it.remove(index)
+                                it.pendingDeletedIds.add(profile.id)
+                                undoManager.remove(index to profile)
+                            }
+                        }
+                    }
+                }
+
+                // Suppress ItemTouchHelper drag while a row button is held to avoid conflict with parent item's long press.
+                deleteButton.suppressDragWhilePressed { actionButtonPressed = it }
+                editButton.suppressDragWhilePressed { actionButtonPressed = it }
+                shareLayout.suppressDragWhilePressed { actionButtonPressed = it }
+
+                if (!parent.select) {
+                    shareLayout.setOnClickListener { anchor ->
+                        val profile = entity
+                        if (DataStore.profileSecurityAdvisory && profile.requireBean().isInsecure) {
+                            MaterialAlertDialogBuilder(requireContext())
+                                .setTitle(R.string.insecure_warn)
+                                .setMessage(R.string.insecure_warning_detail)
+                                .setPositiveButton(android.R.string.ok) { _, _ ->
+                                    showShare(anchor)
+                                }
+                                .show()
+                        } else {
+                            showShare(anchor)
+                        }
+                    }
+                } else {
+                    shareLayout.setOnClickListener(null)
+                }
+
+                editButton.isGone = parent.select
+                deleteButton.isGone = parent.select
+                shareButton.isGone = parent.select
+
+                updateState(proxyEntity)
+                updateSelectionState(proxyEntity.id)
+            }
+
+            fun updateSelectionState(entityId: Long) {
+                val isSelected = entityId == adapter.activeSelectionId
+                val isStarted = SagerNet.started && DataStore.startedProfile == entityId
+
+                selectedView.visibility = if (isSelected) View.VISIBLE else View.INVISIBLE
+                deleteButton.isEnabled = !isStarted
+            }
+
+            fun updateState(proxyEntity: ProxyEntity) {
+                val parent = parent ?: return
+
+                entity = proxyEntity
 
                 profileName.text = proxyEntity.displayName()
                 profileType.text = proxyEntity.displayType()
 
                 var rx = proxyEntity.rx
                 var tx = proxyEntity.tx
-
-                val stats = proxyEntity.stats
-                if (stats != null) {
+                proxyEntity.stats?.let { stats ->
                     rx += stats.rxTotal
                     tx += stats.txTotal
                 }
@@ -1546,129 +1645,69 @@ class ConfigurationFragment @JvmOverloads constructor(
                 }
 
                 var address = proxyEntity.displayAddress()
-
                 if (proxyEntity.requireBean().name.isEmpty() || !parent.alwaysShowAddress) {
                     address = ""
                 }
-
                 profileAddress.text = address
                 // NextClave: the address/traffic row always occupies its space,
                 // so the card size never changes when traffic appears on connect.
-                if (proxyEntity.status <= 0) {
-                    if (showTraffic) {
-                        profileStatus.text = trafficText.text
-                        profileStatus.setTextColor(requireContext().getColorAttr(android.R.attr.textColorSecondary))
-                        trafficText.text = ""
-                    } else {
-                        profileStatus.text = ""
+                when {
+                    proxyEntity.status <= 0 -> {
+                        if (showTraffic) {
+                            profileStatus.text = trafficText.text
+                            profileStatus.setTextColor(requireContext().getColorAttr(android.R.attr.textColorSecondary))
+                            trafficText.text = ""
+                        } else {
+                            profileStatus.text = ""
+                        }
                     }
-                } else if (proxyEntity.status == 1) {
-                    profileStatus.text = getString(R.string.available, proxyEntity.ping)
-                    profileStatus.setTextColor(requireContext().getColour(R.color.material_green_500))
-                } else {
-                    profileStatus.setTextColor(requireContext().getColour(R.color.material_red_500))
-                    if (proxyEntity.status == 2) {
+                    proxyEntity.status == 1 -> {
+                        profileStatus.text = getString(R.string.available, proxyEntity.ping)
+                        profileStatus.setTextColor(requireContext().getColour(R.color.material_green_500))
+                    }
+                    proxyEntity.status == 2 -> {
                         profileStatus.text = proxyEntity.error
+                        profileStatus.setTextColor(requireContext().getColour(R.color.material_red_500))
+                    }
+                    proxyEntity.status == 3 -> {
+                        profileStatus.setText(R.string.unavailable)
+                        profileStatus.setTextColor(requireContext().getColour(R.color.material_red_500))
                     }
                 }
 
-                if (proxyEntity.status == 3) {
-                    profileStatus.setText(R.string.unavailable)
-                    profileStatus.setOnClickListener {
-                        alert(proxyEntity.error ?: "<?>").show()
+                profileStatus.isClickable = proxyEntity.status == 3
+
+                if (!parent.select) {
+                    val isInsecure = DataStore.profileSecurityAdvisory && proxyEntity.requireBean().isInsecure
+                    if (isInsecure) {
+                        // NextClave: small subtle warning icon instead of the ugly red square
+                        shareLayer.setBackgroundColor(Color.TRANSPARENT)
+                        shareButton.setImageResource(R.drawable.ic_baseline_warning_24)
+                        shareButton.setColorFilter(requireContext().getColour(R.color.material_red_400))
+                    } else {
+                        shareLayer.setBackgroundColor(Color.TRANSPARENT)
+                        shareButton.setImageResource(R.drawable.ic_social_share)
+                        shareButton.setColorFilter(Color.GRAY)
                     }
-                } else {
-                    profileStatus.setOnClickListener(null)
+                    shareButton.isVisible = true
+                }
+            }
+
+            fun showShare(anchor: View) {
+                val profile = entity
+                val popup = PopupMenu(requireContext(), anchor)
+                popup.menuInflater.inflate(R.menu.profile_share_menu, popup.menu)
+
+                if (!profile.hasShareLink() && profile.wgBean == null) {
+                    popup.menu.removeItem(R.id.action_qr)
+                    popup.menu.removeItem(R.id.action_clipboard)
+                }
+                if (showBackup && profile.canExportBackup()) {
+                    popup.menu.findItem(R.id.action_export_backup).isVisible = true
                 }
 
-                editButton.setOnClickListener {
-                    proxyEntity.settingIntent(it.context, proxyGroup.type == GroupType.SUBSCRIPTION)?.let {
-                        editProfileLauncher.launch(it)
-                    }
-                }
-
-                deleteButton.setOnClickListener { view ->
-                    view.post {
-                        adapter.let {
-                            val index = it.configurationIdList.indexOf(proxyEntity.id)
-                            if (index >= 0) {
-                                it.remove(index)
-                                it.pendingDeletedIds.add(proxyEntity.id)
-                                undoManager.remove(index to proxyEntity)
-                            }
-                        }
-                    }
-                }
-
-                // suppress ItemTouchHelper drag while a row button is held, to avoid conflict with parent item's long-press
-                deleteButton.suppressDragWhilePressed { actionButtonPressed = it }
-                editButton.suppressDragWhilePressed { actionButtonPressed = it }
-                shareLayout.suppressDragWhilePressed { actionButtonPressed = it }
-
-                editButton.isGone = parent.select
-                deleteButton.isGone = parent.select
-                shareButton.isGone = parent.select
-
-                runOnDefaultDispatcher {
-                    val selected = (parent.selectedItem?.id
-                        ?: DataStore.selectedProxy) == proxyEntity.id
-                    val started = selected && SagerNet.started && DataStore.startedProfile == proxyEntity.id
-                    onMainDispatcher {
-                        deleteButton.isEnabled = !started
-                        selectedView.visibility = if (selected) View.VISIBLE else View.INVISIBLE
-                    }
-
-                    fun showShare(anchor: View) {
-                        val popup = PopupMenu(requireContext(), anchor)
-                        popup.menuInflater.inflate(R.menu.profile_share_menu, popup.menu)
-
-                        if (!proxyEntity.hasShareLink() && proxyEntity.wgBean == null) {
-                            popup.menu.removeItem(R.id.action_qr)
-                            popup.menu.removeItem(R.id.action_clipboard)
-                        }
-                        if (showBackup && proxyEntity.canExportBackup()) {
-                            popup.menu.findItem(R.id.action_export_backup).isVisible = true
-                        }
-
-                        popup.setOnMenuItemClickListener(this@ConfigurationHolder)
-                        popup.show()
-                    }
-
-                    if (!parent.select) {
-                        val isInsecure = DataStore.profileSecurityAdvisory && proxyEntity.requireBean().isInsecure
-                        onMainDispatcher {
-                            if (isInsecure) {
-                                // small subtle warning icon instead of the ugly red square
-                                shareLayer.setBackgroundColor(Color.TRANSPARENT)
-                                shareButton.setImageResource(R.drawable.ic_baseline_warning_24)
-                                shareButton.setColorFilter(requireContext().getColour(R.color.material_red_400))
-                            } else {
-                                shareLayer.setBackgroundColor(Color.TRANSPARENT)
-                                shareButton.setImageResource(R.drawable.ic_social_share)
-                                shareButton.setColorFilter(Color.GRAY)
-
-                            }
-                            shareButton.isVisible = true
-                            if (isInsecure) {
-                                shareLayout.setOnClickListener {
-                                    MaterialAlertDialogBuilder(requireContext())
-                                        .setTitle(R.string.insecure_warn)
-                                        .setMessage(R.string.insecure_warning_detail)
-                                        .setPositiveButton(android.R.string.ok) { _, _ ->
-                                            showShare(it)
-                                        }
-                                        .show()
-                                }
-                            } else {
-                                shareLayout.setOnClickListener {
-                                    showShare(it)
-                                }
-                            }
-
-                        }
-                    }
-                }
-
+                popup.setOnMenuItemClickListener(this@ConfigurationHolder)
+                popup.show()
             }
 
             fun updateTraffic(proxyEntity: ProxyEntity) {

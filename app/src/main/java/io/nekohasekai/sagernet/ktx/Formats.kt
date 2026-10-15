@@ -53,8 +53,8 @@ fun String.decodeBase64(): String {
 }
 
 fun parseShareLinks(text: String): List<AbstractBean> {
-    val links = text.split('\n').flatMap { it.trim().split(' ') }
-    val linksByLine = text.split('\n').map { it.trim() }
+    val linksByLine = text.split('\n').mapNotNull { it.trim().takeIf { !it.startsWith('#') } }
+    val links = linksByLine.flatMap { it.trim().split(' ') }
 
     val entities = ArrayList<AbstractBean>()
     val entitiesByLine = ArrayList<AbstractBean>()
@@ -64,8 +64,7 @@ fun parseShareLinks(text: String): List<AbstractBean> {
             || startsWith("socks4://", ignoreCase = true)
             || startsWith("socks4a://", ignoreCase = true)
             || startsWith("socks5://", ignoreCase = true)
-            || startsWith("socks5h://", ignoreCase = true)
-            || startsWith("socks+tls://", ignoreCase = true)) {
+            || startsWith("socks5h://", ignoreCase = true)) {
             runCatching {
                 entities.add(parseSOCKS(this))
             }
