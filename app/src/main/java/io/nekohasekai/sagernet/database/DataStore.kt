@@ -272,6 +272,7 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     // var transproxyMode by configurationStore.stringToInt(Key.TRANSPROXY_MODE)
     var requireDnsInbound by configurationStore.boolean(Key.REQUIRE_DNS_INBOUND)
     var connectionTestURL by configurationStore.string(Key.CONNECTION_TEST_URL) { CONNECTION_TEST_URL }
+    var urlTestWorkers by configurationStore.stringToInt(Key.URL_TEST_WORKERS) { 3 }
     var alwaysShowAddress by configurationStore.boolean(Key.ALWAYS_SHOW_ADDRESS)
     var showGroupName by configurationStore.boolean(Key.SHOW_GROUP_NAME)
 

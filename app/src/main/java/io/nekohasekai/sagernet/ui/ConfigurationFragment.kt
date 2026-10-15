@@ -741,18 +741,35 @@ class ConfigurationFragment @JvmOverloads constructor(
 
             val link = DataStore.connectionTestURL
             val timeout = 1500
+            // NextClave: worker count is adjustable in Settings (default 3);
+            // every run logs its parameters and per-node results to logcat
+            // (visible in the built-in log viewer) so latency issues can be
+            // diagnosed without adb.
+            val workers = DataStore.urlTestWorkers.coerceIn(1, 6)
+            val vpnRunning = SagerNet.started && DataStore.startedProfile > 0
+                    && DataStore.serviceMode == Key.MODE_VPN
+            val protectedDial = vpnRunning && DataStore.tunImplementation == TunImplementation.SYSTEM
+            Logs.i("NextClave urltest: group \"${group.name}\" nodes=$profileCount workers=$workers " +
+                    "timeout=${timeout}ms url=$link vpn=$vpnRunning tun=${DataStore.tunImplementation} " +
+                    "protectedDial=$protectedDial")
+            if (vpnRunning && !protectedDial) {
+                Logs.w("NextClave VPN is running and TUN implementation is not 'system': " +
+                        "test traffic will go THROUGH the VPN tunnel and every number will be " +
+                        "roughly doubled. Disconnect the VPN before testing, or switch " +
+                        "TUN implementation to 'system'.")
+            }
 
             onMainDispatcher {
                 counterView.text = "0/$profileCount"
             }
 
             val testJobs = mutableListOf<Job>()
-            // NextClave: 3 workers with a wide stagger. Every worker runs a
+            // NextClave: workers with a wide stagger. Every worker runs a
             // full separate Xray core and a full TLS handshake; parallel cores
             // contend for CPU on a phone and skew the measured latency upwards.
             // Timeout is intentionally short (1500 ms): nodes that fail to
             // answer within it are not worth using anyway.
-            repeat(3) { index ->
+            repeat(workers) { index ->
                 testJobs.add(launch {
                     delay(index * 500L)
                     while (isActive) {
@@ -784,6 +801,9 @@ class ConfigurationFragment @JvmOverloads constructor(
                         }
 
                         ProfileManager.updateProfile(profile)
+                        // NextClave: per-node result line for diagnostics
+                        Logs.d("NextClave urltest: [${profile.displayName()}] -> " +
+                                "${profile.ping} ms (status=${profile.status})")
                     }
                 })
             }

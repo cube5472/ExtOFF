@@ -86,6 +86,7 @@
     <string name="server_address">Сервер</string>
     <string name="profile_name">Имя профиля</string>
     <string name="connection_test_url">URL-адрес проверки подключения</string>
+    <string name="url_test_workers">Параллельные воркеры url-теста</string>
     <string name="port_transproxy">Порт транспрокси</string>
     <string name="port_proxy">Порт прокси SOCKS5</string>
     <string name="service_mode_vpn">VPN</string>

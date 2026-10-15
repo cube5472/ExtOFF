@@ -226,6 +226,12 @@
             app:key="connectionTestURL"
             app:title="@string/connection_test_url"
             app:useSimpleSummaryProvider="true" />
+        <EditTextPreference
+            app:defaultValue="3"
+            app:icon="@drawable/ic_baseline_cast_connected_24"
+            app:key="urlTestWorkers"
+            app:title="@string/url_test_workers"
+            app:useSimpleSummaryProvider="true" />
         <SwitchPreference
             app:icon="@drawable/baseline_construction_24"
             app:key="realityDisableX25519Mlkem768"

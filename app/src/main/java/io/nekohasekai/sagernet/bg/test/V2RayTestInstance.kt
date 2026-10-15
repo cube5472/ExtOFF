@@ -82,5 +82,14 @@ class V2RayTestInstance(profile: ProxyEntity, val link: String, val timeout: Int
 
     override fun buildConfig() {
         config = buildV2RayConfig(profile, forTest = true)
+        // NextClave: dump one sample of the effective test config per process
+        // for diagnostics (routing/DNS must show AsIs + localhost-only)
+        if (!configDumped.getAndSet(true)) {
+            Logs.d("NextClave urltest config sample:\n${config.config}")
+        }
+    }
+
+    companion object {
+        private val configDumped = java.util.concurrent.atomic.AtomicBoolean(false)
     }
 }
