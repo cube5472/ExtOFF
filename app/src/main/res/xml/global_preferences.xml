@@ -11,6 +11,11 @@
             android:title="@string/theme"
             app:icon="@drawable/ic_baseline_color_lens_24"
             app:key="appTheme" />
+        <io.nekohasekai.sagernet.widget.AccentPalettePreference
+            android:title="@string/coal_accent_palette"
+            app:icon="@drawable/ic_baseline_color_lens_24"
+            app:key="coalAccent"
+            app:summary="@string/coal_accent_palette_sum" />
         <io.nekohasekai.sagernet.widget.SimpleMenuPreference
             app:defaultValue="0"
             app:entries="@array/night_mode"

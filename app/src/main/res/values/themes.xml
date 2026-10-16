@@ -704,4 +704,309 @@
         <item name="windowNoTitle">true</item>
     </style>
 
+
+    
+    <!-- NextClave coal accent palette overlays (generated). Applied via
+         Theme.applyCoalAccent() when the user picks a shade in Settings. -->
+    <style name="ThemeOverlay.NextClave.CoalAccent0" parent="">
+        <item name="colorPrimary">@color/coal_accent_0</item>
+        <item name="colorAccent">@color/coal_accent_0</item>
+        <item name="coalBorderColor">@color/coal_accent_0</item>
+        <item name="selectedColorPrimary">@color/coal_accent_0_sel</item>
+        <item name="colorMaterial100">@color/coal_accent_0_sel</item>
+        <item name="colorMaterial300">@color/coal_accent_0_soft</item>
+        <item name="tabIndicatorColor">@color/coal_accent_0</item>
+        <item name="tabRippleColor">@color/coal_accent_0</item>
+    </style>
+    <style name="ThemeOverlay.NextClave.CoalAccent1" parent="">
+        <item name="colorPrimary">@color/coal_accent_1</item>
+        <item name="colorAccent">@color/coal_accent_1</item>
+        <item name="coalBorderColor">@color/coal_accent_1</item>
+        <item name="selectedColorPrimary">@color/coal_accent_1_sel</item>
+        <item name="colorMaterial100">@color/coal_accent_1_sel</item>
+        <item name="colorMaterial300">@color/coal_accent_1_soft</item>
+        <item name="tabIndicatorColor">@color/coal_accent_1</item>
+        <item name="tabRippleColor">@color/coal_accent_1</item>
+    </style>
+    <style name="ThemeOverlay.NextClave.CoalAccent2" parent="">
+        <item name="colorPrimary">@color/coal_accent_2</item>
+        <item name="colorAccent">@color/coal_accent_2</item>
+        <item name="coalBorderColor">@color/coal_accent_2</item>
+        <item name="selectedColorPrimary">@color/coal_accent_2_sel</item>
+        <item name="colorMaterial100">@color/coal_accent_2_sel</item>
+        <item name="colorMaterial300">@color/coal_accent_2_soft</item>
+        <item name="tabIndicatorColor">@color/coal_accent_2</item>
+        <item name="tabRippleColor">@color/coal_accent_2</item>
+    </style>
+    <style name="ThemeOverlay.NextClave.CoalAccent3" parent="">
+        <item name="colorPrimary">@color/coal_accent_3</item>
+        <item name="colorAccent">@color/coal_accent_3</item>
+        <item name="coalBorderColor">@color/coal_accent_3</item>
+        <item name="selectedColorPrimary">@color/coal_accent_3_sel</item>
+        <item name="colorMaterial100">@color/coal_accent_3_sel</item>
+        <item name="colorMaterial300">@color/coal_accent_3_soft</item>
+        <item name="tabIndicatorColor">@color/coal_accent_3</item>
+        <item name="tabRippleColor">@color/coal_accent_3</item>
+    </style>
+    <style name="ThemeOverlay.NextClave.CoalAccent4" parent="">
+        <item name="colorPrimary">@color/coal_accent_4</item>
+        <item name="colorAccent">@color/coal_accent_4</item>
+        <item name="coalBorderColor">@color/coal_accent_4</item>
+        <item name="selectedColorPrimary">@color/coal_accent_4_sel</item>
+        <item name="colorMaterial100">@color/coal_accent_4_sel</item>
+        <item name="colorMaterial300">@color/coal_accent_4_soft</item>
+        <item name="tabIndicatorColor">@color/coal_accent_4</item>
+        <item name="tabRippleColor">@color/coal_accent_4</item>
+    </style>
+    <style name="ThemeOverlay.NextClave.CoalAccent5" parent="">
+        <item name="colorPrimary">@color/coal_accent_5</item>
+        <item name="colorAccent">@color/coal_accent_5</item>
+        <item name="coalBorderColor">@color/coal_accent_5</item>
+        <item name="selectedColorPrimary">@color/coal_accent_5_sel</item>
+        <item name="colorMaterial100">@color/coal_accent_5_sel</item>
+        <item name="colorMaterial300">@color/coal_accent_5_soft</item>
+        <item name="tabIndicatorColor">@color/coal_accent_5</item>
+        <item name="tabRippleColor">@color/coal_accent_5</item>
+    </style>
+    <style name="ThemeOverlay.NextClave.CoalAccent6" parent="">
+        <item name="colorPrimary">@color/coal_accent_6</item>
+        <item name="colorAccent">@color/coal_accent_6</item>
+        <item name="coalBorderColor">@color/coal_accent_6</item>
+        <item name="selectedColorPrimary">@color/coal_accent_6_sel</item>
+        <item name="colorMaterial100">@color/coal_accent_6_sel</item>
+        <item name="colorMaterial300">@color/coal_accent_6_soft</item>
+        <item name="tabIndicatorColor">@color/coal_accent_6</item>
+        <item name="tabRippleColor">@color/coal_accent_6</item>
+    </style>
+    <style name="ThemeOverlay.NextClave.CoalAccent7" parent="">
+        <item name="colorPrimary">@color/coal_accent_7</item>
+        <item name="colorAccent">@color/coal_accent_7</item>
+        <item name="coalBorderColor">@color/coal_accent_7</item>
+        <item name="selectedColorPrimary">@color/coal_accent_7_sel</item>
+        <item name="colorMaterial100">@color/coal_accent_7_sel</item>
+        <item name="colorMaterial300">@color/coal_accent_7_soft</item>
+        <item name="tabIndicatorColor">@color/coal_accent_7</item>
+        <item name="tabRippleColor">@color/coal_accent_7</item>
+    </style>
+    <style name="ThemeOverlay.NextClave.CoalAccent8" parent="">
+        <item name="colorPrimary">@color/coal_accent_8</item>
+        <item name="colorAccent">@color/coal_accent_8</item>
+        <item name="coalBorderColor">@color/coal_accent_8</item>
+        <item name="selectedColorPrimary">@color/coal_accent_8_sel</item>
+        <item name="colorMaterial100">@color/coal_accent_8_sel</item>
+        <item name="colorMaterial300">@color/coal_accent_8_soft</item>
+        <item name="tabIndicatorColor">@color/coal_accent_8</item>
+        <item name="tabRippleColor">@color/coal_accent_8</item>
+    </style>
+    <style name="ThemeOverlay.NextClave.CoalAccent9" parent="">
+        <item name="colorPrimary">@color/coal_accent_9</item>
+        <item name="colorAccent">@color/coal_accent_9</item>
+        <item name="coalBorderColor">@color/coal_accent_9</item>
+        <item name="selectedColorPrimary">@color/coal_accent_9_sel</item>
+        <item name="colorMaterial100">@color/coal_accent_9_sel</item>
+        <item name="colorMaterial300">@color/coal_accent_9_soft</item>
+        <item name="tabIndicatorColor">@color/coal_accent_9</item>
+        <item name="tabRippleColor">@color/coal_accent_9</item>
+    </style>
+    <style name="ThemeOverlay.NextClave.CoalAccent10" parent="">
+        <item name="colorPrimary">@color/coal_accent_10</item>
+        <item name="colorAccent">@color/coal_accent_10</item>
+        <item name="coalBorderColor">@color/coal_accent_10</item>
+        <item name="selectedColorPrimary">@color/coal_accent_10_sel</item>
+        <item name="colorMaterial100">@color/coal_accent_10_sel</item>
+        <item name="colorMaterial300">@color/coal_accent_10_soft</item>
+        <item name="tabIndicatorColor">@color/coal_accent_10</item>
+        <item name="tabRippleColor">@color/coal_accent_10</item>
+    </style>
+    <style name="ThemeOverlay.NextClave.CoalAccent11" parent="">
+        <item name="colorPrimary">@color/coal_accent_11</item>
+        <item name="colorAccent">@color/coal_accent_11</item>
+        <item name="coalBorderColor">@color/coal_accent_11</item>
+        <item name="selectedColorPrimary">@color/coal_accent_11_sel</item>
+        <item name="colorMaterial100">@color/coal_accent_11_sel</item>
+        <item name="colorMaterial300">@color/coal_accent_11_soft</item>
+        <item name="tabIndicatorColor">@color/coal_accent_11</item>
+        <item name="tabRippleColor">@color/coal_accent_11</item>
+    </style>
+    <style name="ThemeOverlay.NextClave.CoalAccent12" parent="">
+        <item name="colorPrimary">@color/coal_accent_12</item>
+        <item name="colorAccent">@color/coal_accent_12</item>
+        <item name="coalBorderColor">@color/coal_accent_12</item>
+        <item name="selectedColorPrimary">@color/coal_accent_12_sel</item>
+        <item name="colorMaterial100">@color/coal_accent_12_sel</item>
+        <item name="colorMaterial300">@color/coal_accent_12_soft</item>
+        <item name="tabIndicatorColor">@color/coal_accent_12</item>
+        <item name="tabRippleColor">@color/coal_accent_12</item>
+    </style>
+    <style name="ThemeOverlay.NextClave.CoalAccent13" parent="">
+        <item name="colorPrimary">@color/coal_accent_13</item>
+        <item name="colorAccent">@color/coal_accent_13</item>
+        <item name="coalBorderColor">@color/coal_accent_13</item>
+        <item name="selectedColorPrimary">@color/coal_accent_13_sel</item>
+        <item name="colorMaterial100">@color/coal_accent_13_sel</item>
+        <item name="colorMaterial300">@color/coal_accent_13_soft</item>
+        <item name="tabIndicatorColor">@color/coal_accent_13</item>
+        <item name="tabRippleColor">@color/coal_accent_13</item>
+    </style>
+    <style name="ThemeOverlay.NextClave.CoalAccent14" parent="">
+        <item name="colorPrimary">@color/coal_accent_14</item>
+        <item name="colorAccent">@color/coal_accent_14</item>
+        <item name="coalBorderColor">@color/coal_accent_14</item>
+        <item name="selectedColorPrimary">@color/coal_accent_14_sel</item>
+        <item name="colorMaterial100">@color/coal_accent_14_sel</item>
+        <item name="colorMaterial300">@color/coal_accent_14_soft</item>
+        <item name="tabIndicatorColor">@color/coal_accent_14</item>
+        <item name="tabRippleColor">@color/coal_accent_14</item>
+    </style>
+    <style name="ThemeOverlay.NextClave.CoalAccent15" parent="">
+        <item name="colorPrimary">@color/coal_accent_15</item>
+        <item name="colorAccent">@color/coal_accent_15</item>
+        <item name="coalBorderColor">@color/coal_accent_15</item>
+        <item name="selectedColorPrimary">@color/coal_accent_15_sel</item>
+        <item name="colorMaterial100">@color/coal_accent_15_sel</item>
+        <item name="colorMaterial300">@color/coal_accent_15_soft</item>
+        <item name="tabIndicatorColor">@color/coal_accent_15</item>
+        <item name="tabRippleColor">@color/coal_accent_15</item>
+    </style>
+    <style name="ThemeOverlay.NextClave.CoalAccent16" parent="">
+        <item name="colorPrimary">@color/coal_accent_16</item>
+        <item name="colorAccent">@color/coal_accent_16</item>
+        <item name="coalBorderColor">@color/coal_accent_16</item>
+        <item name="selectedColorPrimary">@color/coal_accent_16_sel</item>
+        <item name="colorMaterial100">@color/coal_accent_16_sel</item>
+        <item name="colorMaterial300">@color/coal_accent_16_soft</item>
+        <item name="tabIndicatorColor">@color/coal_accent_16</item>
+        <item name="tabRippleColor">@color/coal_accent_16</item>
+    </style>
+    <style name="ThemeOverlay.NextClave.CoalAccent17" parent="">
+        <item name="colorPrimary">@color/coal_accent_17</item>
+        <item name="colorAccent">@color/coal_accent_17</item>
+        <item name="coalBorderColor">@color/coal_accent_17</item>
+        <item name="selectedColorPrimary">@color/coal_accent_17_sel</item>
+        <item name="colorMaterial100">@color/coal_accent_17_sel</item>
+        <item name="colorMaterial300">@color/coal_accent_17_soft</item>
+        <item name="tabIndicatorColor">@color/coal_accent_17</item>
+        <item name="tabRippleColor">@color/coal_accent_17</item>
+    </style>
+    <style name="ThemeOverlay.NextClave.CoalAccent18" parent="">
+        <item name="colorPrimary">@color/coal_accent_18</item>
+        <item name="colorAccent">@color/coal_accent_18</item>
+        <item name="coalBorderColor">@color/coal_accent_18</item>
+        <item name="selectedColorPrimary">@color/coal_accent_18_sel</item>
+        <item name="colorMaterial100">@color/coal_accent_18_sel</item>
+        <item name="colorMaterial300">@color/coal_accent_18_soft</item>
+        <item name="tabIndicatorColor">@color/coal_accent_18</item>
+        <item name="tabRippleColor">@color/coal_accent_18</item>
+    </style>
+    <style name="ThemeOverlay.NextClave.CoalAccent19" parent="">
+        <item name="colorPrimary">@color/coal_accent_19</item>
+        <item name="colorAccent">@color/coal_accent_19</item>
+        <item name="coalBorderColor">@color/coal_accent_19</item>
+        <item name="selectedColorPrimary">@color/coal_accent_19_sel</item>
+        <item name="colorMaterial100">@color/coal_accent_19_sel</item>
+        <item name="colorMaterial300">@color/coal_accent_19_soft</item>
+        <item name="tabIndicatorColor">@color/coal_accent_19</item>
+        <item name="tabRippleColor">@color/coal_accent_19</item>
+    </style>
+    <style name="ThemeOverlay.NextClave.CoalAccent20" parent="">
+        <item name="colorPrimary">@color/coal_accent_20</item>
+        <item name="colorAccent">@color/coal_accent_20</item>
+        <item name="coalBorderColor">@color/coal_accent_20</item>
+        <item name="selectedColorPrimary">@color/coal_accent_20_sel</item>
+        <item name="colorMaterial100">@color/coal_accent_20_sel</item>
+        <item name="colorMaterial300">@color/coal_accent_20_soft</item>
+        <item name="tabIndicatorColor">@color/coal_accent_20</item>
+        <item name="tabRippleColor">@color/coal_accent_20</item>
+    </style>
+    <style name="ThemeOverlay.NextClave.CoalAccent21" parent="">
+        <item name="colorPrimary">@color/coal_accent_21</item>
+        <item name="colorAccent">@color/coal_accent_21</item>
+        <item name="coalBorderColor">@color/coal_accent_21</item>
+        <item name="selectedColorPrimary">@color/coal_accent_21_sel</item>
+        <item name="colorMaterial100">@color/coal_accent_21_sel</item>
+        <item name="colorMaterial300">@color/coal_accent_21_soft</item>
+        <item name="tabIndicatorColor">@color/coal_accent_21</item>
+        <item name="tabRippleColor">@color/coal_accent_21</item>
+    </style>
+    <style name="ThemeOverlay.NextClave.CoalAccent22" parent="">
+        <item name="colorPrimary">@color/coal_accent_22</item>
+        <item name="colorAccent">@color/coal_accent_22</item>
+        <item name="coalBorderColor">@color/coal_accent_22</item>
+        <item name="selectedColorPrimary">@color/coal_accent_22_sel</item>
+        <item name="colorMaterial100">@color/coal_accent_22_sel</item>
+        <item name="colorMaterial300">@color/coal_accent_22_soft</item>
+        <item name="tabIndicatorColor">@color/coal_accent_22</item>
+        <item name="tabRippleColor">@color/coal_accent_22</item>
+    </style>
+    <style name="ThemeOverlay.NextClave.CoalAccent23" parent="">
+        <item name="colorPrimary">@color/coal_accent_23</item>
+        <item name="colorAccent">@color/coal_accent_23</item>
+        <item name="coalBorderColor">@color/coal_accent_23</item>
+        <item name="selectedColorPrimary">@color/coal_accent_23_sel</item>
+        <item name="colorMaterial100">@color/coal_accent_23_sel</item>
+        <item name="colorMaterial300">@color/coal_accent_23_soft</item>
+        <item name="tabIndicatorColor">@color/coal_accent_23</item>
+        <item name="tabRippleColor">@color/coal_accent_23</item>
+    </style>
+    <style name="ThemeOverlay.NextClave.CoalAccent24" parent="">
+        <item name="colorPrimary">@color/coal_accent_24</item>
+        <item name="colorAccent">@color/coal_accent_24</item>
+        <item name="coalBorderColor">@color/coal_accent_24</item>
+        <item name="selectedColorPrimary">@color/coal_accent_24_sel</item>
+        <item name="colorMaterial100">@color/coal_accent_24_sel</item>
+        <item name="colorMaterial300">@color/coal_accent_24_soft</item>
+        <item name="tabIndicatorColor">@color/coal_accent_24</item>
+        <item name="tabRippleColor">@color/coal_accent_24</item>
+    </style>
+    <style name="ThemeOverlay.NextClave.CoalAccent25" parent="">
+        <item name="colorPrimary">@color/coal_accent_25</item>
+        <item name="colorAccent">@color/coal_accent_25</item>
+        <item name="coalBorderColor">@color/coal_accent_25</item>
+        <item name="selectedColorPrimary">@color/coal_accent_25_sel</item>
+        <item name="colorMaterial100">@color/coal_accent_25_sel</item>
+        <item name="colorMaterial300">@color/coal_accent_25_soft</item>
+        <item name="tabIndicatorColor">@color/coal_accent_25</item>
+        <item name="tabRippleColor">@color/coal_accent_25</item>
+    </style>
+    <style name="ThemeOverlay.NextClave.CoalAccent26" parent="">
+        <item name="colorPrimary">@color/coal_accent_26</item>
+        <item name="colorAccent">@color/coal_accent_26</item>
+        <item name="coalBorderColor">@color/coal_accent_26</item>
+        <item name="selectedColorPrimary">@color/coal_accent_26_sel</item>
+        <item name="colorMaterial100">@color/coal_accent_26_sel</item>
+        <item name="colorMaterial300">@color/coal_accent_26_soft</item>
+        <item name="tabIndicatorColor">@color/coal_accent_26</item>
+        <item name="tabRippleColor">@color/coal_accent_26</item>
+    </style>
+    <style name="ThemeOverlay.NextClave.CoalAccent27" parent="">
+        <item name="colorPrimary">@color/coal_accent_27</item>
+        <item name="colorAccent">@color/coal_accent_27</item>
+        <item name="coalBorderColor">@color/coal_accent_27</item>
+        <item name="selectedColorPrimary">@color/coal_accent_27_sel</item>
+        <item name="colorMaterial100">@color/coal_accent_27_sel</item>
+        <item name="colorMaterial300">@color/coal_accent_27_soft</item>
+        <item name="tabIndicatorColor">@color/coal_accent_27</item>
+        <item name="tabRippleColor">@color/coal_accent_27</item>
+    </style>
+    <style name="ThemeOverlay.NextClave.CoalAccent28" parent="">
+        <item name="colorPrimary">@color/coal_accent_28</item>
+        <item name="colorAccent">@color/coal_accent_28</item>
+        <item name="coalBorderColor">@color/coal_accent_28</item>
+        <item name="selectedColorPrimary">@color/coal_accent_28_sel</item>
+        <item name="colorMaterial100">@color/coal_accent_28_sel</item>
+        <item name="colorMaterial300">@color/coal_accent_28_soft</item>
+        <item name="tabIndicatorColor">@color/coal_accent_28</item>
+        <item name="tabRippleColor">@color/coal_accent_28</item>
+    </style>
+    <style name="ThemeOverlay.NextClave.CoalAccent29" parent="">
+        <item name="colorPrimary">@color/coal_accent_29</item>
+        <item name="colorAccent">@color/coal_accent_29</item>
+        <item name="coalBorderColor">@color/coal_accent_29</item>
+        <item name="selectedColorPrimary">@color/coal_accent_29_sel</item>
+        <item name="colorMaterial100">@color/coal_accent_29_sel</item>
+        <item name="colorMaterial300">@color/coal_accent_29_soft</item>
+        <item name="tabIndicatorColor">@color/coal_accent_29</item>
+        <item name="tabRippleColor">@color/coal_accent_29</item>
+    </style>
+
 </resources>

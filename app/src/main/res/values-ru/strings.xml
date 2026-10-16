@@ -77,6 +77,8 @@
     <string name="quick_toggle">Переключить</string>
     <string name="group_default">Без группы</string>
     <string name="theme">Тема</string>
+    <string name="coal_accent_palette">Палитра акцента</string>
+    <string name="coal_accent_palette_sum">Точный оттенок обводки карточек, выделения и акцентов для угольных тем</string>
     <string name="menu_about">О приложении</string>
     <string name="menu_group">Группы</string>
     <string name="menu_configuration">Конфигурация</string>

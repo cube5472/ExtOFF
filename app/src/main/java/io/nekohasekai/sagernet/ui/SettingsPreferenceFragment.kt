@@ -49,6 +49,7 @@ import io.nekohasekai.sagernet.ktx.*
 import io.nekohasekai.sagernet.ui.profile.ProfileSettingsActivity
 import io.nekohasekai.sagernet.utils.PackageCache
 import io.nekohasekai.sagernet.utils.Theme
+import io.nekohasekai.sagernet.widget.AccentPalettePreference
 import io.nekohasekai.sagernet.widget.ColorPickerPreference
 import io.nekohasekai.sagernet.widget.LinkOrContentPreference
 import kotlinx.coroutines.delay
@@ -105,6 +106,15 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
             DataStore.appTheme = newTheme
             app.setTheme(theme)
             Theme.applyNightTheme()
+            requireActivity().apply {
+                ActivityCompat.recreate(this)
+            }
+            true
+        }
+
+        // NextClave: coal accent palette — recreate so every coal surface
+        // (cards outline, selection, tabs, switches) picks up the new shade.
+        findPreference<AccentPalettePreference>(Key.COAL_ACCENT)!!.setOnPreferenceChangeListener { _, _ ->
             requireActivity().apply {
                 ActivityCompat.recreate(this)
             }

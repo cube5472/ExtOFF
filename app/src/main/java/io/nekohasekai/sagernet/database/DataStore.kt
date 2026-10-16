@@ -131,6 +131,8 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     }
 
     var appTheme by configurationStore.int(Key.APP_THEME)
+    // NextClave: 0 = theme default, 1..N = coal accent palette index
+    var coalAccent by configurationStore.int(Key.COAL_ACCENT)
     var nightTheme by configurationStore.stringToInt(Key.NIGHT_THEME)
     var serviceMode by configurationStore.string(Key.SERVICE_MODE) { Key.MODE_VPN }
 
