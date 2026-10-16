@@ -1,0 +1,95 @@
+name: Core 0.17.60 rebuild (reference toolchain)
+
+# One-off NextClave job: rebuilds the core from the 0.17.60 sources
+# (libexclavecore@20261010122125, pinned by library/core/go.mod) using the
+# EXACT toolchain of the known-good reference build (Go 1.27.1 + gomobile
+# 8b95e45f + NDK r30 - the recipe that produced the adequate url-test core).
+#
+# The prebuilt-AAR guard in bin/lib/core/build.sh is bypassed with
+# NEXTCLAVE_FORCE_CORE_BUILD=1; the fresh AAR replaces the committed one in
+# the WORKSPACE ONLY (git is not touched), so the APKs below are built with
+# the new core. The artifact LibExclaveCore-0.17.60 lets you make it
+# permanent later (upload it to app/libs/).
+#
+# Check the "Core Build" step log for:
+#   - md5 of the new AAR
+#   - md5 of libs/arm64-v8a/libgojni.so INSIDE it (will differ from the old
+#     2180d4bb7ad752b166a6d670c7f84834 - that is expected and intended)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: 1.27.1
+          cache-dependency-path: "library/core/go.sum"
+      - name: Setup Go Mobile
+        # Same pin as the reference build
+        run: |
+          go install golang.org/x/mobile/cmd/gomobile@v0.0.0-20260908204917-8b95e45f8d3e
+          go install golang.org/x/mobile/cmd/gobind@v0.0.0-20260908204917-8b95e45f8d3e
+      - name: Setup Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: 'temurin'
+          java-version: 21
+          cache: 'gradle'
+      - name: Setup Android NDK
+        id: setup-ndk
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r30
+      - name: Core Build (forced, reference toolchain)
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+          NEXTCLAVE_FORCE_CORE_BUILD: "1"
+        run: |
+          ./run lib core
+          echo "==================== Core verification ===================="
+          echo "-- AAR md5:"
+          md5sum app/libs/libexclavecore.aar
+          echo "-- libgojni.so (arm64-v8a) md5 inside the fresh AAR:"
+          unzip -p app/libs/libexclavecore.aar libs/arm64-v8a/libgojni.so | md5sum
+          echo "-- AAR contents:"
+          unzip -l app/libs/libexclavecore.aar
+      - name: Prepare arm64-only AAR artifact
+        # gomobile binds all four ABIs (~50-60 MB), which exceeds the 25 MB
+        # GitHub web-upload limit. The app's arm64 split is what this project
+        # ships (the currently committed AAR is arm64-only too), so the
+        # artifact keeps arm64-v8a only and stays web-uploadable. The full
+        # AAR is still used by the Gradle step below.
+        run: |
+          cp -v app/libs/libexclavecore.aar /tmp/LibExclaveCore-arm64.aar
+          zip -d /tmp/LibExclaveCore-arm64.aar "libs/armeabi-v7a/*" "libs/x86/*" "libs/x86_64/*"
+          md5sum /tmp/LibExclaveCore-arm64.aar
+      - name: Upload Core AAR
+        uses: actions/upload-artifact@v7
+        with:
+          name: "LibExclaveCore-0.17.60"
+          path: /tmp/LibExclaveCore-arm64.aar
+      - name: Gradle Cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.gradle
+          key: gradle-${{ hashFiles('**/*.gradle.kts') }}
+      - name: Gradle Build
+        run: |
+          echo "sdk.dir=${ANDROID_HOME}" > local.properties
+          export LOCAL_PROPERTIES="${{ secrets.LOCAL_PROPERTIES }}"
+          ./gradlew :app:downloadAssets
+          ./gradlew :app:assembleOssRelease :app:assembleLegacyRelease
+      - name: Upload APKs
+        uses: actions/upload-artifact@v7
+        with:
+          name: APKs-core-01760
+          path: |
+            app/build/outputs/apk/oss/release/*.apk
+            app/build/outputs/apk/legacy/release/*.apk
