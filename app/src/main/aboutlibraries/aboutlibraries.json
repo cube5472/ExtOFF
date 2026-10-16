@@ -98,7 +98,7 @@
         },
         {
             "uniqueId": "androidx.core:core",
-            "artifactVersion": "1.19.0"
+            "artifactVersion": "1.19.1"
         },
         {
             "uniqueId": "androidx.core:core-backported-fixes",
@@ -106,7 +106,7 @@
         },
         {
             "uniqueId": "androidx.core:core-ktx",
-            "artifactVersion": "1.19.0"
+            "artifactVersion": "1.19.1"
         },
         {
             "uniqueId": "androidx.core:core-viewtree",
@@ -122,7 +122,7 @@
         },
         {
             "uniqueId": "androidx.databinding:viewbinding",
-            "artifactVersion": "9.4.0"
+            "artifactVersion": "9.4.1"
         },
         {
             "uniqueId": "androidx.drawerlayout:drawerlayout",
@@ -146,11 +146,11 @@
         },
         {
             "uniqueId": "androidx.fragment:fragment",
-            "artifactVersion": "1.9.0"
+            "artifactVersion": "1.9.1"
         },
         {
             "uniqueId": "androidx.fragment:fragment-ktx",
-            "artifactVersion": "1.9.0"
+            "artifactVersion": "1.9.1"
         },
         {
             "uniqueId": "androidx.graphics:graphics-shapes",
@@ -162,43 +162,47 @@
         },
         {
             "uniqueId": "androidx.lifecycle:lifecycle-common",
-            "artifactVersion": "2.6.2"
+            "artifactVersion": "2.10.0"
         },
         {
             "uniqueId": "androidx.lifecycle:lifecycle-livedata",
-            "artifactVersion": "2.6.2"
+            "artifactVersion": "2.10.0"
         },
         {
             "uniqueId": "androidx.lifecycle:lifecycle-livedata-core",
-            "artifactVersion": "2.6.2"
+            "artifactVersion": "2.10.0"
+        },
+        {
+            "uniqueId": "androidx.lifecycle:lifecycle-livedata-core-ktx",
+            "artifactVersion": "2.10.0"
         },
         {
             "uniqueId": "androidx.lifecycle:lifecycle-process",
-            "artifactVersion": "2.6.2"
+            "artifactVersion": "2.10.0"
         },
         {
             "uniqueId": "androidx.lifecycle:lifecycle-runtime",
-            "artifactVersion": "2.6.2"
+            "artifactVersion": "2.10.0"
         },
         {
             "uniqueId": "androidx.lifecycle:lifecycle-runtime-ktx",
-            "artifactVersion": "2.6.2"
+            "artifactVersion": "2.10.0"
         },
         {
             "uniqueId": "androidx.lifecycle:lifecycle-service",
-            "artifactVersion": "2.6.2"
+            "artifactVersion": "2.10.0"
         },
         {
             "uniqueId": "androidx.lifecycle:lifecycle-viewmodel",
-            "artifactVersion": "2.6.2"
+            "artifactVersion": "2.10.0"
         },
         {
             "uniqueId": "androidx.lifecycle:lifecycle-viewmodel-ktx",
-            "artifactVersion": "2.6.2"
+            "artifactVersion": "2.10.0"
         },
         {
             "uniqueId": "androidx.lifecycle:lifecycle-viewmodel-savedstate",
-            "artifactVersion": "2.6.2"
+            "artifactVersion": "2.10.0"
         },
         {
             "uniqueId": "androidx.loader:loader",
@@ -250,11 +254,11 @@
         },
         {
             "uniqueId": "androidx.savedstate:savedstate",
-            "artifactVersion": "1.2.1"
+            "artifactVersion": "1.4.0"
         },
         {
             "uniqueId": "androidx.savedstate:savedstate-ktx",
-            "artifactVersion": "1.2.1"
+            "artifactVersion": "1.4.0"
         },
         {
             "uniqueId": "androidx.slidingpanelayout:slidingpanelayout",
@@ -314,15 +318,15 @@
         },
         {
             "uniqueId": "androidx.work:work-multiprocess",
-            "artifactVersion": "2.11.2"
+            "artifactVersion": "2.12.0"
         },
         {
             "uniqueId": "androidx.work:work-runtime",
-            "artifactVersion": "2.11.2"
+            "artifactVersion": "2.12.0"
         },
         {
             "uniqueId": "androidx.work:work-runtime-ktx",
-            "artifactVersion": "2.11.2"
+            "artifactVersion": "2.12.0"
         },
         {
             "uniqueId": "com.atlassian.commonmark:commonmark",
@@ -342,7 +346,7 @@
         },
         {
             "uniqueId": "com.esotericsoftware:kryo",
-            "artifactVersion": "5.6.2"
+            "artifactVersion": "5.7.0"
         },
         {
             "uniqueId": "com.esotericsoftware:minlog",
@@ -402,7 +406,7 @@
         },
         {
             "uniqueId": "com.google.protobuf:protobuf-java",
-            "artifactVersion": "4.36.1"
+            "artifactVersion": "4.36.2"
         },
         {
             "uniqueId": "com.google.zxing:core",
@@ -434,15 +438,15 @@
         },
         {
             "uniqueId": "org.bouncycastle:bcpkix-jdk18on",
-            "artifactVersion": "1.85"
+            "artifactVersion": "1.86"
         },
         {
             "uniqueId": "org.bouncycastle:bcprov-jdk18on",
-            "artifactVersion": "1.85"
+            "artifactVersion": "1.86"
         },
         {
             "uniqueId": "org.bouncycastle:bcutil-jdk18on",
-            "artifactVersion": "1.85"
+            "artifactVersion": "1.86"
         },
         {
             "uniqueId": "org.checkerframework:checker-qual",
@@ -454,11 +458,11 @@
         },
         {
             "uniqueId": "org.jetbrains.kotlin:kotlin-parcelize-runtime",
-            "artifactVersion": "2.4.20"
+            "artifactVersion": "2.4.21"
         },
         {
             "uniqueId": "org.jetbrains.kotlin:kotlin-stdlib",
-            "artifactVersion": "2.4.20"
+            "artifactVersion": "2.4.21"
         },
         {
             "uniqueId": "org.jetbrains.kotlin:kotlin-stdlib-jdk7",
@@ -481,6 +485,14 @@
             "artifactVersion": "1.11.0"
         },
         {
+            "uniqueId": "org.jetbrains.kotlinx:kotlinx-serialization-bom",
+            "artifactVersion": "1.7.3"
+        },
+        {
+            "uniqueId": "org.jetbrains.kotlinx:kotlinx-serialization-core",
+            "artifactVersion": "1.7.3"
+        },
+        {
             "uniqueId": "org.jetbrains:annotations",
             "artifactVersion": "23.0.0"
         },
@@ -490,7 +502,7 @@
         },
         {
             "uniqueId": "org.objenesis:objenesis",
-            "artifactVersion": "3.4"
+            "artifactVersion": "3.6"
         },
         {
             "uniqueId": "org.yaml:snakeyaml",

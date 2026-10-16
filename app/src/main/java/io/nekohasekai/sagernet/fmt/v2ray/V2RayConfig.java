@@ -745,6 +745,8 @@ public class V2RayConfig {
 
         public List<ServerObject> servers;
         public Boolean h1SkipWaitForReply;
+        public Boolean connectUDP;
+        public String uriTemplate;
 
         public static class ServerObject {
 
@@ -764,6 +766,8 @@ public class V2RayConfig {
         public String username;
         public String password;
         public Map<String, String> headers;
+        public Boolean connectUDP;
+        public String uriTemplate;
 
     }
 
@@ -1153,6 +1157,8 @@ public class V2RayConfig {
         public String password; // alias of privateKey
         public String privateKey;
         public List<String> shortIds;
+        public Integer maxTimeDiff;
+        public String mldsa65Seed;
         public String serverName;
         public String publicKey;
         public String shortId;
@@ -1251,6 +1257,7 @@ public class V2RayConfig {
         public String security;
         public String key;
         public HeaderObject header;
+        public Integer connectionIDLength;
 
         public static class HeaderObject {
 
