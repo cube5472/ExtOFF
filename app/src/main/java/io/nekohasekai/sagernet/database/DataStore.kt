@@ -172,6 +172,13 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     var ednsClientIp by configurationStore.string(Key.EDNS_CLIENT_IP)
 
     var routeMode by configurationStore.stringToInt(Key.ROUTE_MODE)
+
+    // NextClave: clash-r — apply Clash rules from the last updated subscription
+    var clashRules by configurationStore.boolean(Key.CLASH_RULES)
+
+    // NextClave: globally disable TLS certificate verification for all nodes
+    var disableCertVerification by configurationStore.boolean(Key.DISABLE_CERT_VERIFICATION)
+
     var rulesProvider by configurationStore.stringToInt(Key.RULES_PROVIDER)
     var rulesGeositeUrl by configurationStore.string(Key.RULES_GEOSITE_URL) { "https://github.com/v2fly/domain-list-community/releases/latest/download/dlc.dat" }
     var rulesGeoipUrl by configurationStore.string(Key.RULES_GEOIP_URL) { "https://github.com/v2fly/geoip/releases/latest/download/geoip.dat" }

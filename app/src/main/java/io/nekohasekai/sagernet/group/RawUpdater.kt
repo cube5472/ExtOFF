@@ -31,6 +31,7 @@ import io.nekohasekai.sagernet.database.ProxyGroup
 import io.nekohasekai.sagernet.database.SagerDatabase
 import io.nekohasekai.sagernet.database.SubscriptionBean
 import io.nekohasekai.sagernet.fmt.AbstractBean
+import io.nekohasekai.sagernet.fmt.clashr.ClashRules
 import io.nekohasekai.sagernet.fmt.shadowsocks.parseShadowsocksConfig
 import io.nekohasekai.sagernet.fmt.wireguard.parseWireGuardConfig
 import io.nekohasekai.sagernet.ktx.*
@@ -67,6 +68,10 @@ object RawUpdater : GroupUpdater() {
 
             proxies = contentText?.let { parseRaw(contentText) }
                 ?: error(app.getString(R.string.no_proxies_found_in_subscription))
+            if (contentText != null) {
+                // NextClave: clash-r — cache Clash rules from this subscription
+                ClashRules.onSubscriptionContent(contentText)
+            }
         } else {
             val response = Libexclavecore.newHttpClient().apply {
                 if (SagerNet.started && DataStore.startedProfile > 0) {
@@ -90,6 +95,8 @@ object RawUpdater : GroupUpdater() {
 
             proxies = parseRaw(response.contentString)
                 ?: error(app.getString(R.string.no_proxies_found))
+            // NextClave: clash-r — cache Clash rules from this subscription
+            ClashRules.onSubscriptionContent(response.contentString)
 
             val subscriptionUserinfo = response.getHeader("Subscription-Userinfo")
             if (subscriptionUserinfo.isNotEmpty()) {

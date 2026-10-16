@@ -90,6 +90,12 @@ object Key {
     const val PROBE_URL = "probeUrl"
     const val PROBE_INTERVAL = "probeInterval"
 
+    // NextClave: clash-r — use Clash rules from the last updated subscription
+    const val CLASH_RULES = "clashRules"
+
+    // NextClave: globally disable TLS certificate verification for all nodes
+    const val DISABLE_CERT_VERIFICATION = "disableCertVerification"
+
     const val ROUTE_MODE = "routeMode"
 
     const val RULES_PROVIDER = "rulesProvider"

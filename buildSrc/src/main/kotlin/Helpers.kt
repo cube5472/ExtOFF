@@ -234,11 +234,18 @@ fun Project.setupApp() {
             proguardFiles("proguard-rules-legacy.pro")
         }
         tasks.register("downloadAssets") {
-            downloadAssets(update = false)
+            // NextClave: run network I/O at execution, not at realization —
+            // configuration must not block on the GitHub API (rate limits
+            // made every gradle invocation hang for minutes).
+            doLast {
+                downloadAssets(update = false)
+            }
         }
         tasks.register("updateAssets") {
-            downloadRootCAList()
-            downloadAssets(update = true)
+            doLast {
+                downloadRootCAList()
+                downloadAssets(update = true)
+            }
         }
     }
     androidComponents.apply {
@@ -266,10 +273,9 @@ fun Project.setupApp() {
             dependsOn(":app:exportLibraryDefinitionsOssRelease")
             dependsOn(":app:exportLibraryDefinitionsLegacyRelease")
         }
-    }
-    if (tasks.findByPath(":app:exportLibraryDefinitionsLegacyRelease") != null
-        && tasks.findByPath(":app:exportLibraryDefinitionsOssRelease") != null) {
-        tasks.named(":app:exportLibraryDefinitionsLegacyRelease") {
+        // NextClave: deterministic ordering without tasks.findByPath, which
+        // realizes the whole task container (and any eager task actions).
+        if (name == "exportLibraryDefinitionsLegacyRelease") {
             mustRunAfter(":app:exportLibraryDefinitionsOssRelease")
         }
     }

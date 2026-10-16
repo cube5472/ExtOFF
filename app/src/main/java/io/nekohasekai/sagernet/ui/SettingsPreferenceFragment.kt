@@ -44,6 +44,7 @@ import io.nekohasekai.sagernet.*
 import io.nekohasekai.sagernet.Key.MODE_VPN
 import io.nekohasekai.sagernet.database.DataStore
 import io.nekohasekai.sagernet.database.preference.EditTextPreferenceModifiers
+import io.nekohasekai.sagernet.fmt.clashr.ClashRules
 import io.nekohasekai.sagernet.ktx.*
 import io.nekohasekai.sagernet.ui.profile.ProfileSettingsActivity
 import io.nekohasekai.sagernet.utils.PackageCache
@@ -361,6 +362,17 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         }
         rulesGeositeUrl.isVisible = DataStore.rulesProvider == 3
         rulesGeoipUrl.isVisible = DataStore.rulesProvider == 3
+
+        // NextClave: clash-r — fetch rule providers when the toggle is enabled
+        findPreference<SwitchPreference>(Key.CLASH_RULES)!!.setOnPreferenceChangeListener { _, newValue ->
+            if (newValue == true) {
+                runOnDefaultDispatcher {
+                    runCatching { ClashRules.fetchAll(false) }
+                }
+            }
+            needReload()
+            true
+        }
 
         // protocol settings
         val enableFragment = findPreference<SwitchPreference>(Key.ENABLE_FRAGMENT)!!

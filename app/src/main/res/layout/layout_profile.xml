@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?><!-- Based on: https://github.com/android/platform_frameworks_base/blob/505e3ab/core/res/res/layout/simple_list_item_2.xml -->
+<!-- NextClave: compact node cards (smaller fonts, tighter paddings) -->
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/content"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginVertical="4dp"
-    android:layout_marginHorizontal="8dp"
+    android:layout_marginVertical="2dp"
+    android:layout_marginHorizontal="6dp"
     android:clickable="true"
     android:focusable="true"
     app:cardCornerRadius="14dp"
@@ -47,9 +48,9 @@
                     android:layout_gravity="center_vertical"
                     android:layout_weight="1"
                     android:gravity="center_vertical"
-                    android:paddingStart="12dp"
-                    android:paddingTop="8dp"
-                    android:paddingBottom="8dp">
+                    android:paddingStart="10dp"
+                    android:paddingTop="3dp"
+                    android:paddingBottom="3dp">
 
                     <TextView
                         android:id="@+id/profile_name"
@@ -57,26 +58,28 @@
                         android:layout_height="wrap_content"
                         android:textAppearance="?android:attr/textAppearanceSmall"
                         android:textColor="?android:attr/textColorPrimary"
+                        android:textSize="14sp"
                         android:textStyle="bold"
                         tools:text="@string/profile_name" />
                 </LinearLayout>
 
                 <androidx.appcompat.widget.AppCompatImageView
                     android:id="@+id/edit"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="top"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_gravity="center_vertical"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="@string/edit"
                     android:focusable="true"
-                    android:padding="12dp"
+                    android:padding="2dp"
+                    android:scaleType="fitCenter"
                     app:srcCompat="@drawable/ic_image_edit" />
 
                 <LinearLayout
                     android:id="@+id/share"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="top"
+                    android:layout_gravity="center_vertical"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="@string/share"
                     android:focusable="true"
@@ -86,12 +89,13 @@
                         android:id="@+id/share_layer"
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
-                        android:padding="12dp">
+                        android:padding="2dp">
 
                         <androidx.appcompat.widget.AppCompatImageView
                             android:id="@+id/shareIcon"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:scaleType="fitCenter"
                             app:srcCompat="@drawable/ic_social_share" />
                     </LinearLayout>
 
@@ -99,13 +103,15 @@
 
                 <androidx.appcompat.widget.AppCompatImageView
                     android:id="@+id/deleteIcon"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="top"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_gravity="center_vertical"
+                    android:layout_marginEnd="4dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="@string/delete"
                     android:focusable="true"
-                    android:padding="12dp"
+                    android:padding="2dp"
+                    android:scaleType="fitCenter"
                     app:srcCompat="@drawable/ic_action_delete" />
 
             </LinearLayout>
@@ -114,9 +120,9 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:paddingStart="12dp"
+                android:paddingStart="10dp"
                 android:paddingEnd="8dp"
-                android:paddingBottom="4dp"
+                android:paddingBottom="2dp"
                 tools:visibility="visible">
 
                 <TextView
@@ -127,6 +133,7 @@
                     android:textAppearance="?android:attr/textAppearanceSmall"
                     android:textColor="?android:attr/textColorSecondary"
                     android:textDirection="locale"
+                    android:textSize="11sp"
                     tools:text="@string/server_address" />
 
                 <TextView
@@ -137,6 +144,7 @@
                     android:textAppearance="?android:attr/textAppearanceSmall"
                     android:textColor="?android:attr/textColorSecondary"
                     android:textDirection="locale"
+                    android:textSize="11sp"
                     tools:text="@string/traffic" />
 
             </LinearLayout>
@@ -145,9 +153,9 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:paddingStart="12dp"
+                android:paddingStart="10dp"
                 android:paddingEnd="8dp"
-                android:paddingBottom="12dp">
+                android:paddingBottom="5dp">
 
                 <TextView
                     android:id="@+id/profile_type"
@@ -157,6 +165,7 @@
                     android:textAppearance="?android:attr/textAppearanceSmall"
                     android:textColor="?colorAccent"
                     android:textDirection="locale"
+                    android:textSize="11sp"
                     tools:text="Protocol" />
 
                 <TextView
@@ -167,6 +176,7 @@
                     android:textAppearance="?android:attr/textAppearanceSmall"
                     android:textColor="?colorAccent"
                     android:textDirection="locale"
+                    android:textSize="11sp"
                     tools:text="1 ms"
                     tools:textColor="@color/material_green_500"/>
 

@@ -40,6 +40,7 @@ import io.nekohasekai.sagernet.database.ProxyEntity
 import io.nekohasekai.sagernet.database.SagerDatabase
 import io.nekohasekai.sagernet.fmt.V2rayBuildResult.IndexEntity
 import io.nekohasekai.sagernet.fmt.anytls.AnyTLSBean
+import io.nekohasekai.sagernet.fmt.clashr.ClashRules
 import io.nekohasekai.sagernet.fmt.gson.gson
 import io.nekohasekai.sagernet.fmt.http.HttpBean
 import io.nekohasekai.sagernet.fmt.http3.Http3Bean
@@ -884,7 +885,7 @@ fun buildV2RayConfig(
                                                 if (bean.pinnedPeerCertificateChainSha256.isNotEmpty()) {
                                                     pinnedPeerCertificateChainSha256 = bean.pinnedPeerCertificateChainSha256.listByLineOrComma()
                                                 }
-                                                if (bean.allowInsecure) {
+                                                if (bean.allowInsecure || DataStore.disableCertVerification) {
                                                     allowInsecure = true
                                                 }
                                                 val overrideFingerprint = DataStore.experimentalFlagsProperties.getProperty("overrideUTLSFingerprintForTLS")
@@ -1389,7 +1390,7 @@ fun buildV2RayConfig(
                                         if (bean.sni.isNotEmpty()) {
                                             serverName = bean.sni
                                         }
-                                        if (bean.allowInsecure) {
+                                        if (bean.allowInsecure || DataStore.disableCertVerification) {
                                             allowInsecure = true
                                         }
                                         if (bean.pinnedPeerCertificateSha256.isNotEmpty()) {
@@ -1461,7 +1462,7 @@ fun buildV2RayConfig(
                                         if (bean.alpn.isNotEmpty()) {
                                             alpn = bean.alpn.listByLineOrComma()
                                         }
-                                        if (bean.allowInsecure) {
+                                        if (bean.allowInsecure || DataStore.disableCertVerification) {
                                             allowInsecure = true
                                         }
                                         if (bean.certificates.isNotEmpty() || bean.mtlsCertificate.isNotEmpty() || bean.mtlsCertificatePrivateKey.isNotEmpty()) {
@@ -1565,7 +1566,7 @@ fun buildV2RayConfig(
                                         if (bean.pinnedPeerCertificateChainSha256.isNotEmpty()) {
                                             pinnedPeerCertificateChainSha256 = bean.pinnedPeerCertificateChainSha256.listByLineOrComma()
                                         }
-                                        if (bean.allowInsecure) {
+                                        if (bean.allowInsecure || DataStore.disableCertVerification) {
                                             allowInsecure = true
                                         }
                                         if (bean.echEnabled) {
@@ -1638,7 +1639,7 @@ fun buildV2RayConfig(
                                                 if (bean.pinnedPeerCertificateChainSha256.isNotEmpty()) {
                                                     pinnedPeerCertificateChainSha256 = bean.pinnedPeerCertificateChainSha256.listByLineOrComma()
                                                 }
-                                                if (bean.allowInsecure) {
+                                                if (bean.allowInsecure || DataStore.disableCertVerification) {
                                                     allowInsecure = true
                                                 }
                                                 val overrideFingerprint = DataStore.experimentalFlagsProperties.getProperty("overrideUTLSFingerprintForTLS")
@@ -1718,7 +1719,7 @@ fun buildV2RayConfig(
                                         if (bean.sni.isNotEmpty()) {
                                             serverName = bean.sni
                                         }
-                                        if (bean.allowInsecure) {
+                                        if (bean.allowInsecure || DataStore.disableCertVerification) {
                                             allowInsecure = true
                                         }
                                         if (bean.pinnedPeerCertificateSha256.isNotEmpty()) {
@@ -1885,7 +1886,7 @@ fun buildV2RayConfig(
                                         if (bean.pinnedPeerCertificateChainSha256.isNotEmpty()) {
                                             pinnedPeerCertificateChainSha256 = bean.pinnedPeerCertificateChainSha256.listByLineOrComma()
                                         }
-                                        if (bean.allowInsecure) {
+                                        if (bean.allowInsecure || DataStore.disableCertVerification) {
                                             allowInsecure = true
                                         }
                                         if (protocol == "https") {
@@ -2248,6 +2249,19 @@ fun buildV2RayConfig(
         }
 
         val isVpn = DataStore.serviceMode == Key.MODE_VPN
+
+        // NextClave: clash-r — inject Clash rules from the last updated
+        // subscription ABOVE the app's own route rules (works for any node).
+        if (!forTest && !forExport && routeMode == RouteMode.RULE && DataStore.clashRules) {
+            val clashRoutingRules = runCatching {
+                ClashRules.buildRoutingRules(tagProxy)
+            }.getOrNull()
+            if (!clashRoutingRules.isNullOrEmpty()) {
+                for (clashRule in clashRoutingRules) {
+                    routing.rules.add(clashRule)
+                }
+            }
+        }
 
         for (rule in extraRules) {
             val uidList = mutableListOf<Int>()

@@ -534,6 +534,11 @@
     <string name="route_mode_rule">правило</string>
     <string name="route_mode_global">глобальный</string>
     <string name="route_mode_direct">прямой</string>
+    <!-- NextClave: clash-r и глобальная проверка сертификатов -->
+    <string name="clash_rules">clash-r: правила Clash</string>
+    <string name="clash_rules_sum">Применять наборы правил и провайдеры правил из последней обновлённой Clash-подписки (clash-r). Действует для любой выбранной ноды в режиме маршрутизации по правилам. Недостающие наборы указываются в логе (тег: clash-r).</string>
+    <string name="disable_cert_verification">Отключить проверку сертификатов TLS</string>
+    <string name="disable_cert_verification_sum">Принудительно пропускать проверку сертификата (skip-cert-verify / allowInsecure) для всех загруженных нод сразу. Небезопасно — используйте на свой риск.</string>
     <string name="reality_public_key">REALITY public key (публичный, открытый ключ)</string>
     <string name="reality_short_id">REALITY Short ID (короткий идентификатор)</string>
     <string name="debug_log_sum">Текущая конфигурация будет записана в системный журнал и будет содержать секретные ключи, используемые для подключения к серверам. Этот уровень журнала необходим для сообщения о проблемах. Удалите конфиденциальную информацию перед публикацией файлов журнала.</string>

@@ -560,6 +560,11 @@
     <string name="route_mode_rule">rule</string>
     <string name="route_mode_global">global</string>
     <string name="route_mode_direct">direct</string>
+    <!-- NextClave: clash-r and global certificate verification -->
+    <string name="clash_rules">clash-r: use Clash rules</string>
+    <string name="clash_rules_sum">Apply rules and rule providers from the last updated Clash subscription (clash-r). Works for any selected node in rule routing mode. Missing rule sets are listed in the log (tag: clash-r).</string>
+    <string name="disable_cert_verification">Disable TLS certificate verification</string>
+    <string name="disable_cert_verification_sum">Force skip certificate verification (skip-cert-verify / allowInsecure) for all loaded nodes at once. Insecure — use at your own risk.</string>
     <string name="action_shadowquic" translatable="false">ShadowQUIC</string>
     <string name="debug_log_sum">Running configuration will be printed to the system log, so the log will contain secret keys used to connect to servers. This log level is required for reporting issues, and please remove sensitive information before posting log files publicly.</string>
     <string name="do_not_show_again">Don\'t show again</string>

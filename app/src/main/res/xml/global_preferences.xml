@@ -110,6 +110,12 @@
             app:singleLineTitle="false"
             app:title="@string/root_ca_provider"
             app:useSimpleSummaryProvider="true" />
+        <SwitchPreference
+            android:icon="@drawable/ic_baseline_security_24"
+            app:key="disableCertVerification"
+            app:singleLineTitle="false"
+            app:summary="@string/disable_cert_verification_sum"
+            app:title="@string/disable_cert_verification" />
     </PreferenceCategory>
 
     <PreferenceCategory app:title="@string/cag_route">
@@ -217,6 +223,12 @@
             app:singleLineTitle="false"
             app:title="@string/route_mode"
             app:useSimpleSummaryProvider="true" />
+        <SwitchPreference
+            android:icon="@drawable/ic_baseline_rule_folder_24"
+            app:key="clashRules"
+            app:singleLineTitle="false"
+            app:summary="@string/clash_rules_sum"
+            app:title="@string/clash_rules" />
     </PreferenceCategory>
 
     <PreferenceCategory app:title="@string/protocol_settings">
