@@ -4,6 +4,15 @@ go 1.26.0
 
 require github.com/exclavenetwork/libexclavecore v0.0.0-20261010122125-403fc81fb396
 
+// NextClave: use a local copy of the binding module with a fixed UrlTest
+// (two warm attempts with keep-alive, report the minimum - v2rayNG method).
+// WITHOUT this replace every core rebuild silently falls back to the
+// pristine single-shot HEAD measurement and URL-test readings inflate
+// 3-5x again (the reference 0.17.56 core was built WITH this patch).
+// When bumping the pin above: refresh patched/libexclavecore/go.mod and
+// go.sum from the new pristine version and re-apply urltest.go if changed.
+replace github.com/exclavenetwork/libexclavecore => ./patched/libexclavecore
+
 require (
 	filippo.io/age v1.3.2 // indirect
 	filippo.io/hpke v0.4.0 // indirect
