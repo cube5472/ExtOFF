@@ -310,10 +310,15 @@ class StatsBar @JvmOverloads constructor(
         }
     }
     // NextClave: several free geo providers, each on its own HTTP client.
-    // geojs.io through the tunnel first (the app's own direct network may be
-    // unusable), then the same API directly, then two more fallbacks. A
-    // single silent failure used to lose the flag entirely.
+    // ip2location.io is the primary source: first through the tunnel (the
+    // app's own direct network may be unusable), then the same API directly.
+    // geojs.io and two more fallbacks follow. A single silent failure used
+    // to lose the flag entirely.
     private suspend fun lookupCountryCode(ip: String): String? {
+        if (SagerNet.started && DataStore.startedProfile > 0) {
+            withTimeoutOrNull(6_000L) { ip2LocationCountry(ip, viaTunnel = true) }?.let { return it }
+        }
+        withTimeoutOrNull(6_000L) { ip2LocationCountry(ip, viaTunnel = false) }?.let { return it }
         if (SagerNet.started && DataStore.startedProfile > 0) {
             withTimeoutOrNull(6_000L) { geojsCountry(ip, viaTunnel = true) }?.let { return it }
         }
@@ -321,6 +326,26 @@ class StatsBar @JvmOverloads constructor(
         withTimeoutOrNull(6_000L) { ipApiCountry(ip) }?.let { return it }
         withTimeoutOrNull(6_000L) { ipWhoIsCountry(ip) }?.let { return it }
         return null
+    }
+
+    // ip2location.io answer: {"ip":"1.2.3.4","country_code":"US",...}.
+    // The free no-key endpoint is limited (e.g. 1000 queries/day); on
+    // overload it replies with an error object that has no "country_code",
+    // so the parse below just returns null and the next provider is tried.
+    private suspend fun ip2LocationCountry(ip: String, viaTunnel: Boolean): String? = try {
+        val client = Libexclavecore.newHttpClient().apply {
+            if (viaTunnel) {
+                useUDS(SagerNet.deviceStorage.noBackupFilesDir.toString() + "/ipc.sock")
+            }
+        }
+        val body = client.newRequest().apply {
+            setURL("https://api.ip2location.io/?ip=$ip")
+        }.execute().contentString
+        parseJson(body).asJsonObject.get("country_code")?.asString
+            ?.takeIf { it.length == 2 }?.uppercase()
+    } catch (e: Exception) {
+        Logs.w(e)
+        null
     }
 
     private suspend fun geojsCountry(ip: String, viaTunnel: Boolean): String? = try {
