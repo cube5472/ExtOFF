@@ -41,14 +41,34 @@ jobs:
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
         run: |
-          # NextClave v15: the core ships PREBUILT (byte-exact libgojni.so from
-          # the known-good 0.17.56 build, committed at app/libs/libexclavecore.aar).
-          # CI no longer compiles the core: Go/NDK toolchain drift between runner
-          # image updates is the prime suspect for inflated URL-test readings
-          # (same source pin, go 1.27.1 vs 1.27.2 = different binary).
-          # bin/lib/core/build.sh enforces the same skip as a second layer.
-          # To rebuild the core anyway: NEXTCLAVE_FORCE_CORE_BUILD=1.
+          # NextClave: the core ships PREBUILT (committed at
+          # app/libs/libexclavecore.aar). CI does not compile the core unless
+          # NEXTCLAVE_FORCE_CORE_BUILD=1. bin/lib/core/build.sh enforces the
+          # same skip as a second layer.
           ./run lib core
+      - name: Core verification (URL-test patch guard)
+        run: |
+          # The reference-quality URL test lives in the PATCHED binding wrapper
+          # (library/core/patched/libexclavecore, wired via replace in
+          # library/core/go.mod): two warm GET attempts with keep-alive, the
+          # minimum is reported (v2rayNG method). Its distinctive string
+          # constant must be present in the shipped libgojni.so. A core built
+          # from the pristine wrapper measures a cold single-shot HEAD and
+          # inflates readings 3-5x - fail the build instead of shipping it.
+          echo "-- AAR md5:"
+          md5sum app/libs/libexclavecore.aar
+          unzip -p app/libs/libexclavecore.aar libs/arm64-v8a/libgojni.so > /tmp/libgojni.so
+          echo "-- libgojni.so (arm64-v8a) md5:"
+          md5sum /tmp/libgojni.so
+          if grep -aq "invalid status: %s" /tmp/libgojni.so; then
+            echo ">> OK: patched UrlTest (v2rayNG method) is inside the core"
+          else
+            echo ">> FAIL: patched UrlTest NOT found in libgojni.so;"
+            echo ">> the core was built from the pristine wrapper and URL-test"
+            echo ">> readings will be inflated 3-5x. Restore the replace"
+            echo ">> directive in library/core/go.mod and rebuild."
+            exit 1
+          fi
       - name: Upload Artifacts
         uses: actions/upload-artifact@v7
         with:
