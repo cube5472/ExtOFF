@@ -218,7 +218,18 @@ class ConfigurationFragment @JvmOverloads constructor(
                 // NextClave: tab title includes the proxy count, e.g. "Sub (25)"
                 tab.text = adapter.tabTitle(position)
             }
-            tab.view.setOnLongClickListener { // clear toast
+            tab.view.setOnLongClickListener {
+                // NextClave: long-press a group/subscription chip opens the
+                // editor of that group (same screen as the pencil button in
+                // the group list). Also keeps the default tab tooltip off.
+                if (adapter.groupList.size > position) {
+                    val group = adapter.groupList[position]
+                    if (!group.ungrouped) {
+                        startActivity(Intent(requireContext(), GroupSettingsActivity::class.java).apply {
+                            putExtra(GroupSettingsActivity.EXTRA_GROUP_ID, group.id)
+                        })
+                    }
+                }
                 true
             }
         }.attach()
@@ -1697,15 +1708,20 @@ class ConfigurationFragment @JvmOverloads constructor(
                         profileStatus.setTextColor(requireContext().getColour(R.color.material_red_500))
                     }
                     proxyEntity.status == 3 -> {
-                        // NextClave: dead node shows a grayscale 😵 instead of the
-                        // "unavailable" text; tap still reveals the actual error
+                        // NextClave: dead node shows a slightly larger grayscale
+                        // 😵 instead of the "unavailable" text; tap still reveals
+                        // the actual error
                         profileStatus.text = "😵"
+                        profileStatus.textSize = 15f
                         profileStatus.paint.colorFilter = deadNodeGrayscaleFilter
                         profileStatus.setTextColor(requireContext().getColour(R.color.material_red_500))
                     }
                 }
 
-                if (proxyEntity.status != 3) profileStatus.paint.colorFilter = null
+                if (proxyEntity.status != 3) {
+                    profileStatus.paint.colorFilter = null
+                    profileStatus.textSize = 11f
+                }
 
                 profileStatus.isClickable = proxyEntity.status == 3
 

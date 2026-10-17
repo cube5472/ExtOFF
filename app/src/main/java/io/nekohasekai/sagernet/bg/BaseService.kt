@@ -277,6 +277,19 @@ class BaseService {
             }
         }
 
+        // NextClave: id of the proxy that is actually carrying the balancer's
+        // traffic right now (0 = unknown / not a balancer session). Blocks for
+        // a short sampling window, same pattern as urlTest() above.
+        override fun workingNodeId(): Long {
+            val proxy = data?.proxy ?: return 0L
+            return try {
+                proxy.workingMemberId()
+            } catch (e: Exception) {
+                Logs.w(e)
+                0L
+            }
+        }
+
         override fun startListeningForStats(cb: ISagerNetServiceCallback, timeout: Long) {
             launch {
                 if (statsListeners.isEmpty() and (statsListeners.put(

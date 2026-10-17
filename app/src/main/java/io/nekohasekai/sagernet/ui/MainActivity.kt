@@ -256,6 +256,19 @@ class MainActivity : ThemedActivity(),
         return connection.service!!.urlTest()
     }
 
+    // NextClave: id of the proxy the balancer is currently routing traffic
+    // through (0 = unknown / not a balancer session). Used by the stats bar
+    // to show the flag + IP of the node that is actually in use.
+    fun workingNodeId(): Long {
+        if (state != BaseService.State.Connected || connection.service == null) return 0L
+        return try {
+            connection.service!!.workingNodeId()
+        } catch (e: Exception) {
+            Logs.w(e)
+            0L
+        }
+    }
+
     suspend fun importSubscription(uri: String) {
         val group = ProxyGroup(type = GroupType.SUBSCRIPTION).apply {
             subscription = SubscriptionBean().apply {

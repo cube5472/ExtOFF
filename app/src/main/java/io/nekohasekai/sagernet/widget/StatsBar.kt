@@ -40,6 +40,7 @@ import io.nekohasekai.sagernet.SagerNet
 import io.nekohasekai.sagernet.bg.BaseService
 import io.nekohasekai.sagernet.database.DataStore
 import io.nekohasekai.sagernet.database.ProfileManager
+import io.nekohasekai.sagernet.fmt.internal.BalancerBean
 import io.nekohasekai.sagernet.ktx.*
 import libexclavecore.Libexclavecore
 import io.nekohasekai.sagernet.ui.MainActivity
@@ -261,8 +262,19 @@ class StatsBar @JvmOverloads constructor(
             }
             val addressDeferred = async {
                 try {
-                    val bean = ProfileManager.getProfile(profileId)?.requireBean()
+                    var bean = ProfileManager.getProfile(profileId)?.requireBean()
                         ?: return@async null
+                    // NextClave: a balancer has no server address of its own —
+                    // resolve the member the core is actually routing through
+                    // right now (the service samples per-member traffic).
+                    if (bean is BalancerBean) {
+                        val memberId = withTimeoutOrNull(8_000L) {
+                            activity.workingNodeId()
+                        } ?: 0L
+                        if (memberId <= 0L) return@async null
+                        bean = ProfileManager.getProfile(memberId)?.requireBean()
+                            ?: return@async null
+                    }
                     val host = bean.serverAddress?.trim().orEmpty()
                     if (host.isEmpty() || host == "127.0.0.1" || host == "localhost" || host == "::1") {
                         return@async null

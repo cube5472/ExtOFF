@@ -26,6 +26,7 @@ import io.nekohasekai.sagernet.bg.BaseService
 import io.nekohasekai.sagernet.database.DataStore
 import io.nekohasekai.sagernet.database.ProxyEntity
 import io.nekohasekai.sagernet.database.SagerDatabase
+import io.nekohasekai.sagernet.fmt.internal.BalancerBean
 import io.nekohasekai.sagernet.ktx.Logs
 import io.nekohasekai.sagernet.ktx.runOnDefaultDispatcher
 import kotlinx.coroutines.Job
@@ -290,6 +291,85 @@ class ProxyInstance(profile: ProxyEntity, val service: BaseService.Interface) : 
 
     fun downlinkDirect() = bypassStats("downlink").also {
         downlinkTotalDirect += it
+    }
+
+    // ------------- balancer -------------
+
+    // NextClave: the balancer profile itself has no server address, so the
+    // stats bar could not show "flag + IP" for it. The core picks one member
+    // outbound per connection; the member whose traffic counters grow during
+    // a short sampling window is the one actually carrying traffic right now.
+    // When the link is idle, fall back to the member that has carried the
+    // most traffic since startup (the last one in use). Returns 0 when the
+    // working member cannot be determined.
+    fun workingMemberId(): Long {
+        val balancer = profile.balancerBean ?: return profile.id
+
+        // Member ids, resolved the same way ConfigBuilder does it.
+        val memberIds = HashSet<Long>()
+        try {
+            if (balancer.type == BalancerBean.TYPE_LIST) {
+                memberIds.addAll(balancer.proxies)
+            } else {
+                SagerDatabase.proxyDao.getByGroup(balancer.groupId).forEach { entity ->
+                    val name = entity.requireBean().name
+                    if (balancer.nameFilter.isEmpty() || !Regex(balancer.nameFilter).containsMatchIn(name)) {
+                        if (balancer.nameFilter1.isEmpty() || Regex(balancer.nameFilter1).containsMatchIn(name)) {
+                            memberIds.add(entity.id)
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Logs.w(e)
+            return 0L
+        }
+        if (memberIds.isEmpty()) return 0L
+
+        // tag -> member id; every member gets its own outbound tag
+        // ("$TAG_AGENT-global-<id>" normally, "...-chain-<id>" with a
+        // front/landing proxy), see buildChain(). Sum duplicates just in
+        // case a member is reused in several places.
+        val tagsByMember = HashMap<Long, MutableList<String>>()
+        for ((tag, entity) in config.outboundTagsAll) {
+            if (entity.id in memberIds) {
+                tagsByMember.getOrPut(entity.id) { mutableListOf() }.add(tag)
+            }
+        }
+        if (tagsByMember.isEmpty()) return 0L
+
+        fun sample(): Map<Long, Long> {
+            val totals = HashMap<Long, Long>()
+            for ((id, tags) in tagsByMember) {
+                var sum = 0L
+                for (tag in tags) {
+                    try {
+                        sum += v2rayPoint.queryStats(tag, "uplink")
+                        sum += v2rayPoint.queryStats(tag, "downlink")
+                    } catch (e: Exception) {
+                        Logs.w(e)
+                    }
+                }
+                totals[id] = sum
+            }
+            return totals
+        }
+
+        return try {
+            val first = sample()
+            Thread.sleep(1500)
+            val second = sample()
+            val growing = second.filter { (id, total) -> total > (first[id] ?: 0L) }
+            if (growing.isNotEmpty()) {
+                // busiest member of the sampling window wins
+                growing.maxByOrNull { it.value - (first[it.key] ?: 0L) }!!.key
+            } else {
+                second.filterValues { it > 0L }.maxByOrNull { it.value }?.key ?: 0L
+            }
+        } catch (e: Exception) {
+            Logs.w(e)
+            0L
+        }
     }
 
     fun persistStats() {
