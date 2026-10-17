@@ -23,9 +23,11 @@ package io.nekohasekai.sagernet.widget
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.res.ColorStateList
 import android.os.Build
 import android.util.AttributeSet
 import android.util.Patterns
+import android.util.TypedValue
 import android.view.View
 import android.widget.TextView
 import androidx.appcompat.widget.TooltipCompat
@@ -35,6 +37,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.doOnPreDraw
 import com.google.android.material.bottomappbar.BottomAppBar
+import com.google.android.material.shape.MaterialShapeDrawable
 import io.nekohasekai.sagernet.R
 import io.nekohasekai.sagernet.SagerNet
 import io.nekohasekai.sagernet.bg.BaseService
@@ -65,6 +68,26 @@ class StatsBar @JvmOverloads constructor(
     private lateinit var txText: TextView
     private lateinit var rxText: TextView
     private lateinit var behavior: YourBehavior
+
+    init {
+        // NextClave: trace the panel outline (top edge, rounded corners and
+        // the FAB cradle arc — the whole Material shape path) in the current
+        // accent color, so the connection panel reads as one highlighted
+        // element instead of a flat strip. coalBorderColor IS the accent on
+        // coal themes (re-defined by every CoalAccent overlay) and is
+        // transparent in themes without a border color — then no stroke is
+        // drawn. The accent overlay is applied to the activity theme before
+        // layout inflation (Theme.apply), so resolving here picks the
+        // user-selected palette shade.
+        val shape = background as? MaterialShapeDrawable
+        val outline = TypedValue().takeIf { tv ->
+            context.theme.resolveAttribute(R.attr.coalBorderColor, tv, true)
+        }?.data ?: 0
+        if (shape != null && outline != 0) {
+            shape.strokeWidth = 1.5f * resources.displayMetrics.density
+            shape.strokeColor = ColorStateList.valueOf(outline)
+        }
+    }
 
     companion object {
         // NextClave: last detected "flag + server address" line for the
