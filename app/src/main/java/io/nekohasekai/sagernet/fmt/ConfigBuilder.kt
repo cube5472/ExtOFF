@@ -288,7 +288,13 @@ fun buildV2RayConfig(
     var requireWs = false
     var requireSh = false
     val destinationOverride = DataStore.destinationOverride
-    val trafficStatistics = !forTest && DataStore.profileTrafficStatistics
+    // NextClave: balancer sessions always need per-outbound traffic counters
+    // (the stats object + policy.system below) — workingMemberId() detects
+    // the member the core picked by watching which member's counters grow.
+    // Without this, detection silently dies when the user turns off
+    // profile traffic statistics.
+    val trafficStatistics = !forTest &&
+            (DataStore.profileTrafficStatistics || proxy.balancerBean != null)
     var hasTagDirect = false
     var directNeedsInterruption = false
 

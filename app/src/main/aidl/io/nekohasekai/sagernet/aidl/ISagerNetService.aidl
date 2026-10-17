@@ -33,7 +33,7 @@ interface ISagerNetService {
   oneway void unregisterCallback(in ISagerNetServiceCallback cb);
   oneway void protect(int fd);
   int urlTest();
-  long workingNodeId();
+  String workingNodeInfo();
   oneway void resetTrafficStats();
   boolean getTrafficStatsEnabled();
 }

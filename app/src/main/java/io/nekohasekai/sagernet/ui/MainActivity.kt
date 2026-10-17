@@ -257,15 +257,18 @@ class MainActivity : ThemedActivity(),
     }
 
     // NextClave: id of the proxy the balancer is currently routing traffic
-    // through (0 = unknown / not a balancer session). Used by the stats bar
-    // to show the flag + IP of the node that is actually in use.
-    fun workingNodeId(): Long {
-        if (state != BaseService.State.Connected || connection.service == null) return 0L
+    // through + latency of the test connection used to detect it
+    // (0, -1 = unknown / not a balancer session). Used by the stats bar to
+    // show the flag + IP of the node that is actually in use.
+    fun workingNodeInfo(): Pair<Long, Int> {
+        if (state != BaseService.State.Connected || connection.service == null) return 0L to -1
         return try {
-            connection.service!!.workingNodeId()
+            val raw = connection.service!!.workingNodeInfo().split("|")
+            ((raw.getOrNull(0)?.toLongOrNull() ?: 0L) to
+                    (raw.getOrNull(1)?.toIntOrNull() ?: -1))
         } catch (e: Exception) {
             Logs.w(e)
-            0L
+            0L to -1
         }
     }
 
@@ -429,7 +432,15 @@ class MainActivity : ThemedActivity(),
                     ProfileManager.postUpdate(DataStore.currentProfile)
                 }
                 // NextClave: node connected => refresh its URL test on its card
-                if (state == BaseService.State.Connected) testConnectedNode()
+                if (state == BaseService.State.Connected) {
+                    testConnectedNode()
+                    // NextClave: auto-show the node line (flag + IP + ping)
+                    // on connect instead of waiting for a tap
+                    runOnDefaultDispatcher {
+                        delay(800) // let the connection settle first
+                        onMainDispatcher { binding.stats.showNodeAddress() }
+                    }
+                }
             }
             else -> {}
         }

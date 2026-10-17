@@ -40,6 +40,7 @@ import io.nekohasekai.sagernet.SagerNet
 import io.nekohasekai.sagernet.bg.BaseService
 import io.nekohasekai.sagernet.database.DataStore
 import io.nekohasekai.sagernet.database.ProfileManager
+import io.nekohasekai.sagernet.fmt.AbstractBean
 import io.nekohasekai.sagernet.fmt.internal.BalancerBean
 import io.nekohasekai.sagernet.ktx.*
 import libexclavecore.Libexclavecore
@@ -240,10 +241,10 @@ class StatsBar @JvmOverloads constructor(
         }
     }
 
-    // NextClave: tap on the stats bar resolves the selected node's server
-    // address to an IP, looks up its country for the flag emoji and measures
-    // the latency in parallel. The result stays in the status line (and is
-    // re-shown by changeState) until the profile changes.
+    // NextClave: tap on the stats bar (and the auto-show on connect) resolve
+    // the node's server address to an IP, look up its country for the flag
+    // emoji and measure the latency. The result stays in the status line
+    // (and is re-shown by changeState) until the profile changes.
     @SuppressLint("SetTextI18n")
     fun showNodeAddress() {
         testJob?.cancel()
@@ -252,7 +253,29 @@ class StatsBar @JvmOverloads constructor(
         setStatus(context.getText(R.string.connection_test_testing))
         val profileId = DataStore.selectedProxy
         testJob = runOnDefaultDispatcher {
-            val pingDeferred = async {
+            // NextClave: for a balancer the service identifies the member
+            // that actually carries the test connection (its traffic
+            // counters grow) and returns the latency of that very
+            // connection — one call, one test, so the ping and the
+            // flag/IP always belong to the same node.
+            var fixedPing: Int? = null
+            var bean: AbstractBean? = try {
+                ProfileManager.getProfile(profileId)?.requireBean()
+            } catch (e: Exception) {
+                Logs.w(e)
+                null
+            }
+            if (bean is BalancerBean) {
+                val (memberId, elapsed) = withTimeoutOrNull(15_000L) {
+                    activity.workingNodeInfo()
+                } ?: (0L to -1)
+                bean = if (memberId > 0L) {
+                    ProfileManager.getProfile(memberId)?.requireBean()
+                } else null
+                fixedPing = elapsed.takeIf { it >= 0 }
+            }
+
+            val pingDeferred = if (fixedPing != null) null else async {
                 try {
                     activity.urlTest()
                 } catch (e: Exception) {
@@ -262,20 +285,8 @@ class StatsBar @JvmOverloads constructor(
             }
             val addressDeferred = async {
                 try {
-                    var bean = ProfileManager.getProfile(profileId)?.requireBean()
-                        ?: return@async null
-                    // NextClave: a balancer has no server address of its own —
-                    // resolve the member the core is actually routing through
-                    // right now (the service samples per-member traffic).
-                    if (bean is BalancerBean) {
-                        val memberId = withTimeoutOrNull(8_000L) {
-                            activity.workingNodeId()
-                        } ?: 0L
-                        if (memberId <= 0L) return@async null
-                        bean = ProfileManager.getProfile(memberId)?.requireBean()
-                            ?: return@async null
-                    }
-                    val host = bean.serverAddress?.trim().orEmpty()
+                    val b = bean ?: return@async null
+                    val host = b.serverAddress?.trim().orEmpty()
                     if (host.isEmpty() || host == "127.0.0.1" || host == "localhost" || host == "::1") {
                         return@async null
                     }
@@ -298,7 +309,7 @@ class StatsBar @JvmOverloads constructor(
                     null
                 }
             }
-            val ping = pingDeferred.await()
+            val ping = fixedPing ?: pingDeferred?.await()
             val address = addressDeferred.await()
             val finalText = buildString {
                 if (address != null) {

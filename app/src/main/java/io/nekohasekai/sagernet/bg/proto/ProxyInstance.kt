@@ -26,11 +26,13 @@ import io.nekohasekai.sagernet.bg.BaseService
 import io.nekohasekai.sagernet.database.DataStore
 import io.nekohasekai.sagernet.database.ProxyEntity
 import io.nekohasekai.sagernet.database.SagerDatabase
+import io.nekohasekai.sagernet.fmt.TAG_SOCKS
 import io.nekohasekai.sagernet.fmt.internal.BalancerBean
 import io.nekohasekai.sagernet.ktx.Logs
 import io.nekohasekai.sagernet.ktx.runOnDefaultDispatcher
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.runBlocking
+import libexclavecore.Libexclavecore
 import libexclavecore.ObservatoryStatusUpdateListener
 import java.io.IOException
 import java.util.*
@@ -296,14 +298,16 @@ class ProxyInstance(profile: ProxyEntity, val service: BaseService.Interface) : 
     // ------------- balancer -------------
 
     // NextClave: the balancer profile itself has no server address, so the
-    // stats bar could not show "flag + IP" for it. The core picks one member
-    // outbound per connection; the member whose traffic counters grow during
-    // a short sampling window is the one actually carrying traffic right now.
-    // When the link is idle, fall back to the member that has carried the
-    // most traffic since startup (the last one in use). Returns 0 when the
-    // working member cannot be determined.
-    fun workingMemberId(): Long {
-        val balancer = profile.balancerBean ?: return profile.id
+    // stats bar could not show "flag + IP" for it. To find out which member
+    // the core is actually using we take a snapshot of every member's
+    // traffic counters, push ONE real test connection through the running
+    // tunnel (the core picks a member for it and that member's counters
+    // grow), then take a second snapshot. Works right after connect and on
+    // an idle link — no user traffic needed. Returns the member id plus the
+    // latency of that very test connection (so the ping and the flag/IP
+    // always belong to the same node), or 0/-1 when detection fails.
+    fun workingMemberId(): Pair<Long, Int> {
+        val balancer = profile.balancerBean ?: return profile.id to -1
 
         // Member ids, resolved the same way ConfigBuilder does it.
         val memberIds = HashSet<Long>()
@@ -322,9 +326,9 @@ class ProxyInstance(profile: ProxyEntity, val service: BaseService.Interface) : 
             }
         } catch (e: Exception) {
             Logs.w(e)
-            return 0L
+            return 0L to -1
         }
-        if (memberIds.isEmpty()) return 0L
+        if (memberIds.isEmpty()) return 0L to -1
 
         // tag -> member id; every member gets its own outbound tag
         // ("$TAG_AGENT-global-<id>" normally, "...-chain-<id>" with a
@@ -336,7 +340,7 @@ class ProxyInstance(profile: ProxyEntity, val service: BaseService.Interface) : 
                 tagsByMember.getOrPut(entity.id) { mutableListOf() }.add(tag)
             }
         }
-        if (tagsByMember.isEmpty()) return 0L
+        if (tagsByMember.isEmpty()) return 0L to -1
 
         fun sample(): Map<Long, Long> {
             val totals = HashMap<Long, Long>()
@@ -357,18 +361,33 @@ class ProxyInstance(profile: ProxyEntity, val service: BaseService.Interface) : 
 
         return try {
             val first = sample()
-            Thread.sleep(1500)
+            // Push a real test connection through the running balancer —
+            // same call as BaseService.urlTest(); the core routes it
+            // through exactly one member (random/leastPing/...).
+            val elapsed = try {
+                Libexclavecore.urlTest(
+                    v2rayPoint, TAG_SOCKS, DataStore.connectionTestURL, 5000
+                )
+            } catch (e: Exception) {
+                Logs.w(e)
+                -1
+            }
             val second = sample()
-            val growing = second.filter { (id, total) -> total > (first[id] ?: 0L) }
-            if (growing.isNotEmpty()) {
-                // busiest member of the sampling window wins
-                growing.maxByOrNull { it.value - (first[it.key] ?: 0L) }!!.key
+            val growing = second.mapValues { (id, total) -> total - (first[id] ?: 0L) }
+                .filterValues { it > 0L }
+            val id = if (growing.isNotEmpty()) {
+                // busiest member of the window wins (random may spread
+                // concurrent user connections over several members)
+                growing.maxByOrNull { it.value }!!.key
             } else {
+                // test produced no deltas (e.g. it failed instantly) —
+                // fall back to whoever carried traffic since startup
                 second.filterValues { it > 0L }.maxByOrNull { it.value }?.key ?: 0L
             }
+            id to elapsed
         } catch (e: Exception) {
             Logs.w(e)
-            0L
+            0L to -1
         }
     }
 

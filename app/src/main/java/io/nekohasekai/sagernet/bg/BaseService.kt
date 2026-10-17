@@ -277,16 +277,19 @@ class BaseService {
             }
         }
 
-        // NextClave: id of the proxy that is actually carrying the balancer's
-        // traffic right now (0 = unknown / not a balancer session). Blocks for
-        // a short sampling window, same pattern as urlTest() above.
-        override fun workingNodeId(): Long {
-            val proxy = data?.proxy ?: return 0L
+        // NextClave: "<memberId>|<elapsedMs>" — the proxy the balancer is
+        // actually routing through right now plus the latency of the test
+        // connection that identified it (-1 = test failed). "0|-1" =
+        // unknown / not a balancer session. Blocks for the duration of one
+        // test connection, same pattern as urlTest() above.
+        override fun workingNodeInfo(): String {
+            val proxy = data?.proxy ?: return "0|-1"
             return try {
-                proxy.workingMemberId()
+                val (id, elapsed) = proxy.workingMemberId()
+                "$id|$elapsed"
             } catch (e: Exception) {
                 Logs.w(e)
-                0L
+                "0|-1"
             }
         }
 
