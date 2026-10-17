@@ -124,10 +124,10 @@
     <string name="pinned_peer_certificate_chain_sha256">Pinned certificate chain SHA-256</string>
     <string name="early_data_header_name">Early data header name</string>
     <string name="extra_headers">Extra headers</string>
-    <string name="subscription_spoof_client">Client identity (HWID spoof)</string>
-    <string name="subscription_spoof_hwid">HWID for spoofing</string>
-    <string name="subscription_spoof_hwid_sum">Sent in the x-hwid header when fetching this subscription. v2RayTun: sent uppercased, dashes stripped (852847eeae408361 → 852847EEAE408361). Happ: sent lowercased (852847EEAE408361 → 852847eeae408361). Incy: sent exactly as entered — the full dashed UUID (852847EE-AE40-8361-1AF1-6519B26E857F).</string>
+    <string name="subscription_spoof_client">Spoof subscription client</string>
+    <string name="subscription_spoof_client_sum">UA: %1$s\nHWID: %2$s — applied automatically, nothing to type</string>
     <string name="spoof_client_off">Off</string>
+    <string name="spoof_client_off_sum">Client identity is not spoofed — requests are sent as Exclave</string>
     <string name="config_type">Config type</string>
     <string name="edit_config">Edit Config</string>
     <!-- feature category -->

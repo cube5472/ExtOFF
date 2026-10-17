@@ -41,6 +41,7 @@ import io.nekohasekai.sagernet.R
 import io.nekohasekai.sagernet.SubscriptionType
 import io.nekohasekai.sagernet.database.*
 import io.nekohasekai.sagernet.database.preference.OnPreferenceDataStoreChangeListener
+import io.nekohasekai.sagernet.group.ClientSpoof
 import io.nekohasekai.sagernet.ktx.Logs
 import io.nekohasekai.sagernet.ktx.applyDefaultValues
 import io.nekohasekai.sagernet.ktx.onMainDispatcher
@@ -99,7 +100,6 @@ class GroupSettingsActivity(
         DataStore.subscriptionHTTPHeaders = sub.httpHeaders
         DataStore.subscriptionAgePrivateKey = sub.agePrivateKey
         DataStore.subscriptionSpoofClient = sub.spoofClient ?: 0
-        DataStore.subscriptionSpoofHwid = sub.spoofHwid ?: ""
         DataStore.frontProxyOutbound = frontProxy
         DataStore.landingProxyOutbound = landingProxy
         DataStore.frontProxy = if (frontProxy >= 0) 1 else 0
@@ -136,7 +136,6 @@ class GroupSettingsActivity(
                 httpHeaders = DataStore.subscriptionHTTPHeaders
                 agePrivateKey = DataStore.subscriptionAgePrivateKey
                 spoofClient = DataStore.subscriptionSpoofClient
-                spoofHwid = DataStore.subscriptionSpoofHwid
             }
         } else {
             subscription = SubscriptionBean().applyDefaultValues()
@@ -208,18 +207,20 @@ class GroupSettingsActivity(
         val agePrivateKey = findPreference<EditTextPreference>(Key.SUBSCRIPTION_AGE_PRIVATE_KEY)!!.apply {
             summaryProvider = PasswordSummaryProvider
         }
-        val spoofClient = findPreference<ListPreference>(Key.SUBSCRIPTION_SPOOF_CLIENT)!!
-        val spoofHwid = findPreference<EditTextPreference>(Key.SUBSCRIPTION_SPOOF_HWID)!!.apply {
-            dialogMessage = getString(R.string.subscription_spoof_hwid_sum)
-        }
-
-        fun updateSpoofHwidVisibility(value: Int = DataStore.subscriptionSpoofClient) {
-            spoofHwid.isVisible = value != 0
-        }
-        updateSpoofHwidVisibility()
-        spoofClient.setOnPreferenceChangeListener { _, newValue ->
-            updateSpoofHwidVisibility((newValue as String).toInt())
-            true
+        val spoofClient = findPreference<ListPreference>(Key.SUBSCRIPTION_SPOOF_CLIENT)!!.apply {
+            // NextClave: selecting a client in the dropdown applies its whole
+            // identity automatically — show exactly what will be sent
+            summaryProvider = Preference.SummaryProvider<ListPreference> { pref ->
+                val client = (pref.value ?: "0").toIntOrNull() ?: 0
+                if (client == ClientSpoof.OFF) {
+                    getString(R.string.spoof_client_off_sum)
+                } else {
+                    getString(
+                        R.string.subscription_spoof_client_sum,
+                        ClientSpoof.userAgent(client), ClientSpoof.hwid(client)
+                    )
+                }
+            }
         }
 
         fun updateGroupType(groupType: Int = DataStore.groupType) {
@@ -228,7 +229,6 @@ class GroupSettingsActivity(
             subscriptionUpdate.isVisible = isSubscription
             httpHeaders.isVisible = isSubscription
             spoofClient.isVisible = isSubscription
-            spoofHwid.isVisible = isSubscription && DataStore.subscriptionSpoofClient != 0
             agePrivateKey.isVisible = isSubscription && (subscriptionType.value as String).toInt() == SubscriptionType.AGE
         }
         updateGroupType()

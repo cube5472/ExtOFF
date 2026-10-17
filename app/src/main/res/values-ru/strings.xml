@@ -283,10 +283,10 @@
     <string name="edit_config">Изменить конфигурацию</string>
     <string name="config_type">Тип конфигурации</string>
     <string name="extra_headers">Дополнительные заголовки</string>
-    <string name="subscription_spoof_client">Личность клиента (спуф HWID)</string>
-    <string name="subscription_spoof_hwid">HWID для спуфа</string>
-    <string name="subscription_spoof_hwid_sum">Отправляется в заголовке x-hwid при загрузке этой подписки. v2RayTun: уходит в верхнем регистре без дефисов (852847eeae408361 → 852847EEAE408361). Happ: в нижнем регистре (852847EEAE408361 → 852847eeae408361). Incy: уходит как введено — полный UUID с дефисами (852847EE-AE40-8361-1AF1-6519B26E857F).</string>
+    <string name="subscription_spoof_client">Спуф клиента подписки</string>
+    <string name="subscription_spoof_client_sum">UA: %1$s\nHWID: %2$s — применяется автоматически, вводить ничего не нужно</string>
     <string name="spoof_client_off">Выкл</string>
+    <string name="spoof_client_off_sum">Личность клиента не подменяется — запросы уходят как от Exclave</string>
     <string name="early_data_header_name">Заголовок запроса ранних данных</string>
     <string name="pinned_peer_certificate_chain_sha256">Закреплённая цепочка сертификатов SHA-256</string>
     <string name="certificates">Сертификаты</string>

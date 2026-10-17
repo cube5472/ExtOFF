@@ -338,7 +338,6 @@ object Key {
     const val SUBSCRIPTION_HTTP_HEADERS = "subscriptionHTTPHeaders"
     const val SUBSCRIPTION_AGE_PRIVATE_KEY = "subscriptionAgePrivateKey"
     const val SUBSCRIPTION_SPOOF_CLIENT = "subscriptionSpoofClient"
-    const val SUBSCRIPTION_SPOOF_HWID = "subscriptionSpoofHwid"
 
     const val EDITING_ASSET_NAME = "editingAssetName"
     const val ASSET_NAME = "assetName"

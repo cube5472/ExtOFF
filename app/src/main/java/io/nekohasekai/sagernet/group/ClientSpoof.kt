@@ -26,9 +26,11 @@ import java.util.Locale
 // NextClave: subscription client spoofing. Some panels bind subscriptions to a
 // specific client application (v2RayTun / Happ / Incy) and reject or restrict
 // requests that do not present that client's identity. When a spoof client is
-// selected for a subscription, our fetch sends that client's User-Agent and the
-// HWID headers from the Happ/Remnawave device-limit standard (x-hwid plus the
-// optional x-device-os / x-ver-os / x-device-model / x-app-version hints).
+// selected in the subscription dropdown, our fetch sends that client's
+// User-Agent and HWID headers automatically — both are built into the mod,
+// nothing has to be typed by hand. The HWIDs are one device bound to the
+// user's panel; each client reports the same underlying id in its own exact
+// format (case / dashes preserved verbatim).
 object ClientSpoof {
     const val OFF = 0
     const val V2RAYTUN = 1
@@ -55,38 +57,42 @@ object ClientSpoof {
         else -> ""
     }
 
-    // Same device, different formatting per client: v2RayTun sends the id
-    // uppercased, Happ as-is (lowercase), Incy uses its own dashed UUID —
-    // for Incy the value is sent exactly as entered.
-    fun formatHwid(hwid: String, client: Int): String {
-        val stripped = hwid.trim().replace("-", "")
-        return when (client) {
-            V2RAYTUN -> stripped.uppercase()
-            HAPP -> stripped.lowercase()
-            else -> hwid.trim()
-        }
+    // Built-in device ids, one per client, sent verbatim (case / dashes are
+    // part of the format each client uses):
+    //   v2RayTun — uppercased hex, no dashes
+    //   Happ     — lowercase hex, no dashes
+    //   Incy     — dashed UUID, mixed case
+    const val HWID_V2RAYTUN = "852847EEAE408361"
+    const val HWID_HAPP = "852847eeae408361"
+    const val HWID_INCY = "852847EE-AE40-8361-1AF1-6519B26E857F"
+
+    fun hwid(client: Int): String = when (client) {
+        V2RAYTUN -> HWID_V2RAYTUN
+        HAPP -> HWID_HAPP
+        INCY -> HWID_INCY
+        else -> ""
     }
 
-    fun headers(client: Int, hwid: String): List<Pair<String, String>> {
+    fun headers(client: Int): List<Pair<String, String>> {
         val verOs = Build.VERSION.RELEASE ?: ""
         val model = Build.MODEL ?: ""
         return when (client) {
             V2RAYTUN -> listOf(
-                "x-hwid" to formatHwid(hwid, client),
+                "x-hwid" to HWID_V2RAYTUN,
                 "x-device-os" to "android",
                 "x-ver-os" to verOs,
                 "x-device-model" to model,
                 "x-app-version" to APP_VERSION_V2RAYTUN,
             )
             HAPP -> listOf(
-                "x-hwid" to formatHwid(hwid, client),
+                "x-hwid" to HWID_HAPP,
                 "x-device-os" to "Android",
                 "x-ver-os" to verOs,
                 "x-device-model" to model,
                 "x-device-locale" to Locale.getDefault().language,
             )
             INCY -> listOf(
-                "x-hwid" to formatHwid(hwid, client),
+                "x-hwid" to HWID_INCY,
                 "x-client" to "INCY",
                 "x-app-version" to APP_VERSION_INCY,
                 "x-device-locale" to (Locale.getDefault().language + "_" + Locale.getDefault().country),
