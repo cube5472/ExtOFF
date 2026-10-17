@@ -47,9 +47,13 @@ import libexclavecore.Libexclavecore
 import io.nekohasekai.sagernet.ui.MainActivity
 import io.nekohasekai.sagernet.utils.FormatFileSizeCompat
 import io.nekohasekai.sagernet.utils.Theme
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.coroutines.cancellation.CancellationException
 import java.net.InetAddress
 
 class StatsBar @JvmOverloads constructor(
@@ -68,6 +72,41 @@ class StatsBar @JvmOverloads constructor(
         private var cachedProfileId = 0L
         private var cachedAddressText: String? = null
         private var cachedCountryCode: String? = null
+
+        // NextClave: scope for calls that may block forever inside JNI
+        // (gomobile HTTP, binder, DNS) — see blockingTimeout().
+        private val blockingScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    }
+
+    // NextClave: a coroutine timeout cannot interrupt a call that is already
+    // blocked inside JNI — withTimeoutOrNull() around gomobile HTTP, binder
+    // or DNS used to fire only AFTER the kernel gave up (minutes on a dead
+    // node), so the status line stayed on "Testing…" forever. The blocking
+    // work now runs in a dedicated IO scope while we merely await it:
+    // await() is a suspension point, the deadline really fires and the stuck
+    // call is simply abandoned (its thread frees when the OS unblocks it).
+    // Returns null both on timeout and on a caught failure.
+    private suspend fun <T> blockingTimeout(millis: Long, block: suspend () -> T?): T? {
+        val deferred = blockingScope.async {
+            try {
+                block()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Logs.w(e)
+                null
+            }
+        }
+        val result = try {
+            withTimeoutOrNull(millis) { deferred.await() }
+        } catch (e: CancellationException) {
+            throw e // our own job was cancelled (e.g. state changed) — bail out
+        } catch (e: Exception) {
+            Logs.w(e)
+            null
+        }
+        if (result == null && !deferred.isCompleted) deferred.cancel()
+        return result
     }
 
     override fun getBehavior(): YourBehavior {
@@ -207,10 +246,20 @@ class StatsBar @JvmOverloads constructor(
         isEnabled = false
         setStatus(context.getText(R.string.connection_test_testing))
         testJob = runOnDefaultDispatcher {
-            try {
-                val elapsed = activity.urlTest()
-                onMainDispatcher {
-                    isEnabled = true
+            val elapsed = blockingTimeout(10_000L) {
+                activity.urlTest()
+            }
+            onMainDispatcher {
+                isEnabled = true
+                if (elapsed == null || elapsed <= 0) {
+                    // NextClave: the node never answered — say it plainly
+                    // instead of hanging on "Testing…" (or burying the user
+                    // in a useless error message).
+                    setStatus(
+                        if (SagerNet.started) "😵 " + context.getText(R.string.node_dead_label)
+                        else context.getText(R.string.not_connected)
+                    )
+                } else {
                     setStatus(
                         context.getString(
                             if (DataStore.connectionTestURL.startsWith("https://", ignoreCase = true)) {
@@ -220,22 +269,6 @@ class StatsBar @JvmOverloads constructor(
                             }, elapsed
                         )
                     )
-                }
-
-            } catch (e: Exception) {
-                Logs.w(e)
-                onMainDispatcher {
-                    isEnabled = true
-                    var msg = e.localizedMessage ?: e.readableMessage
-                    when {
-                        msg.contains("timeout") || msg.contains("deadline") -> {
-                            msg = context.getString(R.string.connection_test_timeout)
-                        }
-                        msg.contains("refused") || msg.contains("closed pipe") -> {
-                            msg = context.getString(R.string.connection_test_refused)
-                        }
-                    }
-                    setStatus(context.getString(R.string.connection_test_error, msg))
                 }
             }
         }
@@ -266,22 +299,37 @@ class StatsBar @JvmOverloads constructor(
                 null
             }
             if (bean is BalancerBean) {
-                val (memberId, elapsed) = withTimeoutOrNull(15_000L) {
+                val (memberId, elapsed) = blockingTimeout(20_000L) {
                     activity.workingNodeInfo()
                 } ?: (0L to -1)
                 bean = if (memberId > 0L) {
-                    ProfileManager.getProfile(memberId)?.requireBean()
+                    try {
+                        ProfileManager.getProfile(memberId)?.requireBean()
+                    } catch (e: Exception) {
+                        Logs.w(e)
+                        null
+                    }
                 } else null
                 fixedPing = elapsed.takeIf { it >= 0 }
             }
 
-            val pingDeferred = if (fixedPing != null) null else async {
-                try {
-                    activity.urlTest()
-                } catch (e: Exception) {
-                    Logs.w(e)
-                    null
+            // NextClave: one explicit latency measurement decides life or
+            // death. If the node did not answer, the corpse is announced
+            // immediately and every DNS/geo lookup is skipped — through a
+            // dead tunnel (or with no usable direct network) they used to
+            // blackhole for minutes and the status line just hung on
+            // "Testing…".
+            val ping = fixedPing ?: blockingTimeout(8_000L) {
+                activity.urlTest()
+            }
+            if (ping == null || ping <= 0) {
+                // the cached line for this profile is stale by definition
+                cachedAddressText = cachedAddressText?.takeIf { cachedProfileId != profileId }
+                onMainDispatcher {
+                    isEnabled = true
+                    setStatus("😵 " + context.getText(R.string.node_dead_label))
                 }
+                return@runOnDefaultDispatcher
             }
             val addressDeferred = async {
                 try {
@@ -291,13 +339,13 @@ class StatsBar @JvmOverloads constructor(
                         return@async null
                     }
                     val ip = if (Patterns.IP_ADDRESS.matcher(host).matches()) host
-                    else withTimeoutOrNull(10_000L) {
+                    else blockingTimeout(4_000L) {
                         InetAddress.getAllByName(host).firstOrNull()?.hostAddress
                     } ?: return@async null
                     // NextClave: fresh lookup with several providers; if all
                     // of them fail, fall back to the country cached for this
                     // profile so the flag does not blink away.
-                    val fresh = withTimeoutOrNull(20_000L) { lookupCountryCode(ip) }
+                    val fresh = withTimeoutOrNull(12_000L) { lookupCountryCode(ip) }
                     if (fresh != null) {
                         cachedCountryCode = fresh
                         cachedProfileId = profileId
@@ -309,7 +357,6 @@ class StatsBar @JvmOverloads constructor(
                     null
                 }
             }
-            val ping = fixedPing ?: pingDeferred?.await()
             val address = addressDeferred.await()
             val finalText = buildString {
                 if (address != null) {
@@ -339,15 +386,15 @@ class StatsBar @JvmOverloads constructor(
     // to lose the flag entirely.
     private suspend fun lookupCountryCode(ip: String): String? {
         if (SagerNet.started && DataStore.startedProfile > 0) {
-            withTimeoutOrNull(6_000L) { ip2LocationCountry(ip, viaTunnel = true) }?.let { return it }
+            blockingTimeout(6_000L) { ip2LocationCountry(ip, viaTunnel = true) }?.let { return it }
         }
-        withTimeoutOrNull(6_000L) { ip2LocationCountry(ip, viaTunnel = false) }?.let { return it }
+        blockingTimeout(6_000L) { ip2LocationCountry(ip, viaTunnel = false) }?.let { return it }
         if (SagerNet.started && DataStore.startedProfile > 0) {
-            withTimeoutOrNull(6_000L) { geojsCountry(ip, viaTunnel = true) }?.let { return it }
+            blockingTimeout(6_000L) { geojsCountry(ip, viaTunnel = true) }?.let { return it }
         }
-        withTimeoutOrNull(6_000L) { geojsCountry(ip, viaTunnel = false) }?.let { return it }
-        withTimeoutOrNull(6_000L) { ipApiCountry(ip) }?.let { return it }
-        withTimeoutOrNull(6_000L) { ipWhoIsCountry(ip) }?.let { return it }
+        blockingTimeout(6_000L) { geojsCountry(ip, viaTunnel = false) }?.let { return it }
+        blockingTimeout(6_000L) { ipApiCountry(ip) }?.let { return it }
+        blockingTimeout(6_000L) { ipWhoIsCountry(ip) }?.let { return it }
         return null
     }
 

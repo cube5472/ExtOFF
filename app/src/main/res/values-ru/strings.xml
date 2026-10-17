@@ -22,6 +22,7 @@
     <string name="connection_test_available_http">Время отклика по HTTP %d мс</string>
     <string name="connection_test_available">Время отклика по HTTPS %d мс</string>
     <string name="connection_test_testing">Тест…</string>
+    <string name="node_dead_label">труп</string>
     <string name="speed_detail">Прокси ： %1$s↑ %2$s↓
 \nПрямой ： %3$s↑%4$s↓</string>
     <string name="allow_insecure_sum">Включение этой опции без применения других мер безопасности приводит к успешному проведению атак типа «человек посередине». НЕ включайте её, если не уверены в своих действиях.</string>
