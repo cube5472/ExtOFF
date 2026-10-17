@@ -391,6 +391,11 @@ abstract class StandardV2RaySettingsActivity : ProfileSettingsActivity<StandardV
         pinnedCertificatePublickey = findPreference(Key.SERVER_PINNED_CERTIFICATE_PUBLIC_KEY)!!
         pinnedCertificate = findPreference(Key.SERVER_PINNED_CERTIFICATE)!!
         allowInsecure = findPreference(Key.SERVER_ALLOW_INSECURE)!!
+        // NextClave: inform (without changing the per-node value) that the
+        // global certificate-verification bypass is active in Settings
+        if (DataStore.disableCertVerification) {
+            allowInsecure.summary = getString(R.string.allow_insecure_forced_by_global)
+        }
         xtlsFlow = findPreference(Key.SERVER_FLOW)!!
         alterId = findPreference(Key.SERVER_ALTER_ID)!!
         utlsFingerprint = findPreference(Key.SERVER_UTLS_FINGERPRINT)!!

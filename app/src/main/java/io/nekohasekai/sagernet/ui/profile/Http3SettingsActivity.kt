@@ -83,6 +83,14 @@ class Http3SettingsActivity : ProfileSettingsActivity<Http3Bean>() {
         rootKey: String?,
     ) {
         addPreferencesFromResource(R.xml.http3_preferences)
+
+        // NextClave: inform (without changing the per-node value) that the
+        // global certificate-verification bypass is active in Settings
+        if (DataStore.disableCertVerification) {
+            findPreference<SwitchPreference>(Key.SERVER_ALLOW_INSECURE)!!.summary =
+                getString(R.string.allow_insecure_forced_by_global)
+        }
+
         findPreference<EditTextPreference>(Key.SERVER_PORT)!!.apply {
             setOnBindEditTextListener(EditTextPreferenceModifiers.Port)
         }

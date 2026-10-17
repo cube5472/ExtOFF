@@ -148,6 +148,11 @@ class AnyTLSSettingsActivity: ProfileSettingsActivity<AnyTLSBean>() {
         pinnedPeerCertificatePublicKey = findPreference(Key.SERVER_PINNED_CERTIFICATE_PUBLIC_KEY)!!
         pinnedPeerCertificate = findPreference(Key.SERVER_PINNED_CERTIFICATE)!!
         allowInsecure = findPreference(Key.SERVER_ALLOW_INSECURE)!!
+        // NextClave: inform (without changing the per-node value) that the
+        // global certificate-verification bypass is active in Settings
+        if (DataStore.disableCertVerification) {
+            allowInsecure.summary = getString(R.string.allow_insecure_forced_by_global)
+        }
         utlsFingerprint = findPreference(Key.SERVER_UTLS_FINGERPRINT)!!
         echEnabled = findPreference(Key.SERVER_ECH_ENABLED)!!
         echConfigList = findPreference(Key.SERVER_ECH_CONFIG_LIST)!!

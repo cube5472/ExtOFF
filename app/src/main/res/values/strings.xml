@@ -66,6 +66,7 @@
     <string name="security_settings">Security settings</string>
     <string name="allow_insecure">Skip certificate verification</string>
     <string name="allow_insecure_sum">Enabling this option without deploying other security measures leads to the success of man-in-the-middle attacks. Do NOT enable unless you know what you are doing.</string>
+    <string name="allow_insecure_forced_by_global">Forced globally: \"Disable TLS certificate verification\" is active — certificates are skipped for all nodes regardless of this switch.</string>
     <string name="traffic" translatable="false">%1$s↑ %2$s↓</string>
     <string name="speed_detail">Proxy: %1$s↑ %2$s↓
 \nDirect: %3$s↑ %4$s↓</string>

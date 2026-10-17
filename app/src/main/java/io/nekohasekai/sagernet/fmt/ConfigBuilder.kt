@@ -107,6 +107,7 @@ import io.nekohasekai.sagernet.fmt.v2ray.VMessBean
 import io.nekohasekai.sagernet.fmt.v2ray.getXrayRange
 import io.nekohasekai.sagernet.fmt.wireguard.WireGuardBean
 import io.nekohasekai.sagernet.ktx.app
+import io.nekohasekai.sagernet.ktx.Logs
 import io.nekohasekai.sagernet.ktx.getArray
 import io.nekohasekai.sagernet.ktx.getBoolean
 import io.nekohasekai.sagernet.ktx.getBooleanProperty
@@ -172,6 +173,15 @@ fun buildV2RayConfig(
 ): V2rayBuildResult {
     if (proxy.type == ProxyEntity.TYPE_CONFIG && proxy.configBean!!.type == "v2ray") {
         return buildCustomConfig(proxy, forTest, forExport)
+    }
+
+    if (DataStore.disableCertVerification) {
+        // NextClave: make the global bypass observable — lands in the in-app
+        // logcat viewer every time a config is built with the global
+        // certificate-verification bypass active. Every TLS outbound below
+        // (all 8 tlsSettings blocks in buildChain) ORs this flag into
+        // allowInsecure, so no protocol can escape it.
+        Logs.i("NextClave: certificate verification globally disabled — allowInsecure forced on all TLS outbounds")
     }
 
     val outboundTags = ArrayList<String>()
