@@ -55,6 +55,7 @@ import io.nekohasekai.sagernet.aidl.ISagerNetService
 import io.nekohasekai.sagernet.aidl.TrafficStats
 import io.nekohasekai.sagernet.bg.BaseService
 import io.nekohasekai.sagernet.bg.SagerConnection
+import io.nekohasekai.sagernet.bg.test.V2RayTestInstance
 import io.nekohasekai.sagernet.database.*
 import io.nekohasekai.sagernet.database.preference.OnPreferenceDataStoreChangeListener
 import io.nekohasekai.sagernet.databinding.LayoutMainBinding
@@ -63,7 +64,9 @@ import io.nekohasekai.sagernet.fmt.Alerts
 import io.nekohasekai.sagernet.fmt.PluginEntry
 import io.nekohasekai.sagernet.group.GroupInterfaceAdapter
 import io.nekohasekai.sagernet.ktx.*
+import io.nekohasekai.sagernet.plugin.PluginManager
 import io.nekohasekai.sagernet.utils.PackageCache
+import kotlinx.coroutines.delay
 import io.noties.markwon.Markwon
 import libexclavecore.Libexclavecore
 
@@ -412,8 +415,61 @@ class MainActivity : ThemedActivity(),
                     // refresh view
                     ProfileManager.postUpdate(DataStore.currentProfile)
                 }
+                // NextClave: node connected => refresh its URL test on its card
+                if (state == BaseService.State.Connected) testConnectedNode()
             }
             else -> {}
+        }
+    }
+
+    // NextClave: dynamic URL test for the connected node. When a node gets
+    // connected, its card immediately shows a fresh latency instead of the
+    // stale value from the last manual group test. Same rules as the manual
+    // urlTest(): same link, same 1500 ms timeout, protected dial on system TUN.
+    @Volatile
+    private var testingConnectedNode = false
+
+    private fun testConnectedNode() {
+        if (testingConnectedNode) return
+        testingConnectedNode = true
+        runOnDefaultDispatcher {
+            try {
+                delay(500) // let the connection settle first
+                val profileId = DataStore.startedProfile
+                if (profileId <= 0 || !SagerNet.started) return@runOnDefaultDispatcher
+                val profile = SagerDatabase.proxyDao.getById(profileId)
+                    ?: return@runOnDefaultDispatcher
+                val vpnRunning = SagerNet.started && DataStore.startedProfile > 0
+                        && DataStore.serviceMode == Key.MODE_VPN
+                val protectedDial = vpnRunning
+                        && DataStore.tunImplementation == TunImplementation.SYSTEM
+                try {
+                    val instance = if (protectedDial) {
+                        V2RayTestInstance(
+                            profile, DataStore.connectionTestURL, 1500,
+                            protectPath = SagerNet.deviceStorage.noBackupFilesDir.toString() + "/protect_path"
+                        )
+                    } else {
+                        V2RayTestInstance(profile, DataStore.connectionTestURL, 1500)
+                    }
+                    val result = instance.use { it.doTest() }
+                    profile.status = 1
+                    profile.ping = result
+                } catch (e: PluginManager.PluginNotFoundException) {
+                    profile.status = -1
+                    profile.error = e.readableMessage
+                } catch (e: Exception) {
+                    profile.status = 3
+                    profile.error = e.readableMessage
+                }
+                ProfileManager.updateProfile(profile)
+                Logs.i("NextClave urltest: [connected] ${profile.displayName()} -> " +
+                        "${profile.ping} ms (status=${profile.status})")
+            } catch (e: Exception) {
+                Logs.w(e)
+            } finally {
+                testingConnectedNode = false
+            }
         }
     }
 

@@ -22,6 +22,8 @@ package io.nekohasekai.sagernet.ui
 import android.app.Activity
 import android.content.Intent
 import android.graphics.Color
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
 import android.os.Bundle
 import android.provider.OpenableColumns
 import android.view.*
@@ -1514,6 +1516,11 @@ class ConfigurationFragment @JvmOverloads constructor(
         val profileAccess = Mutex()
         val reloadAccess = Mutex()
 
+        // NextClave: shared grayscale filter so the dead-node emoji renders
+        // black-and-white on every device instead of the default colored emoji
+        private val deadNodeGrayscaleFilter =
+            ColorMatrixColorFilter(ColorMatrix().apply { setSaturation(0f) })
+
         inner class ConfigurationHolder(val view: View) : RecyclerView.ViewHolder(view),
             PopupMenu.OnMenuItemClickListener {
 
@@ -1690,10 +1697,15 @@ class ConfigurationFragment @JvmOverloads constructor(
                         profileStatus.setTextColor(requireContext().getColour(R.color.material_red_500))
                     }
                     proxyEntity.status == 3 -> {
-                        profileStatus.setText(R.string.unavailable)
+                        // NextClave: dead node shows a grayscale 😵 instead of the
+                        // "unavailable" text; tap still reveals the actual error
+                        profileStatus.text = "😵"
+                        profileStatus.paint.colorFilter = deadNodeGrayscaleFilter
                         profileStatus.setTextColor(requireContext().getColour(R.color.material_red_500))
                     }
                 }
+
+                if (proxyEntity.status != 3) profileStatus.paint.colorFilter = null
 
                 profileStatus.isClickable = proxyEntity.status == 3
 
