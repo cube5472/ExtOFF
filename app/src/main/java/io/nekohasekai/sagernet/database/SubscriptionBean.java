@@ -46,13 +46,15 @@ public class SubscriptionBean extends Serializable {
     public String nameFilter1;
     public String httpHeaders;
     public String agePrivateKey;
+    public Integer spoofClient;
+    public String spoofHwid;
 
     public SubscriptionBean() {
     }
 
     @Override
     public void serializeToBuffer(ByteBufferOutput output) {
-        output.writeInt(9);
+        output.writeInt(10);
         output.writeInt(type);
         output.writeString(link);
         output.writeBoolean(deduplication);
@@ -68,6 +70,8 @@ public class SubscriptionBean extends Serializable {
         output.writeString(nameFilter1);
         output.writeString(httpHeaders);
         output.writeString(agePrivateKey);
+        output.writeInt(spoofClient);
+        output.writeString(spoofHwid);
     }
 
     public void serializeForShare(ByteBufferOutput output) {
@@ -160,6 +164,11 @@ public class SubscriptionBean extends Serializable {
                 agePrivateKey = "";
             }
         }
+
+        if (version >= 10) {
+            spoofClient = input.readInt();
+            spoofHwid = input.readString();
+        }
     }
 
     public void deserializeFromShare(ByteBufferInput input) {
@@ -246,6 +255,8 @@ public class SubscriptionBean extends Serializable {
 
         if (httpHeaders == null) httpHeaders = "";
         if (agePrivateKey == null) agePrivateKey = "";
+        if (spoofClient == null) spoofClient = 0;
+        if (spoofHwid == null) spoofHwid = "";
     }
 
     public static final Creator<SubscriptionBean> CREATOR = new CREATOR<>() {

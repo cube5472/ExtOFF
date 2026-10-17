@@ -91,6 +91,16 @@ object RawUpdater : GroupUpdater() {
                         setHeader(header.substringBefore(":"), header.substringAfter(":").trimStart())
                     }
                 }
+                if ((subscription.spoofClient ?: 0) > 0 && !subscription.spoofHwid.isNullOrBlank()) {
+                    // NextClave: present the client identity the panel expects —
+                    // overrides both the custom UA and custom headers above
+                    val client = subscription.spoofClient
+                    setUserAgent(ClientSpoof.userAgent(client))
+                    for ((name, value) in ClientSpoof.headers(client, subscription.spoofHwid)) {
+                        setHeader(name, value)
+                    }
+                    Logs.i("NextClave: subscription fetch spoofed as ${ClientSpoof.clientName(client)} (x-hwid: ${ClientSpoof.formatHwid(subscription.spoofHwid, client)})")
+                }
             }.execute()
 
             proxies = parseRaw(response.contentString)

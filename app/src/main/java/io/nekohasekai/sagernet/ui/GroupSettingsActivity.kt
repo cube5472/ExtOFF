@@ -98,6 +98,8 @@ class GroupSettingsActivity(
         DataStore.subscriptionNameFilter1 = sub.nameFilter1
         DataStore.subscriptionHTTPHeaders = sub.httpHeaders
         DataStore.subscriptionAgePrivateKey = sub.agePrivateKey
+        DataStore.subscriptionSpoofClient = sub.spoofClient ?: 0
+        DataStore.subscriptionSpoofHwid = sub.spoofHwid ?: ""
         DataStore.frontProxyOutbound = frontProxy
         DataStore.landingProxyOutbound = landingProxy
         DataStore.frontProxy = if (frontProxy >= 0) 1 else 0
@@ -133,6 +135,8 @@ class GroupSettingsActivity(
                 nameFilter1 = DataStore.subscriptionNameFilter1
                 httpHeaders = DataStore.subscriptionHTTPHeaders
                 agePrivateKey = DataStore.subscriptionAgePrivateKey
+                spoofClient = DataStore.subscriptionSpoofClient
+                spoofHwid = DataStore.subscriptionSpoofHwid
             }
         } else {
             subscription = SubscriptionBean().applyDefaultValues()
@@ -204,12 +208,27 @@ class GroupSettingsActivity(
         val agePrivateKey = findPreference<EditTextPreference>(Key.SUBSCRIPTION_AGE_PRIVATE_KEY)!!.apply {
             summaryProvider = PasswordSummaryProvider
         }
+        val spoofClient = findPreference<ListPreference>(Key.SUBSCRIPTION_SPOOF_CLIENT)!!
+        val spoofHwid = findPreference<EditTextPreference>(Key.SUBSCRIPTION_SPOOF_HWID)!!.apply {
+            dialogMessage = getString(R.string.subscription_spoof_hwid_sum)
+        }
+
+        fun updateSpoofHwidVisibility(value: Int = DataStore.subscriptionSpoofClient) {
+            spoofHwid.isVisible = value != 0
+        }
+        updateSpoofHwidVisibility()
+        spoofClient.setOnPreferenceChangeListener { _, newValue ->
+            updateSpoofHwidVisibility((newValue as String).toInt())
+            true
+        }
 
         fun updateGroupType(groupType: Int = DataStore.groupType) {
             val isSubscription = groupType == GroupType.SUBSCRIPTION
             groupSubscription.isVisible = isSubscription
             subscriptionUpdate.isVisible = isSubscription
             httpHeaders.isVisible = isSubscription
+            spoofClient.isVisible = isSubscription
+            spoofHwid.isVisible = isSubscription && DataStore.subscriptionSpoofClient != 0
             agePrivateKey.isVisible = isSubscription && (subscriptionType.value as String).toInt() == SubscriptionType.AGE
         }
         updateGroupType()

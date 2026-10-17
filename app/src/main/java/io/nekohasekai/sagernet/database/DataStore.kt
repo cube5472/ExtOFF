@@ -483,6 +483,8 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     var subscriptionNameFilter1 by profileCacheStore.string(Key.SUBSCRIPTION_NAME_FILTER1)
     var subscriptionHTTPHeaders by profileCacheStore.string(Key.SUBSCRIPTION_HTTP_HEADERS)
     var subscriptionAgePrivateKey by profileCacheStore.string(Key.SUBSCRIPTION_AGE_PRIVATE_KEY)
+    var subscriptionSpoofClient by profileCacheStore.stringToInt(Key.SUBSCRIPTION_SPOOF_CLIENT)
+    var subscriptionSpoofHwid by profileCacheStore.string(Key.SUBSCRIPTION_SPOOF_HWID)
 
     var editingAssetName by profileCacheStore.string(Key.EDITING_ASSET_NAME)
     var assetName by profileCacheStore.string(Key.ASSET_NAME)

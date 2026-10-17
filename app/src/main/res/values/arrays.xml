@@ -387,6 +387,13 @@
         <item>3</item>
     </string-array>
 
+    <string-array name="spoof_clients">
+        <item>@string/spoof_client_off</item>
+        <item>v2RayTun</item>
+        <item>Happ</item>
+        <item>Incy</item>
+    </string-array>
+
     <string-array name="rules_dat_provider_entry">
         <item>v2fly</item>
         <item>Loyalsoldier/v2ray-rules-dat</item>
