@@ -200,6 +200,8 @@
         <activity
             android:name="io.nekohasekai.sagernet.ui.profile.SnellSettingsActivity" />
         <activity
+            android:name="io.nekohasekai.sagernet.ui.profile.MASQUESettingsActivity" />
+        <activity
             android:name="io.nekohasekai.sagernet.ui.profile.ConfigSettingsActivity" />
         <activity
             android:name="io.nekohasekai.sagernet.ui.profile.ConfigEditActivity" />

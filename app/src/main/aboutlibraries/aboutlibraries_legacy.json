@@ -314,7 +314,7 @@
         },
         {
             "uniqueId": "com.esotericsoftware:kryo",
-            "artifactVersion": "5.7.0"
+            "artifactVersion": "5.7.1"
         },
         {
             "uniqueId": "com.esotericsoftware:minlog",

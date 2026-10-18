@@ -29,6 +29,7 @@ import io.nekohasekai.sagernet.fmt.anytls.AnyTLSBean
 import io.nekohasekai.sagernet.fmt.http.HttpBean
 import io.nekohasekai.sagernet.fmt.http3.Http3Bean
 import io.nekohasekai.sagernet.fmt.hysteria2.Hysteria2Bean
+import io.nekohasekai.sagernet.fmt.masque.MASQUEBean
 import io.nekohasekai.sagernet.fmt.naive.NaiveBean
 import io.nekohasekai.sagernet.fmt.shadowsocks.ShadowsocksBean
 import io.nekohasekai.sagernet.fmt.shadowsocks.supportedShadowsocksMethod
@@ -48,6 +49,7 @@ import io.nekohasekai.sagernet.fmt.v2ray.VMessBean
 import io.nekohasekai.sagernet.fmt.v2ray.supportedVmessMethod
 import io.nekohasekai.sagernet.fmt.wireguard.WireGuardBean
 import io.nekohasekai.sagernet.ktx.*
+import libexclavecore.Libexclavecore
 import java.io.StringReader
 import kotlin.io.encoding.Base64
 import kotlin.time.Duration
@@ -1102,6 +1104,122 @@ fun parseSingBoxEndpoint(endpoint: JsonObject): List<AbstractBean> {
                 })
             }
             return beanList
+        }
+        "masque-client" -> {
+            val masqueBean = MASQUEBean().apply {
+                endpoint.getString("tag", ignoreCase = false)?.also {
+                    name = it
+                }
+                endpoint.getString("server")?.also {
+                    serverAddress = it
+                } ?: return listOf()
+                endpoint.getInt("server_port")?.also {
+                    serverPort = it
+                } ?: return listOf()
+                endpoint.getString("username")?.also {
+                    username = it
+                }
+                endpoint.getString("password")?.also {
+                    password = it
+                }
+                endpoint.getString("path")?.also {
+                    uriTemplate = Libexclavecore.newURL("https").apply {
+                        setHostPort(serverAddress ?: "", serverPort ?: 0)
+                    }.string + it
+                }
+                (endpoint.getInt("version") ?: 0).also {
+                    httpVersion = when (it) {
+                        0, 3 -> 3
+                        1, 2 -> it
+                        else -> return listOf()
+                    }
+                }
+                mtu = 1280
+                endpoint.getInt("mtu")?.takeIf { it > 0 }?.also {
+                    mtu = it
+                }
+                endpoint.getObject("tls")?.also { tls ->
+                    (tls.getBoolean("enabled"))?.also { enabled ->
+                        if (httpVersion != 1 && !enabled) {
+                            return listOf()
+                        }
+                        security = if (enabled) "tls" else ""
+                        if (enabled) {
+                            tls.getString("server_name")?.also {
+                                sni = it
+                            }
+                            tls.getBoolean("insecure")?.also {
+                                allowInsecure = it
+                            }
+                            if (!tls.contains("certificate_path")) {
+                                var cert: String? = null
+                                tls.getStringArray("certificate")?.also { certificate ->
+                                    cert = certificate.joinToString("\n").takeIf {
+                                        it.contains("-----BEGIN ") && it.contains("-----END ") && it.contains(" CERTIFICATE-----")
+                                    }
+                                } ?: tls.getString("certificate")?.also { certificate ->
+                                    cert = certificate.takeIf {
+                                        it.contains("-----BEGIN ") && it.contains("-----END ") && it.contains(" CERTIFICATE-----")
+                                    }
+                                }
+                                if (cert != null) {
+                                    certificates = cert
+                                }
+                            }
+                            if (!tls.contains("client_certificate_path") && !tls.contains("client_key_path")) {
+                                var cert: String? = null
+                                tls.getStringArray("client_certificate")?.also { clientCert ->
+                                    cert = clientCert.joinToString("\n").takeIf {
+                                        it.contains("-----BEGIN ") && it.contains("-----END ") && it.contains(" CERTIFICATE-----")
+                                    }
+                                } ?: tls.getString("client_certificate")?.also { clientCert ->
+                                    cert = clientCert.takeIf {
+                                        it.contains("-----BEGIN ") && it.contains("-----END ") && it.contains(" CERTIFICATE-----")
+                                    }
+                                }
+                                var key: String? = null
+                                tls.getStringArray("client_key")?.also { clientKey ->
+                                    key = clientKey.joinToString("\n").takeIf {
+                                        it.contains("-----BEGIN ") && it.contains("-----END ") && it.contains(" PRIVATE KEY-----")
+                                    }
+                                } ?: tls.getString("client_key")?.also { clientKey ->
+                                    key = clientKey.takeIf {
+                                        it.contains("-----BEGIN ") && it.contains("-----END ") && it.contains(" PRIVATE KEY-----")
+                                    }
+                                }
+                                if (cert != null && key != null) {
+                                    mtlsCertificate = cert
+                                    mtlsCertificatePrivateKey = key
+                                }
+                            }
+                            tls.getByteArrayArray("certificate_public_key_sha256")?.takeIf { it.isNotEmpty() }?.also {
+                                pinnedPeerCertificatePublicKeySha256 = it.joinToString("\n") { Base64.encode(it) }
+                                allowInsecure = true
+                            } ?: tls.getByteArray("certificate_public_key_sha256")?.takeIf { it.isNotEmpty() }?.also {
+                                pinnedPeerCertificatePublicKeySha256 = Base64.encode(it)
+                                allowInsecure = true
+                            }
+                            tls.getByteArrayArray("certificate_sha256")?.takeIf { it.isNotEmpty() }?.also {
+                                pinnedPeerCertificateSha256 = it.joinToString("\n") { it.toHexString() }
+                                allowInsecure = true
+                            } ?: tls.getByteArray("certificate_sha256")?.takeIf { it.isNotEmpty() }?.also {
+                                pinnedPeerCertificateSha256 = it.toHexString()
+                                allowInsecure = true
+                            }
+                            /*tls.getObject("ech")?.also { ech ->
+                                echEnabled = ech.getBoolean("enabled")
+                                ech.getStringArray("config")?.also {
+                                    echConfig = parseECHConfigPem(it.joinToString("\n"))
+                                } ?: ech.getString("config")?.also {
+                                    echConfig = parseECHConfigPem(it)
+                                }
+                                echQueryName = ech.getString("query_server_name")
+                            }*/
+                        }
+                    }
+                }
+            }
+            return listOf(masqueBean)
         }
         else -> return listOf()
     }
