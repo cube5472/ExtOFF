@@ -756,7 +756,9 @@ class ConfigurationFragment @JvmOverloads constructor(
             var finishedProfileCount = 0
 
             val link = DataStore.connectionTestURL
-            val timeout = 1500
+            // NextClave: timeout (ms) is adjustable in Settings, right below
+            // the worker count; sane range 100..60000, default 1500.
+            val timeout = DataStore.urlTestTimeout.coerceIn(100, 60000)
             // NextClave: worker count is adjustable in Settings (default 3);
             // every run logs its parameters and per-node results to logcat
             // (visible in the built-in log viewer) so latency issues can be
@@ -783,8 +785,8 @@ class ConfigurationFragment @JvmOverloads constructor(
             // NextClave: workers with a wide stagger. Every worker runs a
             // full separate Xray core and a full TLS handshake; parallel cores
             // contend for CPU on a phone and skew the measured latency upwards.
-            // Timeout is intentionally short (1500 ms): nodes that fail to
-            // answer within it are not worth using anyway.
+            // Timeout defaults to 1500 ms (configurable in Settings): nodes
+            // that fail to answer within it are usually not worth using.
             repeat(workers) { index ->
                 testJobs.add(launch {
                     delay(index * 500L)

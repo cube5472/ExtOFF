@@ -249,6 +249,17 @@
             app:key="urlTestWorkers"
             app:title="@string/url_test_workers"
             app:useSimpleSummaryProvider="true" />
+        <!-- NextClave: URL test timeout; entry "__custom__" is intercepted in
+             SettingsPreferenceFragment and opens an input dialog (ms) instead -->
+        <io.nekohasekai.sagernet.widget.SimpleMenuPreference
+            app:defaultValue="1500"
+            app:entries="@array/url_test_timeout_entries"
+            app:entryValues="@array/url_test_timeout_values"
+            app:icon="@drawable/ic_baseline_cast_connected_24"
+            app:key="urlTestTimeout"
+            app:singleLineTitle="false"
+            app:title="@string/url_test_timeout"
+            app:useSimpleSummaryProvider="true" />
         <SwitchPreference
             app:icon="@drawable/baseline_construction_24"
             app:key="realityDisableX25519Mlkem768"

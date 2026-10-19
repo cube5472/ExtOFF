@@ -91,6 +91,8 @@
     <string name="transproxy_mode">Transparent proxy mode</string>
     <string name="connection_test_url">Connection test URL</string>
     <string name="url_test_workers">URL test parallel workers</string>
+    <string name="url_test_timeout">URL test timeout</string>
+    <string name="url_test_timeout_custom">Custom value…</string>
     <string name="probe_url">Custom test URL</string>
     <!-- proxy category -->
     <string name="profile_name">Profile name</string>

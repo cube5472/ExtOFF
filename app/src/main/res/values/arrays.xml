@@ -432,6 +432,30 @@
         <item>2</item>
     </string-array>
 
+    <!-- NextClave: URL test timeout dropdown; "__custom__" is a service marker
+         (handled by SettingsPreferenceFragment, never persisted). Not "@custom":
+         aapt2 would treat a leading '@' as a resource reference. -->
+    <string-array name="url_test_timeout_entries">
+        <item>500 ms</item>
+        <item>1000 ms</item>
+        <item>1500 ms</item>
+        <item>2000 ms</item>
+        <item>3000 ms</item>
+        <item>5000 ms</item>
+        <item>10000 ms</item>
+        <item>@string/url_test_timeout_custom</item>
+    </string-array>
+    <string-array name="url_test_timeout_values" translatable="false">
+        <item>500</item>
+        <item>1000</item>
+        <item>1500</item>
+        <item>2000</item>
+        <item>3000</item>
+        <item>5000</item>
+        <item>10000</item>
+        <item>__custom__</item>
+    </string-array>
+
     <string-array name="group_types">
         <item>@string/group_basic</item>
         <item>@string/subscription</item>

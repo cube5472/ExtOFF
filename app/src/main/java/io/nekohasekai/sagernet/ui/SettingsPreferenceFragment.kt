@@ -27,7 +27,10 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.text.InputType
 import android.view.View
+import android.widget.EditText
+import android.widget.FrameLayout
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.app.ActivityCompat
 import androidx.core.os.LocaleListCompat
@@ -59,6 +62,31 @@ import java.util.Locale
 class SettingsPreferenceFragment : PreferenceFragmentCompat() {
 
     private lateinit var isProxyApps: SwitchPreference
+
+    // NextClave: custom URL test timeout input for the "__custom__" dropdown
+    // entry. Sanitized to 100..60000 ms; persists via preference.value so the
+    // SimpleSummaryProvider refreshes automatically.
+    private fun showUrlTestTimeoutCustomDialog(preference: ListPreference) {
+        val input = EditText(requireContext()).apply {
+            inputType = InputType.TYPE_CLASS_NUMBER
+            hint = "100-60000"
+            setText(DataStore.urlTestTimeout.coerceIn(100, 60000).toString())
+        }
+        val container = FrameLayout(requireContext()).apply {
+            setPadding(dp2px(24), dp2px(8), dp2px(24), 0)
+            addView(input)
+        }
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.url_test_timeout)
+            .setView(container)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                val ms = input.text.toString().trim().toIntOrNull()?.coerceIn(100, 60000)
+                    ?: return@setPositiveButton
+                preference.value = ms.toString()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -97,6 +125,19 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         val httpPassword = findPreference<EditTextPreference>(Key.HTTP_PASSWORD)!!
         val appendHttpProxy = findPreference<SwitchPreference>(Key.APPEND_HTTP_PROXY)!!
         val httpProxyException = findPreference<EditTextPreference>(Key.HTTP_PROXY_EXCEPTION)!!
+
+        // NextClave: URL test timeout — dropdown presets; the "__custom__"
+        // entry opens an input dialog (ms) instead of being persisted. No
+        // needReload(): the value only affects the manual URL test, not the
+        // running core config.
+        findPreference<ListPreference>(Key.URL_TEST_TIMEOUT)!!.setOnPreferenceChangeListener { pref, newValue ->
+            if (newValue == "__custom__") {
+                showUrlTestTimeoutCustomDialog(pref as ListPreference)
+                false
+            } else {
+                true
+            }
+        }
 
         // app settings
         findPreference<ColorPickerPreference>(Key.APP_THEME)!!.setOnPreferenceChangeListener { _, newTheme ->

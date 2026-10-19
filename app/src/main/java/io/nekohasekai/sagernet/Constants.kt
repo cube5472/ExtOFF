@@ -88,6 +88,7 @@ object Key {
 
     const val CONNECTION_TEST_URL = "connectionTestURL"
     const val URL_TEST_WORKERS = "urlTestWorkers"
+    const val URL_TEST_TIMEOUT = "urlTestTimeout"
     const val PROBE_URL = "probeUrl"
     const val PROBE_INTERVAL = "probeInterval"
 

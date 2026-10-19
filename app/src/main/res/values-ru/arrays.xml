@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- NextClave: RU overlay for the URL test timeout dropdown entries;
+         values array (with the "__custom__" marker) is not translatable and
+         lives in values/arrays.xml -->
+    <string-array name="url_test_timeout_entries">
+        <item>500 мс</item>
+        <item>1000 мс</item>
+        <item>1500 мс</item>
+        <item>2000 мс</item>
+        <item>3000 мс</item>
+        <item>5000 мс</item>
+        <item>10000 мс</item>
+        <item>@string/url_test_timeout_custom</item>
+    </string-array>
+</resources>
