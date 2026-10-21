@@ -20,11 +20,17 @@
 package io.nekohasekai.sagernet.ui
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
+import android.graphics.Paint
+import android.graphics.drawable.BitmapDrawable
 import android.os.Bundle
+import android.text.TextPaint
 import android.provider.OpenableColumns
 import android.view.*
 import android.widget.ImageView
@@ -74,6 +80,7 @@ import java.util.*
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.zip.ZipInputStream
 import kotlin.concurrent.timerTask
+import kotlin.math.ceil
 import io.nekohasekai.sagernet.database.SagerDatabase
 import io.nekohasekai.sagernet.fmt.internal.BalancerBean
 import io.nekohasekai.sagernet.fmt.internal.ChainBean
@@ -628,6 +635,18 @@ class ConfigurationFragment @JvmOverloads constructor(
                                                 profile.groupId, profile.id
                                             )
                                         }
+                                        // NextClave: deleteProfile2 does not fire
+                                        // onRemoved (cards are removed manually above),
+                                        // so the tab chips kept a stale node count
+                                        // until the fragment got recreated. Refresh
+                                        // them explicitly; reload instead when the
+                                        // current ungrouped group became empty.
+                                        val group = DataStore.currentGroup()
+                                        if (group.ungrouped && SagerDatabase.proxyDao.countByGroup(group.id) == 0L) {
+                                            adapter.reload()
+                                        } else {
+                                            adapter.refreshCounts()
+                                        }
                                     }
                                 }
                                 .setNegativeButton(android.R.string.cancel, null)
@@ -676,6 +695,18 @@ class ConfigurationFragment @JvmOverloads constructor(
                                             ProfileManager.deleteProfile2(
                                                 profile.groupId, profile.id
                                             )
+                                        }
+                                        // NextClave: deleteProfile2 does not fire
+                                        // onRemoved (cards are removed manually above),
+                                        // so the tab chips kept a stale node count
+                                        // until the fragment got recreated. Refresh
+                                        // them explicitly; reload instead when the
+                                        // current ungrouped group became empty.
+                                        val group = DataStore.currentGroup()
+                                        if (group.ungrouped && SagerDatabase.proxyDao.countByGroup(group.id) == 0L) {
+                                            adapter.reload()
+                                        } else {
+                                            adapter.refreshCounts()
                                         }
                                     }
                                 }
@@ -1249,6 +1280,18 @@ class ConfigurationFragment @JvmOverloads constructor(
 
             private fun getItemAt(index: Int) = getItem(configurationIdList[index])
 
+            fun showNodeTesting(profileId: Long) {
+                if (!::configurationListView.isInitialized) return
+                val index = configurationIdList.indexOf(profileId)
+                if (index < 0) return
+                configurationListView.post {
+                    val holder = configurationListView.findViewHolderForAdapterPosition(index) as? ConfigurationHolder
+                    if (holder != null && holder.entity.id == profileId) {
+                        holder.showTesting()
+                    }
+                }
+            }
+
             override fun onCreateViewHolder(
                 parent: ViewGroup,
                 viewType: Int,
@@ -1529,6 +1572,46 @@ class ConfigurationFragment @JvmOverloads constructor(
 
         }
 
+        // NextClave: tap on a node's url-test value re-runs the url test
+        // for that single node. One core instance, the same test URL and
+        // timeout setting and the same protected-dial logic as the group
+        // test; the card repaints through ProfileManager.onUpdated.
+        val singleNodeTests = java.util.concurrent.ConcurrentHashMap.newKeySet<Long>()
+
+        fun testSingleNode(profile: ProxyEntity) {
+            if (!singleNodeTests.add(profile.id)) return
+
+            runOnDefaultDispatcher {
+                val link = DataStore.connectionTestURL
+                val timeout = DataStore.urlTestTimeout.coerceIn(100, 60000)
+                Logs.i("NextClave urltest: single node \"${profile.displayName()}\" " +
+                        "timeout=${timeout}ms url=$link vpn=${SagerNet.started && DataStore.startedProfile > 0}")
+                if (::adapter.isInitialized) {
+                    adapter.showNodeTesting(profile.id)
+                }
+                try {
+                    val instance = if (DataStore.tunImplementation == TunImplementation.SYSTEM && DataStore.serviceMode == Key.MODE_VPN && SagerNet.started && DataStore.startedProfile > 0) {
+                        V2RayTestInstance(profile, link, timeout, protectPath = SagerNet.deviceStorage.noBackupFilesDir.toString() + "/protect_path")
+                    } else {
+                        V2RayTestInstance(profile, link, timeout)
+                    }
+                    val result = instance.use {
+                        it.doTest()
+                    }
+                    profile.status = 1
+                    profile.ping = result
+                } catch (e: PluginManager.PluginNotFoundException) {
+                    profile.status = -1
+                    profile.error = e.readableMessage
+                } catch (e: Exception) {
+                    profile.status = 3
+                    profile.error = e.readableMessage
+                }
+                ProfileManager.updateProfile(profile)
+                singleNodeTests.remove(profile.id)
+            }
+        }
+
         val profileAccess = Mutex()
         val reloadAccess = Mutex()
 
@@ -1536,6 +1619,31 @@ class ConfigurationFragment @JvmOverloads constructor(
         // black-and-white on every device instead of the default colored emoji
         private val deadNodeGrayscaleFilter =
             ColorMatrixColorFilter(ColorMatrix().apply { setSaturation(0f) })
+
+        // NextClave: the grayscale 😵 is rendered ONCE into a bitmap (filter
+        // baked into the pixels) and reused as a compound drawable; see the
+        // status==3 branch of updateState() for why the paint filter approach
+        // was replaced.
+        private var deadNodeDrawable: BitmapDrawable? = null
+
+        private fun getDeadNodeDrawable(context: Context): BitmapDrawable {
+            deadNodeDrawable?.let { return it }
+
+            val dm = context.resources.displayMetrics
+            val textSizePx = 15f * dm.scaledDensity
+            val side = ceil(textSizePx * 1.4f).toInt().coerceAtLeast(1)
+            val bitmap = Bitmap.createBitmap(side, side, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bitmap)
+            val paint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+                textSize = textSizePx
+                colorFilter = deadNodeGrayscaleFilter
+                textAlign = Paint.Align.CENTER
+            }
+            val fm = paint.fontMetrics
+            val baseline = side / 2f - (fm.ascent + fm.descent) / 2f
+            canvas.drawText("\uD83D\uDE35", side / 2f, baseline, paint)
+            return BitmapDrawable(context.resources, bitmap).also { deadNodeDrawable = it }
+        }
 
         inner class ConfigurationHolder(val view: View) : RecyclerView.ViewHolder(view),
             PopupMenu.OnMenuItemClickListener {
@@ -1599,6 +1707,10 @@ class ConfigurationFragment @JvmOverloads constructor(
                 profileStatus.setOnClickListener {
                     if (entity.status == 3) {
                         alert(entity.error ?: "<?>").show()
+                    } else if (entity.status == 1) {
+                        // NextClave: tapping a node's url-test value re-tests
+                        // just this one node
+                        testSingleNode(entity)
                     }
                 }
 
@@ -1715,20 +1827,24 @@ class ConfigurationFragment @JvmOverloads constructor(
                     proxyEntity.status == 3 -> {
                         // NextClave: dead node shows a slightly larger grayscale
                         // 😵 instead of the "unavailable" text; tap still reveals
-                        // the actual error
-                        profileStatus.text = "😵"
-                        profileStatus.textSize = 15f
-                        profileStatus.paint.colorFilter = deadNodeGrayscaleFilter
-                        profileStatus.setTextColor(requireContext().getColour(R.color.material_red_500))
+                        // the actual error. The grayscale is baked into a bitmap:
+                        // a Paint colorFilter on the emoji text was visually lost
+                        // when RecyclerView re-drew recycled views during scroll
+                        // (the colored emoji came back), a pre-grayed bitmap can not.
+                        profileStatus.text = ""
+                        profileStatus.setCompoundDrawablesRelativeWithIntrinsicBounds(
+                            null, null, getDeadNodeDrawable(view.context), null
+                        )
                     }
                 }
 
                 if (proxyEntity.status != 3) {
-                    profileStatus.paint.colorFilter = null
-                    profileStatus.textSize = 11f
+                    profileStatus.setCompoundDrawablesRelativeWithIntrinsicBounds(
+                        null, null, null, null
+                    )
                 }
 
-                profileStatus.isClickable = proxyEntity.status == 3
+                profileStatus.isClickable = proxyEntity.status == 3 || proxyEntity.status == 1
 
                 if (!parent.select) {
                     val isInsecure = DataStore.profileSecurityAdvisory && proxyEntity.requireBean().isInsecure
@@ -1800,6 +1916,15 @@ class ConfigurationFragment @JvmOverloads constructor(
                         profileStatus.text = ""
                     }
                 }
+            }
+
+            fun showTesting() {
+                if (!::entity.isInitialized) return
+                profileStatus.text = "…"
+                profileStatus.setCompoundDrawablesRelativeWithIntrinsicBounds(
+                    null, null, null, null
+                )
+                profileStatus.setTextColor(view.context.getColorAttr(android.R.attr.textColorSecondary))
             }
 
             fun showCode(link: String) {
