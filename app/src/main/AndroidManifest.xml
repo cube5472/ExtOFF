@@ -261,8 +261,7 @@
         <activity
             android:name="io.nekohasekai.sagernet.ui.ConnectionsActivity"
             android:label="@string/connections"
-            android:launchMode="singleTask"
-            android:taskAffinity="io.nekohasekai.sagernet.ui.ConnectionsActivity"
+            android:launchMode="singleTop"
             android:parentActivityName="io.nekohasekai.sagernet.ui.MainActivity" />
         <activity
             android:name="io.nekohasekai.sagernet.ui.ProbeCertActivity"

@@ -158,7 +158,7 @@ class ConnectionsActivity : ThemedActivity() {
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             android.R.id.home -> {
-                finishAndRemoveTask()
+                finish()
                 true
             }
             R.id.action_conn_clear -> {
@@ -200,7 +200,9 @@ class ConnectionsActivity : ThemedActivity() {
                     "${entry.proto.lowercase()}://$host:${entry.dstPort}"
 
                 val age = (System.currentTimeMillis() - entry.firstSeen) / 1000
-                binding.whenText.text = when {
+                binding.whenText.text = if (!entry.live) {
+                    context.getString(R.string.connections_closed)
+                } else when {
                     age < 10 -> context.getString(R.string.connections_just_now)
                     age < 60 -> context.getString(R.string.connections_seconds_ago, age.toInt())
                     age < 3600 -> context.getString(R.string.connections_minutes_ago, (age / 60).toInt())

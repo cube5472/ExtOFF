@@ -577,10 +577,11 @@
     <!-- NextClave: live connections viewer -->
     <string name="connections">Requests</string>
     <string name="connections_empty">No requests yet</string>
-    <string name="connections_empty_sum">Connections through the VPN appear here in real time. Start the VPN (or reconnect it once after updating the app) and keep this screen open.</string>
+    <string name="connections_empty_sum">App network connections appear here in real time (VPN traffic included). Keep this screen open.</string>
     <string name="connections_clear">Clear</string>
     <string name="connections_blocked">Blocked</string>
     <string name="connections_just_now">Just now</string>
+    <string name="connections_closed">closed</string>
     <string name="connections_seconds_ago">%d s ago</string>
     <string name="connections_minutes_ago">%d min ago</string>
     <string name="connections_hours_ago">%d h ago</string>

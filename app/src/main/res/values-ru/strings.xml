@@ -551,10 +551,11 @@
     <!-- NextClave: просмотр соединений в реальном времени -->
     <string name="connections">Запросы</string>
     <string name="connections_empty">Запросов пока нет</string>
-    <string name="connections_empty_sum">Соединения через VPN появляются здесь в реальном времени. Запустите VPN (после обновления приложения — переподключите его один раз) и держите этот экран открытым.</string>
+    <string name="connections_empty_sum">Сетевые соединения приложений появляются здесь в реальном времени (включая трафик VPN). Держите этот экран открытым.</string>
     <string name="connections_clear">Очистить</string>
     <string name="connections_blocked">Блок</string>
     <string name="connections_just_now">Только что</string>
+    <string name="connections_closed">закрыто</string>
     <string name="connections_seconds_ago">%d с назад</string>
     <string name="connections_minutes_ago">%d мин назад</string>
     <string name="connections_hours_ago">%d ч назад</string>
