@@ -158,9 +158,11 @@ class ConfigurationFragment @JvmOverloads constructor(
             toolbar.setOnMenuItemClickListener(this)
             // NextClave: replace the app-name title (which was truncated to
             // "N…" by the toolbar menu anyway) with a live connections button
-            // that opens the "Requests" viewer.
+            // that opens the "Requests" viewer. The button is a SIBLING of
+            // the toolbar (inside the appbar FrameLayout), not a child —
+            // look it up from the view tree root.
             toolbar.title = ""
-            toolbar.findViewById<View?>(R.id.toolbar_connections)?.apply {
+            toolbar.rootView.findViewById<View?>(R.id.toolbar_connections)?.apply {
                 visibility = View.VISIBLE
                 setOnClickListener {
                     startActivity(Intent(requireContext(), ConnectionsActivity::class.java))
@@ -311,7 +313,8 @@ class ConfigurationFragment @JvmOverloads constructor(
     // the always-shown actions can reach into its spot; hide the button for
     // that moment instead of letting the icons pile up on each other.
     private fun installConnectionsCollisionGuard() {
-        val button = toolbar.findViewById<View?>(R.id.toolbar_connections) ?: return
+        val button =
+            toolbar.rootView.findViewById<View?>(R.id.toolbar_connections) ?: return
         val gapPx = (4 * resources.displayMetrics.density).toInt()
         var menuHooked = false
 

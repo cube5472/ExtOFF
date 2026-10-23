@@ -43,7 +43,10 @@ open class ToolbarFragment : Fragment {
         }
         // NextClave: the live connections button belongs to the main profiles
         // screen only; every other fragment sharing this toolbar hides it.
-        toolbar.findViewById<View?>(R.id.toolbar_connections)?.visibility = View.GONE
+        // The button is a SIBLING of the toolbar (inside the appbar
+        // FrameLayout), so it must be looked up from the view tree root —
+        // toolbar.findViewById() does not see it.
+        toolbar.rootView.findViewById<View?>(R.id.toolbar_connections)?.visibility = View.GONE
     }
 
     open fun onKeyDown(ketCode: Int, event: KeyEvent) = false
