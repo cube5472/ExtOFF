@@ -38,6 +38,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.widget.ActionMenuView
 import androidx.appcompat.widget.PopupMenu
 import androidx.appcompat.widget.SearchView
 import androidx.appcompat.widget.Toolbar
@@ -165,6 +166,7 @@ class ConfigurationFragment @JvmOverloads constructor(
                     startActivity(Intent(requireContext(), ConnectionsActivity::class.java))
                 }
             }
+            installConnectionsCollisionGuard()
         } else {
             toolbar.setTitle(titleRes)
             toolbar.setNavigationIcon(R.drawable.ic_navigation_close)
@@ -302,6 +304,47 @@ class ConfigurationFragment @JvmOverloads constructor(
         }
 
         (requireActivity() as? MainActivity)?.onBackPressedCallback?.isEnabled = false
+    }
+
+    // NextClave: the connections button lives between the hamburger and the
+    // action icons. On narrow screens — or while the SearchView is expanded —
+    // the always-shown actions can reach into its spot; hide the button for
+    // that moment instead of letting the icons pile up on each other.
+    private fun installConnectionsCollisionGuard() {
+        val button = toolbar.findViewById<View?>(R.id.toolbar_connections) ?: return
+        val gapPx = (4 * resources.displayMetrics.density).toInt()
+        var menuHooked = false
+
+        fun apply() {
+            if (button.visibility == View.GONE || !button.isLaidOut) return
+            var menu: ActionMenuView? = null
+            for (i in 0 until toolbar.childCount) {
+                val child = toolbar.getChildAt(i)
+                if (child is ActionMenuView && child.visibility == View.VISIBLE) {
+                    menu = child
+                    break
+                }
+            }
+            menu ?: return
+            if (!menuHooked) {
+                menuHooked = true
+                menu.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> apply() }
+            }
+            // The button is a sibling of the toolbar inside the appbar
+            // FrameLayout, and the toolbar has no padding, so wrapper-space
+            // and toolbar-space coordinates are the same.
+            val collide =
+                if (toolbar.layoutDirection == View.LAYOUT_DIRECTION_RTL) {
+                    menu.right > button.left - gapPx
+                } else {
+                    menu.left < button.right + gapPx
+                }
+            button.visibility = if (collide) View.INVISIBLE else View.VISIBLE
+        }
+
+        // The ActionMenuView is created during the first layout pass.
+        toolbar.post { apply() }
+        toolbar.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> apply() }
     }
 
     override fun onDestroy() {

@@ -7,15 +7,28 @@
     android:layout_height="?attr/actionBarSize"
     android:elevation="4dp">
 
-    <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/toolbar"
+    <!-- NextClave: the connections button must be a SIBLING of the toolbar,
+         not a child of it. androidx Toolbar lays out custom children with its
+         own internal cursor and does not honor marginStart the way
+         FrameLayout does, which made the button land exactly on top of the
+         url-test menu item. As a sibling overlay the 58dp start margin is
+         deterministic: just right of the hamburger, well left of the menu
+         block (which starts at >= 104dp on 360dp screens). -->
+    <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@drawable/bg_appbar_border"
-        android:theme="?actionBarTheme"
-        android:touchscreenBlocksFocus="false"
-        app:popupTheme="@style/ThemeOverlay.AppCompat.DayNight"
-        app:title="@string/app_name">
+        android:layout_height="match_parent">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/bg_appbar_border"
+            android:theme="?actionBarTheme"
+            android:touchscreenBlocksFocus="false"
+            app:popupTheme="@style/ThemeOverlay.AppCompat.DayNight"
+            app:title="@string/app_name">
+
+        </com.google.android.material.appbar.MaterialToolbar>
 
         <!-- NextClave: live connections ("Requests") button. Shown only on the
              main profile screen (ConfigurationFragment, non-select mode) in
@@ -33,5 +46,5 @@
             android:src="@drawable/ic_connections"
             android:visibility="gone" />
 
-    </com.google.android.material.appbar.MaterialToolbar>
+    </FrameLayout>
 </com.google.android.material.appbar.AppBarLayout>
