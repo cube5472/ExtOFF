@@ -23,6 +23,7 @@ import android.util.Log
 import io.nekohasekai.sagernet.ACCESS_LOG_FILE
 import io.nekohasekai.sagernet.ERROR_LOG_FILE
 import io.nekohasekai.sagernet.SagerNet
+import io.nekohasekai.sagernet.database.SagerDatabase
 import io.nekohasekai.sagernet.ktx.runOnDefaultDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -121,6 +122,7 @@ object ConnectionsMonitor {
         @Volatile var pkg: String?, // package name when known
         @Volatile var domain: String?, // sniffed host
         @Volatile var outbound: String?, // matched outbound tag
+        @Volatile var nodeName: String?, // resolved node display name
         @Volatile var isDefault: Boolean, // no routing rule matched
         @Volatile var isDns: Boolean,
         @Volatile var blocked: Boolean,
@@ -264,6 +266,7 @@ object ConnectionsMonitor {
                 if (outbound != null) {
                     if (outbound == "dns-out") existing.isDns = true
                     existing.outbound = outbound
+                    if (existing.nodeName == null) existing.nodeName = resolveNodeName(outbound)
                 }
                 publishLocked()
                 return
@@ -278,6 +281,7 @@ object ConnectionsMonitor {
                 pkg = null,
                 domain = null,
                 outbound = outbound,
+                nodeName = resolveNodeName(outbound),
                 isDefault = outbound == null,
                 isDns = dst.second == 53 || outbound == "dns-out",
                 blocked = !accepted,
@@ -409,6 +413,7 @@ object ConnectionsMonitor {
                 pkg = pkg,
                 domain = null,
                 outbound = outboundCache["${protoS.lowercase()}:${dst.first}:${dst.second}"],
+                nodeName = null,
                 isDefault = false,
                 isDns = dst.second == 53,
                 blocked = false,
@@ -448,6 +453,7 @@ object ConnectionsMonitor {
                         entry.isDns = true
                     }
                     entry.outbound = tag
+                    if (entry.nodeName == null) entry.nodeName = resolveNodeName(tag)
                     changed = true
                 }
             }
@@ -510,6 +516,7 @@ object ConnectionsMonitor {
                 pkg = pkg,
                 domain = null,
                 outbound = null,
+                nodeName = null,
                 isDefault = false,
                 isDns = dst.second == 53,
                 blocked = true,
@@ -585,6 +592,27 @@ object ConnectionsMonitor {
                 if (outboundCache.size <= 1024) break
                 outboundCache.remove(key)
             }
+        }
+    }
+
+    // ----------------------------------------------------- node resolution
+
+    /** Outbound tags are built by ConfigBuilder as "<agent>-global-<id>" /
+     *  "<tag>-chain-<id>" where <id> is the profile's database id — resolve
+     *  it to the human-readable node name for the outbound chip. */
+    private val reNodeTag = Regex("""(?:global|chain)-(\d+)""")
+    private val nodeCache = java.util.concurrent.ConcurrentHashMap<Long, String>()
+
+    private fun resolveNodeName(tag: String?): String? {
+        if (tag.isNullOrEmpty()) return null
+        val id = reNodeTag.find(tag)?.groupValues?.get(1)?.toLongOrNull() ?: return null
+        nodeCache[id]?.let { return it.ifEmpty { null } }
+        return try {
+            val name = SagerDatabase.proxyDao.getById(id)?.displayName()
+            nodeCache[id] = name ?: ""
+            name
+        } catch (e: Exception) {
+            ""
         }
     }
 

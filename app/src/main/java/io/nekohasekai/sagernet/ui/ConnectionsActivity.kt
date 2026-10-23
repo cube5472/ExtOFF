@@ -225,7 +225,9 @@ class ConnectionsActivity : ThemedActivity() {
                 val outbound = entry.outbound
                 if (outbound != null && outbound != "dns-out") {
                     binding.chipOutbound.isVisible = true
-                    binding.chipOutbound.text = outbound
+                    // NextClave: prefer the resolved node display name over
+                    // the raw outbound tag (proxy-global-1505 → node name).
+                    binding.chipOutbound.text = entry.nodeName ?: outbound
                 } else if (entry.isDefault) {
                     binding.chipOutbound.isVisible = true
                     binding.chipOutbound.text = context.getString(R.string.connections_chip_default)
