@@ -181,6 +181,11 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     // NextClave: globally disable TLS certificate verification for all nodes
     var disableCertVerification by configurationStore.boolean(Key.DISABLE_CERT_VERIFICATION)
 
+    // NextClave: live connections viewer ("Requests"). On by default: it also
+    // raises the core log level to Info (needed for per-connection log lines)
+    // and enables per-connection uid dumping on Android 10+.
+    var connectionsView by configurationStore.boolean(Key.CONNECTIONS_VIEW) { true }
+
     var rulesProvider by configurationStore.stringToInt(Key.RULES_PROVIDER)
     var rulesGeositeUrl by configurationStore.string(Key.RULES_GEOSITE_URL) { "https://github.com/v2fly/domain-list-community/releases/latest/download/dlc.dat" }
     var rulesGeoipUrl by configurationStore.string(Key.RULES_GEOIP_URL) { "https://github.com/v2fly/geoip/releases/latest/download/geoip.dat" }

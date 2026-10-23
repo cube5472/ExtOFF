@@ -41,6 +41,9 @@ open class ToolbarFragment : Fragment {
         toolbar.setNavigationOnClickListener {
             (activity as MainActivity).binding.drawerLayout.openDrawer(GravityCompat.START)
         }
+        // NextClave: the live connections button belongs to the main profiles
+        // screen only; every other fragment sharing this toolbar hides it.
+        toolbar.findViewById<View?>(R.id.toolbar_connections)?.visibility = View.GONE
     }
 
     open fun onKeyDown(ketCode: Int, event: KeyEvent) = false

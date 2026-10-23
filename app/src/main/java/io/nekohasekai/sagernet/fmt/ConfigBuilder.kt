@@ -345,15 +345,24 @@ fun buildV2RayConfig(
             fallbackStrategy = "disabledIfAnyMatch"
         }
 
+        // NextClave: the live connections viewer parses per-connection core
+        // log lines ([TCP/UDP (uid/pkg)] src ==> dst, "sniffed domain: …",
+        // "taking detour […]" — all Info level) from logcat, so raise the log
+        // level to at least Info while the viewer is enabled.
+        val effectiveLogLevel = if (DataStore.connectionsView) {
+            if (DataStore.logLevel < LogLevel.INFO) LogLevel.INFO else DataStore.logLevel
+        } else {
+            DataStore.logLevel
+        }
         log = LogObject().apply {
-            loglevel = when (DataStore.logLevel) {
+            loglevel = when (effectiveLogLevel) {
                 LogLevel.DEBUG -> "debug"
                 LogLevel.INFO -> "info"
                 LogLevel.WARNING -> "warning"
                 LogLevel.ERROR -> "error"
                 else -> "none"
             }
-            if (DataStore.logLevel == LogLevel.NONE) {
+            if (effectiveLogLevel == LogLevel.NONE) {
                 access = "none"
             }
         }

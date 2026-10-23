@@ -548,6 +548,19 @@
     <string name="clash_rules">clash-r: правила Clash</string>
     <string name="clash_rules_sum">Применять наборы правил и провайдеры правил из последней обновлённой Clash-подписки (clash-r). Действует для любой выбранной ноды в режиме маршрутизации по правилам. Недостающие наборы указываются в логе (тег: clash-r).</string>
     <string name="disable_cert_verification">Отключить проверку сертификатов TLS</string>
+    <!-- NextClave: просмотр соединений в реальном времени -->
+    <string name="connections">Запросы</string>
+    <string name="connections_empty">Запросов пока нет</string>
+    <string name="connections_empty_sum">Соединения через VPN появляются здесь в реальном времени. Запустите VPN (после обновления приложения — переподключите его один раз) и держите этот экран открытым.</string>
+    <string name="connections_clear">Очистить</string>
+    <string name="connections_blocked">Блок</string>
+    <string name="connections_just_now">Только что</string>
+    <string name="connections_seconds_ago">%d с назад</string>
+    <string name="connections_minutes_ago">%d мин назад</string>
+    <string name="connections_hours_ago">%d ч назад</string>
+    <string name="connections_chip_default">Авто</string>
+    <string name="connections_unknown_app">uid %d</string>
+    <string name="connections_self">Это приложение</string>
     <string name="disable_cert_verification_sum">Принудительно пропускать проверку сертификата (skip-cert-verify / allowInsecure) для всех загруженных нод сразу. Небезопасно — используйте на свой риск.</string>
     <string name="reality_public_key">REALITY public key (публичный, открытый ключ)</string>
     <string name="reality_short_id">REALITY Short ID (короткий идентификатор)</string>

@@ -574,6 +574,19 @@
     <string name="clash_rules">clash-r: use Clash rules</string>
     <string name="clash_rules_sum">Apply rules and rule providers from the last updated Clash subscription (clash-r). Works for any selected node in rule routing mode. Missing rule sets are listed in the log (tag: clash-r).</string>
     <string name="disable_cert_verification">Disable TLS certificate verification</string>
+    <!-- NextClave: live connections viewer -->
+    <string name="connections">Requests</string>
+    <string name="connections_empty">No requests yet</string>
+    <string name="connections_empty_sum">Connections through the VPN appear here in real time. Start the VPN (or reconnect it once after updating the app) and keep this screen open.</string>
+    <string name="connections_clear">Clear</string>
+    <string name="connections_blocked">Blocked</string>
+    <string name="connections_just_now">Just now</string>
+    <string name="connections_seconds_ago">%d s ago</string>
+    <string name="connections_minutes_ago">%d min ago</string>
+    <string name="connections_hours_ago">%d h ago</string>
+    <string name="connections_chip_default">Auto</string>
+    <string name="connections_unknown_app">uid %d</string>
+    <string name="connections_self">This app</string>
     <string name="disable_cert_verification_sum">Force skip certificate verification (skip-cert-verify / allowInsecure) for all loaded nodes at once. Insecure — use at your own risk.</string>
     <string name="action_shadowquic" translatable="false">ShadowQUIC</string>
     <string name="debug_log_sum">Running configuration will be printed to the system log, so the log will contain secret keys used to connect to servers. This log level is required for reporting issues, and please remove sensitive information before posting log files publicly.</string>

@@ -155,6 +155,16 @@ class ConfigurationFragment @JvmOverloads constructor(
         if (!select) {
             toolbar.inflateMenu(R.menu.add_profile_menu)
             toolbar.setOnMenuItemClickListener(this)
+            // NextClave: replace the app-name title (which was truncated to
+            // "N…" by the toolbar menu anyway) with a live connections button
+            // that opens the "Requests" viewer.
+            toolbar.title = ""
+            toolbar.findViewById<View?>(R.id.toolbar_connections)?.apply {
+                visibility = View.VISIBLE
+                setOnClickListener {
+                    startActivity(Intent(requireContext(), ConnectionsActivity::class.java))
+                }
+            }
         } else {
             toolbar.setTitle(titleRes)
             toolbar.setNavigationIcon(R.drawable.ic_navigation_close)

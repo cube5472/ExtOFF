@@ -304,7 +304,12 @@ class VpnService : BaseVpnService(),
             overrideDestination = DataStore.destinationOverride
             // fakeDNS = DataStore.enableFakeDns
             fakeDNS = data.proxy!!.config.useFakeDNS
-            dumpUID = data.proxy!!.config.dumpUID
+            // NextClave: with the connections viewer enabled, always resolve
+            // the owning uid per connection on Android 10+ so the core logs
+            // "[TCP/UDP (uid/package)] src ==> dst" lines for every connection
+            // (otherwise they only appear with per-app routing rules).
+            dumpUID = data.proxy!!.config.dumpUID ||
+                (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && DataStore.connectionsView)
             trafficStats = DataStore.appTrafficStatistics
             pCap = DataStore.enablePcap
             protector = this@VpnService

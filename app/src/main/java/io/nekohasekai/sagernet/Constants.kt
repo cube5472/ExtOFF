@@ -98,6 +98,9 @@ object Key {
     // NextClave: globally disable TLS certificate verification for all nodes
     const val DISABLE_CERT_VERIFICATION = "disableCertVerification"
 
+    // NextClave: live connections viewer ("Requests")
+    const val CONNECTIONS_VIEW = "connectionsView"
+
     const val ROUTE_MODE = "routeMode"
 
     const val RULES_PROVIDER = "rulesProvider"

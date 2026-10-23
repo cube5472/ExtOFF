@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- NextClave: neutral chip background for the "Requests" list -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#2A888888" />
+    <corners android:radius="8dp" />
+</shape>

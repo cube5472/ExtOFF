@@ -66,12 +66,14 @@ object RawUpdater : GroupUpdater() {
                 ?.bufferedReader()
                 ?.readText()
 
-            proxies = contentText?.let { parseRaw(contentText) }
-                ?: error(app.getString(R.string.no_proxies_found_in_subscription))
+            // NextClave: clash-r — cache Clash rules BEFORE node parsing so that
+            // routing-only Clash configs (rules without proxies:) are still
+            // registered even when the subscription yields no profiles
             if (contentText != null) {
-                // NextClave: clash-r — cache Clash rules from this subscription
                 ClashRules.onSubscriptionContent(contentText)
             }
+            proxies = contentText?.let { parseRaw(contentText) }
+                ?: error(app.getString(R.string.no_proxies_found_in_subscription))
         } else {
             val response = Libexclavecore.newHttpClient().apply {
                 if (SagerNet.started && DataStore.startedProfile > 0) {
@@ -105,10 +107,12 @@ object RawUpdater : GroupUpdater() {
                 }
             }.execute()
 
+            // NextClave: clash-r — cache Clash rules BEFORE node parsing so that
+            // routing-only Clash configs (rules without proxies:) are still
+            // registered even when the subscription yields no profiles
+            ClashRules.onSubscriptionContent(response.contentString)
             proxies = parseRaw(response.contentString)
                 ?: error(app.getString(R.string.no_proxies_found))
-            // NextClave: clash-r — cache Clash rules from this subscription
-            ClashRules.onSubscriptionContent(response.contentString)
 
             val subscriptionUserinfo = response.getHeader("Subscription-Userinfo")
             if (subscriptionUserinfo.isNotEmpty()) {

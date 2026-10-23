@@ -91,7 +91,10 @@ object ClashRules {
     // ------------------------------------------------------------------ //
 
     fun onSubscriptionContent(content: String) {
-        if (!content.contains("rules:") || !content.contains("proxies:")) return
+        // NextClave: only "rules:" is required — routing-only Clash configs
+        // (rules + rule-providers, no top-level proxies:) must register too.
+        // parseAndStore bails out safely when there is no usable rule list.
+        if (!content.contains("rules:")) return
         runCatching {
             parseAndStore(content)
         }.onFailure {
@@ -609,8 +612,40 @@ object ClashRules {
         }
     }
 
+    /**
+     * NextClave: seed the bundled ruleset from assets on first use, so the
+     * clash-r toggle works out of the box — no subscription update needed.
+     * Runs only when rules.json does not exist yet: once any Clash
+     * subscription is updated, its rules replace the bundled set (delete
+     * app data to return to the bundled default).
+     */
+    private fun ensureSeeded() {
+        if (rulesFile.exists()) return
+        runCatching {
+            val root = app.assets.open("clashr_seed.json").bufferedReader().use {
+                parseJson(it.readText()).asJsonObject
+            }
+            val rulesDoc = root.getAsJsonObject("rules") ?: return
+            dir.mkdirs()
+            rulesFile.writeText(rulesDoc.toString())
+            memoRules = null
+            val providers = root.getAsJsonObject("providers")
+            providers?.entrySet()?.forEach { (name, el) ->
+                (el as? JsonObject)?.let { frag ->
+                    providerFile(name).writeText(frag.toString())
+                    memoFrags.remove(name)
+                }
+            }
+            Log.i(TAG, "clash-r: seeded bundled rules " +
+                "(${rulesDoc.getAsJsonArray("entries")?.size()} entries, ${providers?.size() ?: 0} providers)")
+        }.onFailure {
+            Log.w(TAG, "clash-r: seed failed: ${it.message}")
+        }
+    }
+
     fun buildRoutingRules(tagProxy: String): List<V2RayConfig.RoutingObject.RuleObject> {
         if (!DataStore.clashRules) return emptyList()
+        if (!rulesFile.exists()) ensureSeeded()
         val doc = loadRulesDoc() ?: return emptyList()
         val entries = doc.getAsJsonArray("entries") ?: return emptyList()
         // refresh stale/missing providers in background; missing ones are

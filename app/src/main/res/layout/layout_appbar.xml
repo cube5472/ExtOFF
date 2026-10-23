@@ -15,5 +15,23 @@
         android:theme="?actionBarTheme"
         android:touchscreenBlocksFocus="false"
         app:popupTheme="@style/ThemeOverlay.AppCompat.DayNight"
-        app:title="@string/app_name" />
+        app:title="@string/app_name">
+
+        <!-- NextClave: live connections ("Requests") button. Shown only on the
+             main profile screen (ConfigurationFragment, non-select mode) in
+             place of the app-name title, which was truncated to "N…" anyway. -->
+        <androidx.appcompat.widget.AppCompatImageButton
+            android:id="@+id/toolbar_connections"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_gravity="start|center_vertical"
+            android:layout_marginStart="58dp"
+            android:background="?attr/actionBarItemBackground"
+            android:contentDescription="@string/connections"
+            android:padding="8dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_connections"
+            android:visibility="gone" />
+
+    </com.google.android.material.appbar.MaterialToolbar>
 </com.google.android.material.appbar.AppBarLayout>

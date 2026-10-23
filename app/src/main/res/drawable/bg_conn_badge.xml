@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- NextClave: red rounded badge behind the connection pictogram in the
+     "Requests" list rows (mirrors the reference UI) -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#E53947" />
+    <corners android:radius="12dp" />
+</shape>
