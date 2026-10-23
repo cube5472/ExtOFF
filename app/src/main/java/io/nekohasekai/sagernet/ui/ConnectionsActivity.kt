@@ -212,7 +212,7 @@ class ConnectionsActivity : ThemedActivity() {
                 binding.appLine.text = when {
                     entry.pkg != null -> entry.pkg
                     entry.uid >= 0 -> context.getString(R.string.connections_unknown_app, entry.uid)
-                    else -> context.getString(R.string.connections_self)
+                    else -> context.getString(R.string.connections_source, entry.src)
                 }
 
                 val outbound = entry.outbound

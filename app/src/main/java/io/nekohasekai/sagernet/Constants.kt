@@ -21,6 +21,12 @@ package io.nekohasekai.sagernet
 
 const val CONNECTION_TEST_URL = "https://www.google.com/generate_204"
 
+// NextClave: Xray access log file inside cacheDir — the per-connection feed
+// for the requests viewer (see ConnectionsMonitor). On Android 10+ an app
+// can neither read /proc/net nor open netlink inet_diag, and the core's
+// stdout goes to /dev/null, so this file is the only reliable source.
+const val ACCESS_LOG_FILE = "access.log"
+
 object Key {
 
     const val DB_PUBLIC = "configuration.db"

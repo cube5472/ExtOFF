@@ -551,7 +551,7 @@
     <!-- NextClave: просмотр соединений в реальном времени -->
     <string name="connections">Запросы</string>
     <string name="connections_empty">Запросов пока нет</string>
-    <string name="connections_empty_sum">Сетевые соединения приложений появляются здесь в реальном времени (включая трафик VPN). Держите этот экран открытым.</string>
+    <string name="connections_empty_sum">Соединения, идущие через VPN, появляются здесь в реальном времени. Подключите VPN и держите этот экран открытым.</string>
     <string name="connections_clear">Очистить</string>
     <string name="connections_blocked">Блок</string>
     <string name="connections_just_now">Только что</string>
@@ -561,7 +561,7 @@
     <string name="connections_hours_ago">%d ч назад</string>
     <string name="connections_chip_default">Авто</string>
     <string name="connections_unknown_app">uid %d</string>
-    <string name="connections_self">Это приложение</string>
+    <string name="connections_source">источник %1$s</string>
     <string name="disable_cert_verification_sum">Принудительно пропускать проверку сертификата (skip-cert-verify / allowInsecure) для всех загруженных нод сразу. Небезопасно — используйте на свой риск.</string>
     <string name="reality_public_key">REALITY public key (публичный, открытый ключ)</string>
     <string name="reality_short_id">REALITY Short ID (короткий идентификатор)</string>

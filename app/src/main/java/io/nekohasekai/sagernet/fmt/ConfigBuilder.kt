@@ -32,6 +32,7 @@ import io.nekohasekai.sagernet.Key
 import io.nekohasekai.sagernet.LogLevel
 import io.nekohasekai.sagernet.RouteMode
 import io.nekohasekai.sagernet.SagerNet
+import io.nekohasekai.sagernet.ACCESS_LOG_FILE
 import io.nekohasekai.sagernet.TLS_FRAGMENTATION_METHOD
 import io.nekohasekai.sagernet.TunImplementation
 import io.nekohasekai.sagernet.bg.VpnService
@@ -362,8 +363,13 @@ fun buildV2RayConfig(
                 LogLevel.ERROR -> "error"
                 else -> "none"
             }
-            if (effectiveLogLevel == LogLevel.NONE) {
-                access = "none"
+            // NextClave: point the Xray access log at a file we can tail —
+            // the only dependable per-connection feed on Android 10+ (see
+            // ACCESS_LOG_FILE). Tests and exported configs stay silent.
+            access = if (forTest || forExport) {
+                "none"
+            } else {
+                File(SagerNet.application.cacheDir, ACCESS_LOG_FILE).absolutePath
             }
         }
 
