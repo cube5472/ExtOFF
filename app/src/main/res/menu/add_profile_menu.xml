@@ -4,6 +4,11 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
     <!-- NextClave: quick actions in the toolbar -->
     <item
+        android:id="@+id/action_open_connections"
+        android:icon="@drawable/ic_connections"
+        android:title="@string/connections"
+        app:showAsAction="always" />
+    <item
         android:id="@+id/action_connection_url_test"
         android:icon="@drawable/ic_baseline_speed_24"
         android:title="@string/connection_test_url_test"
