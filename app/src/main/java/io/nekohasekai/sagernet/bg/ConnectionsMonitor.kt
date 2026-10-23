@@ -21,6 +21,7 @@ package io.nekohasekai.sagernet.bg
 
 import android.util.Log
 import io.nekohasekai.sagernet.ACCESS_LOG_FILE
+import io.nekohasekai.sagernet.ERROR_LOG_FILE
 import io.nekohasekai.sagernet.SagerNet
 import io.nekohasekai.sagernet.ktx.runOnDefaultDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,31 +36,33 @@ import java.util.concurrent.atomic.AtomicBoolean
  * NextClave: live feed of VPN connections. Two independent layers, so the
  * viewer keeps working even when one of them is unavailable on a device:
  *
- * 1. PRIMARY — the Xray access log file (cacheDir/access.log, configured in
- *    ConfigBuilder). The core appends one line per connection:
+ * 1. PRIMARY — the core access log file (cacheDir/access.log, configured in
+ *    ConfigBuilder). exclave-core is a v2fly/v2ray-core fork, and v2ray
+ *    access lines have NO "from" keyword (that is Xray):
  *
- *      2026/10/23 14:20:05 from 172.19.0.2:41234 accepted tcp:host.com:443 [proxy-in -> proxy]
- *      2026/10/23 14:20:05 from 172.19.0.2:41234 rejected tcp:1.2.3.4:25 [proxy-in -> block]
+ *      2026/10/23 14:20:05 172.19.0.2:41234 accepted tcp:host.com:443 [proxy]
+ *      2026/10/23 14:20:05 172.19.0.2:41234 rejected tcp:1.2.3.4:25 <reason…>
  *
  *    The file is truncated by ProxyInstance on every VPN start and tailed
  *    here at ~1 Hz. This works on every Android version: the file belongs
  *    to the app itself, so SELinux / logcat restrictions do not apply.
  *    (History: v25–v29 parsed logcat and dumped netlink // /proc/net —
- *    the latter two are blocked by SELinux on Android 10+, and the core
- *    only reaches logcat for its error log, not per-connection lines.)
+ *    both dead ends on Android 10+; v30 had the right channel but parsed
+ *    the lines with an Xray-shaped regex, which rejected every line.)
  *
- * 2. SECONDARY — core log lines (logcat tag "exclave-core", Info level):
+ * 2. SECONDARY — the core error log file (cacheDir/core_error.log, also
+ *    configured in ConfigBuilder while the viewer is on). At debug level it
+ *    carries GeneralMessage lines (timestamp prefix added by the writer):
  *
- *      [TCP (10391/com.example.app)] 10.0.0.2:54321 ==> 149.154.167.4:443
- *      sniffed domain: api.example.com for tcp:149.154.167.4:443
- *      taking detour [proxy] for [tcp:149.154.167.4:443]
- *      blocked TCP from 10.0.0.2:54321 to 149.154.167.4:443 by com.example.app (10391)
+ *      2026/10/23 14:20:06 sniffed domain: api.example.com for tcp:149.154.167.4:443
+ *      2026/10/23 14:20:06 taking detour [proxy] for [tcp:149.154.167.4:443]
+ *      2026/10/23 14:20:06 default route for tcp:149.154.167.4:443
  *
- *    When this channel is alive it enriches the access-log entries (uid,
- *    package name, blocked flag) and adds entries of its own as a fallback.
- *    Parsing is tolerant to a leftover "[Info] "-style severity prefix.
+ *    These enrich the access-log entries (domain, outbound chip); parsing
+ *    is tolerant to leftover "[Info] "-style severity prefixes. The logcat
+ *    channel is kept as a third enrichment source for other core builds.
  *
- * Xray emits exactly one access line per connection (on accept), so
+ * The core emits exactly one access line per connection (on accept), so
  * "live" is emulated: an entry stays active for LIVE_TCP_MS / LIVE_UDP_MS
  * after it was seen, then it is shown as closed until it ages out.
  */
@@ -73,6 +76,36 @@ object ConnectionsMonitor {
     private const val TAIL_INTERVAL_MS = 700L
     // Never read more than this in one step (first read after install etc.).
     private const val MAX_TAIL_STEP = 4L * 1024 * 1024
+
+    /** Diagnostic counters, shown in the empty state so a broken channel is
+     *  obvious from the screen itself instead of requiring a repro report. */
+    private val diag = Diag()
+
+    private class Diag {
+        @Volatile var accessBytes: Long = 0
+        @Volatile var accessLines: Long = 0
+        @Volatile var accessParsed: Long = 0
+        @Volatile var errBytes: Long = 0
+        @Volatile var errLines: Long = 0
+        @Volatile var sampleRejected: String? = null
+    }
+
+    fun debugStats(): String {
+        val d = diag
+        val sb = StringBuilder("access.log: ")
+        sb.append(d.accessBytes).append("B / ").append(d.accessLines)
+            .append(" lines / ").append(d.accessParsed).append(" ok")
+        val ef = errorFile()
+        if (ef.exists()) {
+            sb.append("\nerror.log: ").append(d.errBytes).append("B / ")
+                .append(d.errLines).append(" lines")
+        }
+        val sample = d.sampleRejected
+        if (d.accessLines > 0 && d.accessParsed == 0L && sample != null) {
+            sb.append("\nsample: ").append(sample.take(120))
+        }
+        return sb.toString()
+    }
 
     // Access log has no close events; emulate liveness by entry age.
     private const val LIVE_TCP_MS = 5 * 60 * 1000L
@@ -99,6 +132,11 @@ object ConnectionsMonitor {
     private val running = AtomicBoolean(false)
     @Volatile private var process: Process? = null
 
+    /** Per-file tail positions; reset automatically when a file shrinks. */
+    private class TailState(@Volatile var offset: Long)
+    private val accessTail = TailState(0L)
+    private val errorTail = TailState(0L)
+
     private val lock = Any()
     private val store = HashMap<String, ConnEntry>() // access-log + logcat history
     private val _connections = MutableStateFlow<List<ConnEntry>>(emptyList())
@@ -108,7 +146,9 @@ object ConnectionsMonitor {
 
     fun start() {
         if (!running.compareAndSet(false, true)) return
-        startFileTail()
+        val tsFormat = SimpleDateFormat("yyyy/MM/dd HH:mm:ss", Locale.US)
+        startTail({ accessFile() }, accessTail) { line -> parseAccessLine(line, tsFormat) }
+        startTail({ errorFile() }, errorTail, ::parseErrorLine)
         startLogcatThread()
     }
 
@@ -131,21 +171,21 @@ object ConnectionsMonitor {
     private fun accessFile(): File =
         File(SagerNet.application.cacheDir, ACCESS_LOG_FILE)
 
+    private fun errorFile(): File =
+        File(SagerNet.application.cacheDir, ERROR_LOG_FILE)
+
     private fun liveTtl(proto: String): Long =
         if (proto.equals("UDP", ignoreCase = true)) LIVE_UDP_MS else LIVE_TCP_MS
 
-    // --------------------------------------------------- access log layer
+    // --------------------------------------------------------- tail engine
 
-    @Volatile private var offset = 0L
-
-    private fun startFileTail() {
+    private fun startTail(fileProvider: () -> File, state: TailState, onLine: (String) -> Unit) {
         runOnDefaultDispatcher {
-            val tsFormat = SimpleDateFormat("yyyy/MM/dd HH:mm:ss", Locale.US)
             while (running.get()) {
                 try {
-                    tailOnce(tsFormat)
+                    tailOnce(fileProvider(), state, onLine)
                 } catch (e: Throwable) {
-                    Log.w(TAG, "access log tail failed: ${e.message}")
+                    Log.w(TAG, "log tail failed: ${e.message}")
                 }
                 try {
                     Thread.sleep(TAIL_INTERVAL_MS)
@@ -156,15 +196,14 @@ object ConnectionsMonitor {
         }
     }
 
-    private fun tailOnce(tsFormat: SimpleDateFormat) {
-        val f = accessFile()
+    private fun tailOnce(f: File, state: TailState, onLine: (String) -> Unit) {
         if (!f.exists()) return
         val size = f.length()
-        var from = offset
+        var from = state.offset
         if (size < from) {
             // file was truncated (fresh VPN session) — start over
             from = 0L
-            offset = 0L
+            state.offset = 0L
         }
         if (size == from) return
         if (size - from > MAX_TAIL_STEP) from = size - MAX_TAIL_STEP
@@ -181,25 +220,34 @@ object ConnectionsMonitor {
                 }
             }
             // only advance past complete lines
-            offset = from + start
+            state.offset = from + start
         }
-        for (line in lines) parseAccessLine(line.trim(), tsFormat)
+        for (line in lines) onLine(line.trim())
     }
 
-    // Xray access log:
-    //   2026/10/23 14:20:05 from <src> accepted <proto>:<host>:<port> [<in> -> <out>] [email: <e>]
+    // exclave-core = v2fly/v2ray-core fork. v2ray access format (NO "from",
+    // no "in -> out" pair — that is Xray; keep both tolerated anyway):
+    //   <ts> <src> accepted <proto>:<dst> [<detour>] [email: <e>]
+    //   <ts> <src> rejected <proto>:<dst> <free-text reason…>
     private val reAccess = Regex(
-        """^(\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}) from (\S+) (accepted|rejected) (tcp|udp):(\S+?)(?: \[([^ \]]+) -> ([^\]]+)\])?(?: email: (\S+))?$"""
+        """^(\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}) (?:from )?(\S+) (accepted|rejected) (tcp|udp):(\S+)(?: \[([^\]]+)\])?(?: email: (\S+))?"""
     )
 
     private fun parseAccessLine(line: String, tsFormat: SimpleDateFormat) {
         if (line.isEmpty()) return
-        val m = reAccess.find(line) ?: return
+        diag.accessLines += 1
+        diag.accessBytes += line.length + 1
+        val m = reAccess.find(line)
+        if (m == null) {
+            diag.sampleRejected = line
+            return
+        }
+        diag.accessParsed += 1
         val src = m.groupValues[2]
         val accepted = m.groupValues[3] == "accepted"
         val protoS = m.groupValues[4]
         val dst = splitAddrPort(m.groupValues[5]) ?: return
-        val outbound = m.groupValues[7].ifEmpty { null }
+        val outbound = m.groupValues[6].ifEmpty { null }
         val ts = try {
             tsFormat.parse(m.groupValues[1])?.time ?: System.currentTimeMillis()
         } catch (_: Exception) {
@@ -241,7 +289,17 @@ object ConnectionsMonitor {
         }
     }
 
-    // ------------------------------------------------------- logcat layer
+    // ------------------------------------------------- error log / logcat layer
+
+    // v2ray file writers prefix every line with the timestamp.
+    private val reTsPrefix = Regex("""^\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2} """)
+
+    private fun parseErrorLine(raw: String) {
+        if (raw.isEmpty()) return
+        diag.errLines += 1
+        diag.errBytes += raw.length + 1
+        parseLine(reTsPrefix.replaceFirst(raw, ""))
+    }
 
     private val reConn = Regex("""^\[(TCP|UDP) \((-?\d+)(?:/([^)]+))?\)\] (\S+) ==> (\S+)$""")
     private val reSniff = Regex("""^sniffed domain: (\S+) for (tcp|udp):(\S+)$""")

@@ -61,6 +61,17 @@
                 android:text="@string/connections_empty_sum"
                 android:textAppearance="?attr/textAppearanceBody2"
                 android:textColor="?android:textColorSecondary" />
+
+            <TextView
+                android:id="@+id/empty_diag"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:gravity="center"
+                android:textIsSelectable="true"
+                android:textAppearance="?attr/textAppearanceCaption"
+                android:fontFamily="monospace"
+                android:textColor="?android:textColorTertiary" />
         </LinearLayout>
 
     </FrameLayout>

@@ -117,6 +117,13 @@ class ConnectionsActivity : ThemedActivity() {
         val empty = adapter.itemCount == 0
         binding.empty.isVisible = empty
         binding.recycler.isVisible = !empty
+        if (empty) {
+            // NextClave: transparent channel diagnostics — if the list stays
+            // empty, the screen itself shows whether the core wrote any log
+            // lines and how many were recognized.
+            binding.emptyDiag.text =
+                getString(R.string.connections_diag, ConnectionsMonitor.debugStats())
+        }
     }
 
     override fun onStart() {

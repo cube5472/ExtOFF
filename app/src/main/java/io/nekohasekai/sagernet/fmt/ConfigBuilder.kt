@@ -33,6 +33,7 @@ import io.nekohasekai.sagernet.LogLevel
 import io.nekohasekai.sagernet.RouteMode
 import io.nekohasekai.sagernet.SagerNet
 import io.nekohasekai.sagernet.ACCESS_LOG_FILE
+import io.nekohasekai.sagernet.ERROR_LOG_FILE
 import io.nekohasekai.sagernet.TLS_FRAGMENTATION_METHOD
 import io.nekohasekai.sagernet.TunImplementation
 import io.nekohasekai.sagernet.bg.VpnService
@@ -346,12 +347,13 @@ fun buildV2RayConfig(
             fallbackStrategy = "disabledIfAnyMatch"
         }
 
-        // NextClave: the live connections viewer parses per-connection core
-        // log lines ([TCP/UDP (uid/pkg)] src ==> dst, "sniffed domain: …",
-        // "taking detour […]" — all Info level) from logcat, so raise the log
-        // level to at least Info while the viewer is enabled.
+        // NextClave: the live connections viewer feeds on two core log files
+        // (access = one line per connection; error = sniffed-domain / detour
+        // enrichment lines). Both are truncated on every VPN start, so raise
+        // the log level to debug while the viewer is enabled — the files are
+        // the only writers and the noise stays bounded.
         val effectiveLogLevel = if (DataStore.connectionsView) {
-            if (DataStore.logLevel < LogLevel.INFO) LogLevel.INFO else DataStore.logLevel
+            LogLevel.DEBUG
         } else {
             DataStore.logLevel
         }
@@ -363,13 +365,19 @@ fun buildV2RayConfig(
                 LogLevel.ERROR -> "error"
                 else -> "none"
             }
-            // NextClave: point the Xray access log at a file we can tail —
+            // NextClave: point the core access log at a file we can tail —
             // the only dependable per-connection feed on Android 10+ (see
             // ACCESS_LOG_FILE). Tests and exported configs stay silent.
             access = if (forTest || forExport) {
                 "none"
             } else {
                 File(SagerNet.application.cacheDir, ACCESS_LOG_FILE).absolutePath
+            }
+            // NextClave: route the general/error log to a tail-able file as
+            // well, but only while the viewer is on — otherwise keep the
+            // stock behavior (stdout).
+            if (!forTest && !forExport && DataStore.connectionsView) {
+                error = File(SagerNet.application.cacheDir, ERROR_LOG_FILE).absolutePath
             }
         }
 

@@ -588,6 +588,7 @@
     <string name="connections_chip_default">Auto</string>
     <string name="connections_unknown_app">uid %d</string>
     <string name="connections_source">source %1$s</string>
+    <string name="connections_diag">Channel diagnostics:\n%1$s</string>
     <string name="disable_cert_verification_sum">Force skip certificate verification (skip-cert-verify / allowInsecure) for all loaded nodes at once. Insecure — use at your own risk.</string>
     <string name="action_shadowquic" translatable="false">ShadowQUIC</string>
     <string name="debug_log_sum">Running configuration will be printed to the system log, so the log will contain secret keys used to connect to servers. This log level is required for reporting issues, and please remove sensitive information before posting log files publicly.</string>

@@ -21,6 +21,7 @@ package io.nekohasekai.sagernet.bg.proto
 
 import com.github.exclavenetwork.exclave.core.app.observatory.OutboundStatus
 import io.nekohasekai.sagernet.ACCESS_LOG_FILE
+import io.nekohasekai.sagernet.ERROR_LOG_FILE
 import io.nekohasekai.sagernet.LogLevel
 import io.nekohasekai.sagernet.SagerNet
 import io.nekohasekai.sagernet.bg.BaseService
@@ -49,11 +50,13 @@ class ProxyInstance(profile: ProxyEntity, val service: BaseService.Interface) : 
     lateinit var observatoryJob: Job
 
     override suspend fun init() {
-        // NextClave: start every VPN session with a fresh access log so the
+        // NextClave: start every VPN session with fresh log files so the
         // requests viewer does not replay entries from a previous run.
         runCatching {
             val f = File(SagerNet.application.cacheDir, ACCESS_LOG_FILE)
             if (f.length() > 0L) f.writeText("")
+            val ef = File(SagerNet.application.cacheDir, ERROR_LOG_FILE)
+            if (ef.length() > 0L) ef.writeText("")
         }
         super.init()
 
