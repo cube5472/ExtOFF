@@ -267,6 +267,25 @@ fun buildV2RayConfig(
                 } ?: error("landing proxy not found for ${group.displayName()}")
             }
         }
+
+        // NextClave v32: per-profile chain entry ("via") — mirrors the group front
+        // proxy mechanism, but attached to a single profile. The selected profile
+        // stays the EXIT hop; the via profile (or its whole chain, if the via is
+        // a TYPE_CHAIN profile) is appended at the ENTRY side of the list, making
+        // it the outermost first hop when both group front and via are set.
+        // Receiver-based: also applies to rule-outbound profiles resolving here.
+        chainVia.takeIf { it > 0L && it != id }?.let { viaId ->
+            val viaEntity = SagerDatabase.proxyDao.getById(viaId)
+                ?: error("chain via profile not found (id=$viaId)")
+            when (viaEntity.type) {
+                ProxyEntity.TYPE_BALANCER -> error("balancer can not be the via profile")
+                ProxyEntity.TYPE_CONFIG -> if (viaEntity.configBean!!.type == "v2ray") error("custom config can not be the via profile")
+            }
+            when (viaEntity.type) {
+                ProxyEntity.TYPE_CHAIN -> list.addAll(viaEntity.resolveChainRecursively().asReversed())
+                else -> list.add(viaEntity)
+            }
+        }
         return list
     }
 

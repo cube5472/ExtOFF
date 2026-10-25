@@ -1788,7 +1788,17 @@ class ConfigurationFragment @JvmOverloads constructor(
                 entity = proxyEntity
 
                 profileName.text = proxyEntity.displayName()
-                profileType.text = proxyEntity.displayType()
+                // NextClave v32: mark profiles that dial through an entry profile
+                var typeText = proxyEntity.displayType()
+                if (proxyEntity.chainVia > 0L) {
+                    val viaName = try {
+                        ProfileManager.getProfile(proxyEntity.chainVia)?.displayName()
+                    } catch (e: Exception) {
+                        null
+                    }
+                    typeText += " → " + (viaName ?: "?")
+                }
+                profileType.text = typeText
 
                 var rx = proxyEntity.rx
                 var tx = proxyEntity.tx

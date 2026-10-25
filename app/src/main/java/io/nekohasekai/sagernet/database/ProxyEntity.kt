@@ -88,6 +88,11 @@ data class ProxyEntity(
     var ping: Int = 0,
     var uuid: String = "",
     var error: String? = null,
+    // NextClave v32: per-profile chain entry — "dial through this profile first".
+    // 0 = no entry hop. The referenced profile must exist; cycles are rejected
+    // at config build time. Survives backups, NOT subscription re-imports.
+    @ColumnInfo(defaultValue = "0")
+    var chainVia: Long = 0L,
     var socksBean: SOCKSBean? = null,
     var httpBean: HttpBean? = null,
     var ssBean: ShadowsocksBean? = null,
@@ -167,7 +172,7 @@ data class ProxyEntity(
     }
 
     override fun serializeToBuffer(output: ByteBufferOutput) {
-        output.writeInt(0)
+        output.writeInt(1)
 
         output.writeLong(id)
         output.writeLong(groupId)
@@ -185,6 +190,7 @@ data class ProxyEntity(
         output.writeBytes(data)
 
         output.writeBoolean(dirty)
+        output.writeLong(chainVia)
     }
 
     override fun deserializeFromBuffer(input: ByteBufferInput) {
@@ -203,6 +209,9 @@ data class ProxyEntity(
         putByteArray(input.readBytes(input.readVarInt(true)))
 
         dirty = input.readBoolean()
+        if (version >= 1) {
+            chainVia = input.readLong()
+        }
     }
 
 

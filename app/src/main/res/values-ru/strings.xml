@@ -218,6 +218,18 @@
     <string name="circular_reference">Циклическая ссылка</string>
     <string name="config_settings">Настройки конфигурации</string>
     <string name="chain_settings">Настройки цепочки</string>
+    <!-- NextClave v32: входной профиль цепочки -->
+    <string name="chain_via_category">Цепочка</string>
+    <string name="chain_via_title">Входной профиль (через кого)</string>
+    <string name="chain_via_none">Не задан — прямое подключение</string>
+    <string name="chain_via_pick">Выбрать входной профиль…</string>
+    <string name="chain_via_reset">Убрать входной профиль</string>
+    <string name="chain_via_you">ты</string>
+    <string name="chain_via_internet">интернет</string>
+    <string name="chain_via_broken">(входной профиль отсутствует или зациклен)</string>
+    <string name="chain_via_not_allowed">Недопустимо</string>
+    <string name="chain_via_self_sum">Профиль не может идти через самого себя.</string>
+    <string name="chain_via_not_allowed_sum">Этот профиль нельзя использовать как входной.</string>
     <string name="balancer_strategy">Стратегия</string>
     <string name="balancer_type">Тип</string>
     <string name="balancer_settings">Настройки балансировщика</string>

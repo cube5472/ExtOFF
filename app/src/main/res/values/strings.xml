@@ -217,6 +217,18 @@
     <string name="balancer_use_landing_proxy">Use group landing proxy</string>
     <string name="balancer_use_front_proxy">Use group front proxy</string>
     <string name="chain_settings">Chain settings</string>
+    <!-- NextClave v32: per-profile chain entry -->
+    <string name="chain_via_category">Chain</string>
+    <string name="chain_via_title">Entry node (dial through)</string>
+    <string name="chain_via_none">Not set — connect directly</string>
+    <string name="chain_via_pick">Select entry profile…</string>
+    <string name="chain_via_reset">Remove entry profile</string>
+    <string name="chain_via_you">you</string>
+    <string name="chain_via_internet">internet</string>
+    <string name="chain_via_broken">(entry profile missing or circular)</string>
+    <string name="chain_via_not_allowed">Not allowed</string>
+    <string name="chain_via_self_sum">A profile can not dial through itself.</string>
+    <string name="chain_via_not_allowed_sum">This profile can not be used as the entry node.</string>
     <string name="config_settings">Config settings</string>
     <string name="circular_reference">Circular reference</string>
     <string name="circular_reference_sum">Route cannot contain itself.</string>

@@ -153,6 +153,9 @@ object Key {
     const val PROFILE_TRAFFIC_STATISTICS = "profileTrafficStatistics"
 
     const val PROFILE_DIRTY = "profileDirty"
+    // NextClave v32: per-profile chain entry ("dial through") — editor cache key
+    // holding the ProxyEntity id of the chosen entry hop while the editor is open.
+    const val NC_CHAIN_VIA = "ncChainVia"
     const val PROFILE_ID = "profileId"
     const val PROFILE_NAME = "profileName"
     const val PROFILE_GROUP = "profileGroup"

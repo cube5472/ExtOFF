@@ -308,6 +308,8 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     // cache
 
     var editingId by profileCacheStore.long(Key.PROFILE_ID)
+    // NextClave v32: chain entry hop being edited (ProxyEntity id, 0 = none)
+    var ncChainVia by profileCacheStore.long(Key.NC_CHAIN_VIA)
     var editingGroup by profileCacheStore.long(Key.PROFILE_GROUP)
     var profileName by profileCacheStore.string(Key.PROFILE_NAME)
     var serverAddress by profileCacheStore.string(Key.SERVER_ADDRESS)
