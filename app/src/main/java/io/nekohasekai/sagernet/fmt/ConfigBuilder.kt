@@ -1290,7 +1290,8 @@ fun buildV2RayConfig(
                                             }
                                         }
                                     }
-                                    if (DataStore.enableFragment
+                                    val nodeDisorder = bean.fragmentDisorder
+                                    if ((DataStore.enableFragment || nodeDisorder)
                                         && (network != "kcp" && network != "quic" && network != "hysteria2")
                                         && (security == "tls" || security == "reality")
                                         && !(bean is ShadowsocksBean && bean.plugin.isNotEmpty() && PluginConfiguration(bean.plugin).selected.isNotEmpty())
@@ -1299,16 +1300,31 @@ fun buildV2RayConfig(
                                     ) {
                                         sockopt = StreamSettingsObject.SockoptObject().apply {
                                             tlsFragmentation = StreamSettingsObject.SockoptObject.TLSFragmentationObject().apply {
-                                                when (DataStore.fragmentMethod) {
-                                                    TLS_FRAGMENTATION_METHOD.TLS_RECORD_FRAGMENTATION -> {
-                                                        tlsRecordFragmentation = true
+                                                if (DataStore.enableFragment) {
+                                                    when (DataStore.fragmentMethod) {
+                                                        TLS_FRAGMENTATION_METHOD.TLS_RECORD_FRAGMENTATION -> {
+                                                            tlsRecordFragmentation = true
+                                                        }
+                                                        TLS_FRAGMENTATION_METHOD.TCP_SEGMENTATION -> {
+                                                            tcpSegmentation = true
+                                                        }
+                                                        TLS_FRAGMENTATION_METHOD.TLS_RECORD_FRAGMENTATION_AND_TCP_SEGMENTATION -> {
+                                                            tlsRecordFragmentation = true
+                                                            tcpSegmentation = true
+                                                        }
                                                     }
-                                                    TLS_FRAGMENTATION_METHOD.TCP_SEGMENTATION -> {
-                                                        tcpSegmentation = true
-                                                    }
-                                                    TLS_FRAGMENTATION_METHOD.TLS_RECORD_FRAGMENTATION_AND_TCP_SEGMENTATION -> {
-                                                        tlsRecordFragmentation = true
-                                                        tcpSegmentation = true
+                                                } else {
+                                                    // node-level disorder without global fragmentation:
+                                                    // NoDPI-style default (records + segmentation)
+                                                    tlsRecordFragmentation = true
+                                                    tcpSegmentation = true
+                                                }
+                                                if (nodeDisorder || (DataStore.enableFragment && DataStore.fragmentDisorder)) {
+                                                    disorder = true
+                                                    ttl = when {
+                                                        nodeDisorder && bean.fragmentTtl > 0 -> bean.fragmentTtl
+                                                        DataStore.enableFragment && DataStore.fragmentDisorder && DataStore.fragmentTtl > 0 -> DataStore.fragmentTtl
+                                                        else -> 1
                                                     }
                                                 }
                                             }
@@ -1757,19 +1773,35 @@ fun buildV2RayConfig(
                                             }
                                         }
                                     }
-                                    if (DataStore.enableFragment) {
+                                    val nodeDisorder = bean.fragmentDisorder
+                                    if (DataStore.enableFragment || nodeDisorder) {
                                         sockopt = StreamSettingsObject.SockoptObject().apply {
                                             tlsFragmentation = StreamSettingsObject.SockoptObject.TLSFragmentationObject().apply {
-                                                when (DataStore.fragmentMethod) {
-                                                    TLS_FRAGMENTATION_METHOD.TLS_RECORD_FRAGMENTATION -> {
-                                                        tlsRecordFragmentation = true
+                                                if (DataStore.enableFragment) {
+                                                    when (DataStore.fragmentMethod) {
+                                                        TLS_FRAGMENTATION_METHOD.TLS_RECORD_FRAGMENTATION -> {
+                                                            tlsRecordFragmentation = true
+                                                        }
+                                                        TLS_FRAGMENTATION_METHOD.TCP_SEGMENTATION -> {
+                                                            tcpSegmentation = true
+                                                        }
+                                                        TLS_FRAGMENTATION_METHOD.TLS_RECORD_FRAGMENTATION_AND_TCP_SEGMENTATION -> {
+                                                            tlsRecordFragmentation = true
+                                                            tcpSegmentation = true
+                                                        }
                                                     }
-                                                    TLS_FRAGMENTATION_METHOD.TCP_SEGMENTATION -> {
-                                                        tcpSegmentation = true
-                                                    }
-                                                    TLS_FRAGMENTATION_METHOD.TLS_RECORD_FRAGMENTATION_AND_TCP_SEGMENTATION -> {
-                                                        tlsRecordFragmentation = true
-                                                        tcpSegmentation = true
+                                                } else {
+                                                    // node-level disorder without global fragmentation:
+                                                    // NoDPI-style default (records + segmentation)
+                                                    tlsRecordFragmentation = true
+                                                    tcpSegmentation = true
+                                                }
+                                                if (nodeDisorder || (DataStore.enableFragment && DataStore.fragmentDisorder)) {
+                                                    disorder = true
+                                                    ttl = when {
+                                                        nodeDisorder && bean.fragmentTtl > 0 -> bean.fragmentTtl
+                                                        DataStore.enableFragment && DataStore.fragmentDisorder && DataStore.fragmentTtl > 0 -> DataStore.fragmentTtl
+                                                        else -> 1
                                                     }
                                                 }
                                             }
@@ -2698,6 +2730,10 @@ fun buildV2RayConfig(
                                     tlsRecordFragmentation = true
                                     tcpSegmentation = true
                                 }
+                            }
+                            if (DataStore.fragmentDisorder) {
+                                disorder = true
+                                ttl = if (DataStore.fragmentTtl > 0) DataStore.fragmentTtl else 1
                             }
                         }
                     }

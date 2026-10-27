@@ -625,6 +625,11 @@
     <string name="format">Format: %s</string>
     <string name="mieru_handshake_mode">Handshake mode</string>
     <string name="fragment_method">Fragmentation method</string>
+    <string name="fragment_disorder">Disorder (NoDPI)</string>
+    <string name="fragment_disorder_sum">NoDPI-style «disorder» mode: the first fragment of the TLS ClientHello is sent with a low TTL and dies before reaching DPI, then the OS retransmits it with the normal TTL. Defeats DPI with full TCP stream reassembly. Adds ~200ms to connection setup</string>
+    <string name="fragment_disorder_sum_node">NoDPI-style disorder for this node: the first ClientHello fragment is sent with a low TTL and dies before DPI, then retransmitted by the OS. Applies even if global fragmentation is off. Requires a core with disorder support (v17+ builds)</string>
+    <string name="fragment_ttl">Disorder TTL</string>
+    <string name="fragment_ttl_sum">TTL for the first fragment. Default 1: dies at the first hop (which is where DPI usually sits)</string>
     <string name="tls_record_fragmentation">TLS record fragmentation</string>
     <string name="tcp_segmentation">TCP segmentation</string>
     <string name="tls_record_fragmentation_and_tcp_segmentation">TLS record fragmentation and TCP segmentation</string>

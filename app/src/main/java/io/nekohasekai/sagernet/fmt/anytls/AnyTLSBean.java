@@ -58,6 +58,10 @@ public class AnyTLSBean extends AbstractBean {
     public String serverNameToVerify;
     public Boolean disableReuse;
 
+    // NoDPI-style "disorder" (NextClave): per-node override, see StandardV2RayBean.
+    public boolean fragmentDisorder;
+    public int fragmentTtl = 1;
+
     @Override
     public void initializeDefaultValues() {
         super.initializeDefaultValues();
@@ -89,7 +93,7 @@ public class AnyTLSBean extends AbstractBean {
 
     @Override
     public void serialize(ByteBufferOutput output) {
-        output.writeInt(8);
+        output.writeInt(9);
         super.serialize(output);
         output.writeString(password);
         output.writeInt(idleSessionCheckInterval);
@@ -116,6 +120,9 @@ public class AnyTLSBean extends AbstractBean {
         output.writeString(serverNameToVerify);
         output.writeBoolean(disableReuse);
         output.writeString(echQueryName);
+
+        output.writeBoolean(fragmentDisorder);
+        output.writeInt(fragmentTtl);
     }
 
     @Override
@@ -170,6 +177,13 @@ public class AnyTLSBean extends AbstractBean {
         }
         if (version >= 8) {
             echQueryName = input.readString();
+        }
+        if (version >= 9) {
+            fragmentDisorder = input.readBoolean();
+            fragmentTtl = input.readInt();
+            if (fragmentTtl <= 0) {
+                fragmentTtl = 1;
+            }
         }
     }
 

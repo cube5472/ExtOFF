@@ -291,6 +291,16 @@
             app:useSimpleSummaryProvider="true" />
         <SwitchPreference
             app:icon="@drawable/ic_baseline_texture_24"
+            app:key="fragmentDisorder"
+            app:summary="@string/fragment_disorder_sum"
+            app:title="@string/fragment_disorder" />
+        <EditTextPreference
+            app:icon="@drawable/ic_baseline_texture_24"
+            app:key="fragmentTtl"
+            app:summary="@string/fragment_ttl_sum"
+            app:title="@string/fragment_ttl" />
+        <SwitchPreference
+            app:icon="@drawable/ic_baseline_texture_24"
             app:key="enableFragmentForDirect"
             app:title="@string/enable_fragment_for_direct" />
         <SwitchPreference

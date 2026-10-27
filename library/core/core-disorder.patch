@@ -1,0 +1,320 @@
+diff --git a/common/serial/typed_message.go b/common/serial/typed_message.go
+index f103322..c3055e9 100644
+--- a/common/serial/typed_message.go
++++ b/common/serial/typed_message.go
+@@ -4,6 +4,7 @@ import (
+ 	"errors"
+ 	"reflect"
+ 	"strings"
++	"sync"
+ 
+ 	"github.com/golang/protobuf/proto"
+ 	"google.golang.org/protobuf/types/known/anypb"
+@@ -11,16 +12,25 @@ import (
+ 
+ const V2RayTypeURLHeader = "types.v2fly.org/"
+ 
++// instanceCache preserves the original proto messages passed to ToTypedMessage.
++// GetInstanceOf returns the cached original instead of doing a full
++// Marshal/Unmarshal round trip, so that plain (non-protobuf) Go fields attached
++// to generated message structs survive the trip. Without the cache such
++// internal extension fields would be silently zeroed on first use.
++var instanceCache sync.Map
++
+ // ToTypedMessage converts a proto Message into TypedMessage.
+ func ToTypedMessage(message proto.Message) *anypb.Any {
+ 	if message == nil {
+ 		return nil
+ 	}
+ 	settings, _ := proto.Marshal(message)
+-	return &anypb.Any{
++	anyMsg := &anypb.Any{
+ 		TypeUrl: V2RayTypeURLHeader + GetMessageType(message),
+ 		Value:   settings,
+ 	}
++	instanceCache.Store(anyMsg, message)
++	return anyMsg
+ }
+ 
+ // GetMessageType returns the name of this proto Message.
+@@ -38,6 +48,12 @@ func GetInstance(messageType string) (interface{}, error) {
+ }
+ 
+ func GetInstanceOf(v *anypb.Any) (proto.Message, error) {
++	if v == nil {
++		return nil, errors.New("Serial: nil message")
++	}
++	if cached, ok := instanceCache.Load(v); ok {
++		return cached.(proto.Message), nil
++	}
+ 	instance, err := GetInstance(V2TypeFromURL(v.TypeUrl))
+ 	if err != nil {
+ 		return nil, err
+@@ -46,6 +62,7 @@ func GetInstanceOf(v *anypb.Any) (proto.Message, error) {
+ 	if err := proto.Unmarshal(v.Value, protoMessage); err != nil {
+ 		return nil, err
+ 	}
++	instanceCache.Store(v, protoMessage)
+ 	return protoMessage, nil
+ }
+ 
+diff --git a/infra/conf/cfgcommon/socketcfg/socket.go b/infra/conf/cfgcommon/socketcfg/socket.go
+index cdbe5d5..eb4d4ee 100644
+--- a/infra/conf/cfgcommon/socketcfg/socket.go
++++ b/infra/conf/cfgcommon/socketcfg/socket.go
+@@ -25,6 +25,13 @@ type SocketConfig struct {
+ type TLSFragmentationConfig struct {
+ 	TLSRecordFragmentation bool `json:"tlsRecordFragmentation"`
+ 	TCPSegmentation        bool `json:"tcpSegmentation"`
++	// Disorder enables the NoDPI-style "disorder" mode: the first fragment of
++	// the ClientHello is sent with a tiny TTL (TTL) and dies at the first hop,
++	// while the OS kernel retransmits it with the restored default TTL after
++	// an RTO. DPI systems that reassemble the TCP stream never see the head
++	// of the ClientHello and cannot match the SNI signature.
++	Disorder bool `json:"disorder"`
++	TTL      int  `json:"ttl"`
+ }
+ 
+ // Build implements Buildable.
+@@ -78,9 +85,20 @@ func (c *SocketConfig) Build() (*internet.SocketConfig, error) {
+ 	}
+ 
+ 	if c.TLSFragmentation != nil {
++		if c.TLSFragmentation.Disorder && !c.TLSFragmentation.TCPSegmentation {
++			// disorder needs at least one TCP segment boundary inside the
++			// ClientHello to work with; enable TCP segmentation as a fallback
++			c.TLSFragmentation.TCPSegmentation = true
++		}
++		ttl := c.TLSFragmentation.TTL
++		if ttl <= 0 {
++			ttl = 1
++		}
+ 		config.TlsFragmentation = &internet.TLSFragmentation{
+ 			TlsRecordFragmentation: c.TLSFragmentation.TLSRecordFragmentation,
+ 			TcpSegmentation:        c.TLSFragmentation.TCPSegmentation,
++			Disorder:               c.TLSFragmentation.Disorder,
++			Ttl:                    int32(ttl),
+ 		}
+ 	}
+ 
+diff --git a/transport/internet/config.pb.go b/transport/internet/config.pb.go
+index af320c7..6a893db 100644
+--- a/transport/internet/config.pb.go
++++ b/transport/internet/config.pb.go
+@@ -517,8 +517,13 @@ type TLSFragmentation struct {
+ 	state                  protoimpl.MessageState `protogen:"open.v1"`
+ 	TlsRecordFragmentation bool                   `protobuf:"varint,1,opt,name=tls_record_fragmentation,json=tlsRecordFragmentation,proto3" json:"tls_record_fragmentation,omitempty"`
+ 	TcpSegmentation        bool                   `protobuf:"varint,2,opt,name=tcp_segmentation,json=tcpSegmentation,proto3" json:"tcp_segmentation,omitempty"`
+-	unknownFields          protoimpl.UnknownFields
+-	sizeCache              protoimpl.SizeCache
++	// Internal extension fields: not part of the protobuf schema (invisible to
++	// the descriptor). They are transported in memory through the serial
++	// instance cache and would be lost by a Marshal/Unmarshal round trip.
++	Disorder      bool  `protobuf:"varint,3,opt,name=disorder,json=disorder,proto3" json:"disorder,omitempty"`
++	Ttl           int32 `protobuf:"varint,4,opt,name=ttl,json=ttl,proto3" json:"ttl,omitempty"`
++	unknownFields protoimpl.UnknownFields
++	sizeCache     protoimpl.SizeCache
+ }
+ 
+ func (x *TLSFragmentation) Reset() {
+@@ -565,6 +570,20 @@ func (x *TLSFragmentation) GetTcpSegmentation() bool {
+ 	return false
+ }
+ 
++func (x *TLSFragmentation) GetDisorder() bool {
++	if x != nil {
++		return x.Disorder
++	}
++	return false
++}
++
++func (x *TLSFragmentation) GetTtl() int32 {
++	if x != nil {
++		return x.Ttl
++	}
++	return 0
++}
++
+ var File_transport_internet_config_proto protoreflect.FileDescriptor
+ 
+ const file_transport_internet_config_proto_rawDesc = "" +
+diff --git a/transport/internet/dialer.go b/transport/internet/dialer.go
+index 19a3433..fac3c26 100644
+--- a/transport/internet/dialer.go
++++ b/transport/internet/dialer.go
+@@ -105,6 +105,8 @@ func DialSystem(ctx context.Context, dest net.Destination, sockopt *SocketConfig
+ 				detourConn,
+ 				sockopt.TlsFragmentation.TlsRecordFragmentation,
+ 				sockopt.TlsFragmentation.TcpSegmentation,
++				sockopt.TlsFragmentation.Disorder,
++				int(sockopt.TlsFragmentation.Ttl),
+ 			), nil
+ 		}
+ 		return detourConn, nil
+@@ -121,6 +123,8 @@ func DialSystem(ctx context.Context, dest net.Destination, sockopt *SocketConfig
+ 			rawConn,
+ 			sockopt.TlsFragmentation.TlsRecordFragmentation,
+ 			sockopt.TlsFragmentation.TcpSegmentation,
++			sockopt.TlsFragmentation.Disorder,
++			int(sockopt.TlsFragmentation.Ttl),
+ 		)
+ 		if connectionPool != nil {
+ 			return newTrackedConn(tlsfragmentConn, connectionPool), nil
+diff --git a/transport/internet/tlsfragment/tlsfragment.go b/transport/internet/tlsfragment/tlsfragment.go
+index 1a37716..a7b6af1 100644
+--- a/transport/internet/tlsfragment/tlsfragment.go
++++ b/transport/internet/tlsfragment/tlsfragment.go
+@@ -12,12 +12,17 @@ import (
+ 	"golang.org/x/net/publicsuffix"
+ )
+ 
+-func NewTLSFragmentConn(ctx context.Context, conn net.Conn, splitRecord, splitPacket bool) net.Conn {
++func NewTLSFragmentConn(ctx context.Context, conn net.Conn, splitRecord, splitPacket, disorder bool, ttl int) net.Conn {
++	if ttl <= 0 {
++		ttl = 1
++	}
+ 	fragmentConn := &tlsFragmentConn{
+ 		Conn:        conn,
+ 		ctx:         ctx,
+ 		splitRecord: splitRecord,
+ 		splitPacket: splitPacket,
++		disorder:    disorder,
++		ttl:         ttl,
+ 	}
+ 	if tcpConn, ok := conn.(*net.TCPConn); ok {
+ 		fragmentConn.tcpConn = tcpConn
+@@ -31,6 +36,8 @@ type tlsFragmentConn struct {
+ 	ctx                context.Context
+ 	splitPacket        bool
+ 	splitRecord        bool
++	disorder           bool
++	ttl                int
+ 	firstPacketWritten bool
+ }
+ 
+@@ -90,6 +97,39 @@ func (c *tlsFragmentConn) Write(b []byte) (int, error) {
+ 			}
+ 		}
+ 		if c.splitPacket {
++			if c.disorder && c.tcpConn != nil && i == 0 {
++				// NoDPI-style "disorder": send the first fragment with a tiny
++				// TTL so it dies at the first hop without reaching DPI, then
++				// restore the default TTL. The kernel does not get an ACK for
++				// the fragment and retransmits it with the restored TTL after
++				// an RTO, so the server receives the full ClientHello while
++				// stream-reassembling DPI systems never see its head.
++				if restore, ok := setSocketTTL(c.tcpConn, c.ttl); ok {
++					if _, err := c.Conn.Write(payload); err != nil {
++						restore()
++						return 0, err
++					}
++					// give the dying packet ~10ms to leave the host before the
++					// TTL is restored
++					select {
++					case <-c.ctx.Done():
++						restore()
++						return 0, c.ctx.Err()
++					case <-time.After(10 * time.Millisecond):
++					}
++					restore()
++					// do not wait for an ACK here: the first hop router never
++					// ACKs, the retransmission is handled by the kernel
++					if i != len(splitIndexes) {
++						select {
++						case <-c.ctx.Done():
++							return 0, c.ctx.Err()
++						case <-time.After(time.Millisecond * time.Duration(20+rand.Intn(20))):
++						}
++					}
++					continue
++				}
++			}
+ 			if c.tcpConn != nil && i != len(splitIndexes) {
+ 				if err := writeAndWaitAck(c.ctx, c.tcpConn, payload, time.Millisecond*time.Duration(20+rand.Intn(20))); err != nil {
+ 					return 0, err
+diff --git a/transport/internet/tlsfragment/tlsfragment_darwin.go b/transport/internet/tlsfragment/tlsfragment_darwin.go
+index ad4d558..4ea5816 100644
+--- a/transport/internet/tlsfragment/tlsfragment_darwin.go
++++ b/transport/internet/tlsfragment/tlsfragment_darwin.go
+@@ -54,3 +54,9 @@ func writeAndWaitAck(ctx context.Context, conn *net.TCPConn, payload []byte, fal
+ 	}
+ 	return nil
+ }
++
++// setSocketTTL is only implemented on linux; other platforms fall back to the
++// plain write path.
++func setSocketTTL(conn *net.TCPConn, ttl int) (restore func(), ok bool) {
++	return nil, false
++}
+diff --git a/transport/internet/tlsfragment/tlsfragment_linux.go b/transport/internet/tlsfragment/tlsfragment_linux.go
+index ffcf36f..c76b2f2 100644
+--- a/transport/internet/tlsfragment/tlsfragment_linux.go
++++ b/transport/internet/tlsfragment/tlsfragment_linux.go
+@@ -54,3 +54,39 @@ func writeAndWaitAck(ctx context.Context, conn *net.TCPConn, payload []byte, fal
+ 	}
+ 	return nil
+ }
++
++// setSocketTTL sets a temporary TTL on the socket and returns a restore
++// function. Used by the "disorder" mode to send the first ClientHello fragment
++// with a TTL that expires before it reaches any DPI system.
++func setSocketTTL(conn *net.TCPConn, ttl int) (restore func(), ok bool) {
++	rawConn, err := conn.SyscallConn()
++	if err != nil {
++		return nil, false
++	}
++	defTTL := -1
++	var level, option int
++	var setErr error
++	rawConn.Control(func(fd uintptr) {
++		level, option = unix.IPPROTO_IP, unix.IP_TTL
++		if sa, err := unix.Getsockname(int(fd)); err == nil {
++			if _, is6 := sa.(*unix.SockaddrInet6); is6 {
++				level, option = unix.IPPROTO_IPV6, unix.IPV6_UNICAST_HOPS
++			}
++		}
++		v, err := unix.GetsockoptInt(int(fd), level, option)
++		if err != nil {
++			setErr = err
++			return
++		}
++		defTTL = v
++		setErr = unix.SetsockoptInt(int(fd), level, option, ttl)
++	})
++	if setErr != nil || defTTL < 0 {
++		return nil, false
++	}
++	return func() {
++		rawConn.Control(func(fd uintptr) {
++			_ = unix.SetsockoptInt(int(fd), level, option, defTTL)
++		})
++	}, true
++}
+diff --git a/transport/internet/tlsfragment/tlsfragment_others.go b/transport/internet/tlsfragment/tlsfragment_others.go
+index 369ad53..06b5243 100644
+--- a/transport/internet/tlsfragment/tlsfragment_others.go
++++ b/transport/internet/tlsfragment/tlsfragment_others.go
+@@ -19,3 +19,9 @@ func writeAndWaitAck(ctx context.Context, conn *net.TCPConn, payload []byte, fal
+ 	}
+ 	return nil
+ }
++
++// setSocketTTL is only implemented on linux; other platforms fall back to the
++// plain write path.
++func setSocketTTL(conn *net.TCPConn, ttl int) (restore func(), ok bool) {
++	return nil, false
++}
+diff --git a/transport/internet/tlsfragment/tlsfragment_windows.go b/transport/internet/tlsfragment/tlsfragment_windows.go
+index e8fce54..9738dcb 100644
+--- a/transport/internet/tlsfragment/tlsfragment_windows.go
++++ b/transport/internet/tlsfragment/tlsfragment_windows.go
+@@ -202,3 +202,9 @@ func writeAndWaitAckEStats(ctx context.Context, conn *net.TCPConn, payload []byt
+ 		}
+ 	}
+ }
++
++// setSocketTTL is only implemented on linux; other platforms fall back to the
++// plain write path.
++func setSocketTTL(conn *net.TCPConn, ttl int) (restore func(), ok bool) {
++	return nil, false
++}

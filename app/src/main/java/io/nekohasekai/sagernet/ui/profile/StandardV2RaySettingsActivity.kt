@@ -176,6 +176,9 @@ abstract class StandardV2RaySettingsActivity : ProfileSettingsActivity<StandardV
         DataStore.serverSingMuxMinStreams = singMuxMinStreams
         DataStore.serverSingMuxMaxStreams = singMuxMaxStreams
         DataStore.serverSingMuxPadding = singMuxPadding
+
+        DataStore.serverFragmentDisorder = fragmentDisorder
+        DataStore.serverFragmentTtl = fragmentTtl
     }
 
     override fun StandardV2RayBean.serialize() {
@@ -274,6 +277,9 @@ abstract class StandardV2RaySettingsActivity : ProfileSettingsActivity<StandardV
         shUseBrowserForwarder = DataStore.serverShBrowserForwarding
         allowInsecure = DataStore.serverAllowInsecure
         packetEncoding = DataStore.serverPacketEncoding
+
+        fragmentDisorder = DataStore.serverFragmentDisorder
+        fragmentTtl = DataStore.serverFragmentTtl
 
         mux = DataStore.serverMux
         muxConcurrency = DataStore.serverMuxConcurrency
@@ -431,6 +437,18 @@ abstract class StandardV2RaySettingsActivity : ProfileSettingsActivity<StandardV
 
         realityPublicKey.apply {
             summaryProvider = PasswordSummaryProvider
+        }
+
+        // NoDPI-style disorder (NextClave)
+        val serverFragmentDisorder = findPreference<SwitchPreference>(Key.SERVER_FRAGMENT_DISORDER)!!
+        val serverFragmentTtl = findPreference<EditTextPreference>(Key.SERVER_FRAGMENT_TTL)!!
+        serverFragmentTtl.apply {
+            setOnBindEditTextListener(EditTextPreferenceModifiers.Number)
+        }
+        serverFragmentTtl.isVisible = serverFragmentDisorder.isChecked
+        serverFragmentDisorder.setOnPreferenceChangeListener { _, newValue ->
+            serverFragmentTtl.isVisible = newValue as Boolean
+            true
         }
 
         hy2UpMbps = findPreference(Key.SERVER_UPLOAD_SPEED)!!

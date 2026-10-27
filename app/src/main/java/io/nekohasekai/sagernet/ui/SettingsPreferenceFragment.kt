@@ -429,14 +429,24 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         val enableFragment = findPreference<SwitchPreference>(Key.ENABLE_FRAGMENT)!!
         val enableFragmentForDirect = findPreference<SwitchPreference>(Key.ENABLE_FRAGMENT_FOR_DIRECT)!!
         val fragmentMethod = findPreference<ListPreference>(Key.FRAGMENT_METHOD)!!
+        val fragmentDisorder = findPreference<SwitchPreference>(Key.FRAGMENT_DISORDER)!!
+        val fragmentTtl = findPreference<EditTextPreference>(Key.FRAGMENT_TTL)!!
         enableFragment.setOnPreferenceChangeListener { _, newValue ->
             newValue as Boolean
             enableFragmentForDirect.isVisible = newValue
             fragmentMethod.isVisible = newValue
+            fragmentDisorder.isVisible = newValue
+            fragmentTtl.isVisible = newValue && fragmentDisorder.isChecked
+            true
+        }
+        fragmentDisorder.setOnPreferenceChangeListener { _, newValue ->
+            fragmentTtl.isVisible = enableFragment.isChecked && (newValue as Boolean)
             true
         }
         enableFragmentForDirect.isVisible = enableFragment.isChecked
         fragmentMethod.isVisible = enableFragment.isChecked
+        fragmentDisorder.isVisible = enableFragment.isChecked
+        fragmentTtl.isVisible = enableFragment.isChecked && fragmentDisorder.isChecked
 
         // DNS settings
         findPreference<EditTextPreference>(Key.REMOTE_DNS)!!.onPreferenceChangeListener = reloadListener

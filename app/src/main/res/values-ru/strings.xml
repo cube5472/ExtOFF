@@ -600,6 +600,11 @@
     <string name="format">Формат: %s</string>
     <string name="mieru_handshake_mode">Режим квитирования</string>
     <string name="fragment_method">Метод фрагментации</string>
+    <string name="fragment_disorder">Disorder (NoDPI)</string>
+    <string name="fragment_disorder_sum">Режим «disorder» из NoDPI: первый фрагмент TLS ClientHello отправляется с малым TTL и умирает, не доходя до DPI, а ОС переотправляет его с обычным TTL. Обходит DPI с полной пересборкой TCP-потока. Добавляет ~200мс к установке соединения</string>
+    <string name="fragment_disorder_sum_node">Disorder (NoDPI) для этой ноды: первый фрагмент ClientHello уходит с малым TTL и умирает до DPI, затем переотправляется ОС. Работает даже если глобальная фрагментация выключена. Требует ядро с поддержкой disorder (сборки v17+)</string>
+    <string name="fragment_ttl">TTL для disorder</string>
+    <string name="fragment_ttl_sum">TTL первого фрагмента. По умолчанию 1: умирает на первом хопе (обычно именно там стоит DPI)</string>
     <string name="tls_record_fragmentation">Фрагментация записей TLS</string>
     <string name="tcp_segmentation">Сегментация TCP</string>
     <string name="tls_record_fragmentation_and_tcp_segmentation">Фрагментация записей TLS и сегментация TCP</string>

@@ -76,6 +76,12 @@ public abstract class StandardV2RayBean extends AbstractBean {
     public String realityFingerprint;
     public Boolean realityDisableX25519Mlkem768;
 
+    // NoDPI-style "disorder" (NextClave): per-node override. When true, the
+    // first ClientHello fragment is sent with fragmentTtl (default 1) so it dies
+    // at the first hop and DPI never sees the head of the ClientHello.
+    public boolean fragmentDisorder;
+    public int fragmentTtl = 1;
+
     public Long hy2DownMbps;
     public Long hy2UpMbps;
     public String hy2Password;
@@ -179,7 +185,7 @@ public abstract class StandardV2RayBean extends AbstractBean {
 
     @Override
     public void serialize(ByteBufferOutput output) {
-        output.writeInt(40);
+        output.writeInt(41);
         super.serialize(output);
 
         output.writeString(uuid);
@@ -317,6 +323,9 @@ public abstract class StandardV2RayBean extends AbstractBean {
         output.writeString(serverNameToVerify);
         output.writeBoolean(hy2ChromeParrot);
         output.writeString(echQueryName);
+
+        output.writeBoolean(fragmentDisorder);
+        output.writeInt(fragmentTtl);
     }
 
     @Override
@@ -582,6 +591,13 @@ public abstract class StandardV2RayBean extends AbstractBean {
         }
         if (version >= 39) {
             echQueryName = input.readString();
+        }
+        if (version >= 41) {
+            fragmentDisorder = input.readBoolean();
+            fragmentTtl = input.readInt();
+            if (fragmentTtl <= 0) {
+                fragmentTtl = 1;
+            }
         }
     }
 

@@ -204,6 +204,8 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     var enableFragment by configurationStore.boolean(Key.ENABLE_FRAGMENT)
     var enableFragmentForDirect by configurationStore.boolean(Key.ENABLE_FRAGMENT_FOR_DIRECT)
     var fragmentMethod by configurationStore.stringToInt(Key.FRAGMENT_METHOD)
+    var fragmentDisorder by configurationStore.boolean(Key.FRAGMENT_DISORDER)
+    var fragmentTtl by configurationStore.stringToInt(Key.FRAGMENT_TTL) { 1 }
     var realityDisableX25519Mlkem768 by configurationStore.boolean(Key.REALITY_DISABLE_X25519MLKEM768)
     var hysteria2OmitMaxDatagramFrameSize by configurationStore.boolean(Key.HYSTERIA2_OMIT_MAX_DATAGRAM_FRAME_SIZE)
     var grpcServiceNameCompat by configurationStore.boolean(Key.GRPC_SERVICE_NAME_COMPAT)
@@ -365,6 +367,8 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     var serverEarlyDataHeaderName by profileCacheStore.string(Key.SERVER_EARLY_DATA_HEADER_NAME)
     var serverHeaders by profileCacheStore.string(Key.SERVER_HEADERS)
     var serverAllowInsecure by profileCacheStore.boolean(Key.SERVER_ALLOW_INSECURE)
+    var serverFragmentDisorder by profileCacheStore.boolean(Key.SERVER_FRAGMENT_DISORDER)
+    var serverFragmentTtl by profileCacheStore.stringToInt(Key.SERVER_FRAGMENT_TTL) { 1 }
     var serverPacketEncoding by profileCacheStore.string(Key.SERVER_PACKET_ENCODING)
     var serverUTLSFingerprint by profileCacheStore.string(Key.SERVER_UTLS_FINGERPRINT)
     var serverEchEnabled by profileCacheStore.boolean(Key.SERVER_ECH_ENABLED)

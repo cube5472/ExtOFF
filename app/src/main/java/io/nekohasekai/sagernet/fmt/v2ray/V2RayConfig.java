@@ -1111,6 +1111,11 @@ public class V2RayConfig {
 
                 public Boolean tlsRecordFragmentation;
                 public Boolean tcpSegmentation;
+                // NoDPI-style "disorder": first ClientHello fragment is sent with
+                // a tiny TTL (ttl) and dies at the first hop; the kernel retransmits
+                // it with the restored default TTL. Requires core >= v17 (disorder patch).
+                public Boolean disorder;
+                public Integer ttl;
 
             }
 

@@ -161,6 +161,16 @@
             app:key="serverRealityDisableX25519Mlkem768"
             app:summary="@string/reality_breaking_change_summary"
             app:title="@string/reality_disable_x25519mlkem768" />
+        <SwitchPreference
+            app:icon="@drawable/ic_baseline_texture_24"
+            app:key="serverFragmentDisorder"
+            app:summary="@string/fragment_disorder_sum_node"
+            app:title="@string/fragment_disorder" />
+        <EditTextPreference
+            app:icon="@drawable/ic_baseline_texture_24"
+            app:key="serverFragmentTtl"
+            app:summary="@string/fragment_ttl_sum"
+            app:title="@string/fragment_ttl" />
     </PreferenceCategory>
 
 </PreferenceScreen>

@@ -65,6 +65,8 @@ class AnyTLSSettingsActivity: ProfileSettingsActivity<AnyTLSBean>() {
         DataStore.serverMtlsCertificatePrivateKey = mtlsCertificatePrivateKey
         DataStore.serverServerNameToVerify = serverNameToVerify
         DataStore.serverAnyTLSDisableReuse = disableReuse
+        DataStore.serverFragmentDisorder = fragmentDisorder
+        DataStore.serverFragmentTtl = fragmentTtl
     }
 
     override fun AnyTLSBean.serialize() {
@@ -95,6 +97,8 @@ class AnyTLSSettingsActivity: ProfileSettingsActivity<AnyTLSBean>() {
         mtlsCertificatePrivateKey = DataStore.serverMtlsCertificatePrivateKey
         serverNameToVerify = DataStore.serverServerNameToVerify
         disableReuse = DataStore.serverAnyTLSDisableReuse
+        fragmentDisorder = DataStore.serverFragmentDisorder
+        fragmentTtl = DataStore.serverFragmentTtl
     }
 
     lateinit var password: EditTextPreference
@@ -127,6 +131,18 @@ class AnyTLSSettingsActivity: ProfileSettingsActivity<AnyTLSBean>() {
 
         findPreference<EditTextPreference>(Key.SERVER_PORT)!!.apply {
             setOnBindEditTextListener(EditTextPreferenceModifiers.Port)
+        }
+
+        // NoDPI-style disorder (NextClave)
+        val serverFragmentDisorder = findPreference<SwitchPreference>(Key.SERVER_FRAGMENT_DISORDER)!!
+        val serverFragmentTtl = findPreference<EditTextPreference>(Key.SERVER_FRAGMENT_TTL)!!
+        serverFragmentTtl.apply {
+            setOnBindEditTextListener(EditTextPreferenceModifiers.Number)
+        }
+        serverFragmentTtl.isVisible = serverFragmentDisorder.isChecked
+        serverFragmentDisorder.setOnPreferenceChangeListener { _, newValue ->
+            serverFragmentTtl.isVisible = newValue as Boolean
+            true
         }
 
         password = findPreference(Key.SERVER_PASSWORD)!!
