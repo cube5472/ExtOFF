@@ -342,11 +342,11 @@
         },
         {
             "uniqueId": "com.google.code.gson:gson",
-            "artifactVersion": "2.14.0"
+            "artifactVersion": "2.15.0"
         },
         {
             "uniqueId": "com.google.errorprone:error_prone_annotations",
-            "artifactVersion": "2.48.0"
+            "artifactVersion": "2.50.0"
         },
         {
             "uniqueId": "com.google.guava:listenablefuture",

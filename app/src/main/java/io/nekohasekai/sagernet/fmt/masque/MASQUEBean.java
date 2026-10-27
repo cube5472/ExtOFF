@@ -36,7 +36,7 @@ public class MASQUEBean extends AbstractBean {
     public String username;
     public String password;
     public String uriTemplate;
-    public Integer httpVersion;
+    public Boolean http3;
     public String security;
     public Integer mtu;
     public String sni;
@@ -59,7 +59,7 @@ public class MASQUEBean extends AbstractBean {
         if (username == null) username = "";
         if (password == null) password = "";
         if (uriTemplate == null) uriTemplate = "";
-        if (httpVersion == null) httpVersion = 3;
+        if (http3 == null) http3 = true;
         if (security == null) security = "tls";
         if (mtu == null) mtu = 0;
         if (sni == null) sni = "";
@@ -79,12 +79,12 @@ public class MASQUEBean extends AbstractBean {
 
     @Override
     public void serialize(ByteBufferOutput output) {
-        output.writeInt(1);
+        output.writeInt(2);
         super.serialize(output);
         output.writeString(username);
         output.writeString(password);
         output.writeString(uriTemplate);
-        output.writeInt(httpVersion);
+        output.writeBoolean(http3);
         output.writeString(security);
         output.writeInt(mtu);
         output.writeString(sni);
@@ -109,15 +109,10 @@ public class MASQUEBean extends AbstractBean {
         username = input.readString();
         password = input.readString();
         uriTemplate = input.readString();
-        if (version >= 1) {
-            httpVersion = input.readInt();
-        } else {
-            boolean http3 = input.readBoolean();
-            if (http3) {
-                httpVersion = 3;
-            } else {
-                httpVersion = 2;
-            }
+        if (version == 1) {
+            http3 = input.readInt() == 3;
+        } else /*if (version == 0 || version >= 2)*/ {
+            http3 = input.readBoolean();
         }
         if (version >= 1) {
             security = input.readString();

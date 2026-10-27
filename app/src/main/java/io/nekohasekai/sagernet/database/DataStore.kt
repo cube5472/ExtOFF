@@ -427,6 +427,7 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     var serverHTTPConnectUDPURITemplate by profileCacheStore.string(Key.SERVER_HTTP_CONNECT_UDP_URI_TEMPLATE)
     var serverMASQUEURITemplate by profileCacheStore.string(Key.SERVER_MASQUE_URI_TEMPLATE)
     var serverMASQUEMTU by profileCacheStore.stringToIntIfExists(Key.SERVER_MASQUE_MTU)
+    var serverMASQUEHTTP3 by profileCacheStore.boolean(Key.SERVER_MASQUE_HTTP3)
 
     var serverNaiveNoPostQuantum by profileCacheStore.boolean(Key.SERVER_NAIVE_NO_POST_QUANTUM)
     var serverNaiveTunnelTimeout by profileCacheStore.stringToIntIfExists(Key.SERVER_NAIVE_TUNNEL_TIMEOUT)

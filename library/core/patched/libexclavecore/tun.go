@@ -61,7 +61,10 @@ type Tun2ray struct {
 
 	dumpUID      bool
 	trafficStats bool
-	pcap         bool
+	uidDumper    inbound.UidDumper
+	selfUID      int32
+
+	pcap bool
 
 	udpTableMu sync.Mutex
 	udpTable   map[string]*writeQueue
@@ -73,6 +76,8 @@ type Tun2ray struct {
 	connections     list.List
 
 	protectServer io.Closer
+
+	blockedUIDs map[int32]struct{}
 }
 
 type TunConfig struct {
@@ -98,6 +103,22 @@ type TunConfig struct {
 	DiscardICMP         bool
 
 	DiscardIPv6BasedOnNetwork bool
+
+	BlockedUIDs *BlockedUIDList
+}
+
+type BlockedUIDList struct {
+	blockUIDs map[int32]struct{}
+}
+
+func NewBlockedUIDList() *BlockedUIDList {
+	return &BlockedUIDList{
+		blockUIDs: map[int32]struct{}{},
+	}
+}
+
+func (l *BlockedUIDList) Add(uid int32) {
+	l.blockUIDs[uid] = struct{}{}
 }
 
 func NewTun2ray(config *TunConfig) (*Tun2ray, error) {
@@ -145,14 +166,24 @@ func NewTun2ray(config *TunConfig) (*Tun2ray, error) {
 				return nil, err
 			}
 		}
-
 		t.dev, err = gvisor.New(config.FileDescriptor, config.MTU, t, pcapFile, config.EnableIPv6, config.DiscardICMP, discardIPv6Func)
 	case common.TunImplementationSystem:
 		t.dev, err = nat.New(config.FileDescriptor, config.MTU, t, t.addr4, t.addr6, config.EnableIPv6, config.DiscardICMP, discardIPv6Func)
 	}
-
 	if err != nil {
 		return nil, err
+	}
+
+	if config.DumpUID || config.TrafficStats || config.BlockedUIDs != nil {
+		t.uidDumper, err = inbound.GetUidDumper()
+		if err != nil {
+			return nil, err
+		}
+		t.selfUID = int32(os.Getuid())
+	}
+
+	if config.BlockedUIDs != nil {
+		t.blockedUIDs = config.BlockedUIDs.blockUIDs
 	}
 
 	if !config.Protect {
@@ -211,25 +242,33 @@ func (t *Tun2ray) NewConnection(source v2rayNet.Destination, destination v2rayNe
 	ctx = session.ContextWithInbound(ctx, ib)
 	ctx = session.ContextWithID(ctx, session.NewID())
 
-	uid := int32(-1)
-	self := false
-	hasUID := false
-	uidDumper, _ := inbound.GetUidDumper()
-	if uidDumper != nil && (t.dumpUID || t.trafficStats) {
-		var err error
-		uid, err = uidDumper.DumpUid(unix.IPPROTO_TCP, source.Address.IP().String(), int32(source.Port), destination.Address.IP().String(), int32(destination.Port))
-		if err == nil {
-			self = int(uid) == os.Getuid()
-			if !self {
-				if packageName, _ := uidDumper.GetPackageName(int32(uid)); len(packageName) == 0 {
-					newError("[TCP (", uid, ")] ", source.NetAddr(), " ==> ", destination.NetAddr()).AtInfo().WriteToLog(errors.ExportIDToError(ctx))
+	var uid int32
+	if t.dumpUID || t.trafficStats || t.blockedUIDs != nil {
+		u, err := t.uidDumper.DumpUid(unix.IPPROTO_TCP, source.Address.IP().String(), int32(source.Port), destination.Address.IP().String(), int32(destination.Port))
+		if err != nil {
+			u = -1
+		}
+		ib.UID = &u
+		uid = u
+		packageName, _ := t.uidDumper.GetPackageName(u)
+		if t.blockedUIDs != nil {
+			if _, ok := t.blockedUIDs[u]; ok {
+				conn.Close()
+				if len(packageName) == 0 {
+					newError("blocked TCP from ", source.NetAddr(), " to ", destination.NetAddr(), " by ", u).AtInfo().WriteToLog()
 				} else {
-					newError("[TCP (", uid, "/", packageName, ")] ", source.NetAddr(), " ==> ", destination.NetAddr()).AtInfo().WriteToLog(errors.ExportIDToError(ctx))
+					newError("blocked TCP from ", source.NetAddr(), " to ", destination.NetAddr(), " by ", packageName, " (", u, ")").AtInfo().WriteToLog()
 				}
+				return
 			}
 		}
-		ib.UID = &uid
-		hasUID = true
+		if u != t.selfUID {
+			if len(packageName) == 0 {
+				newError("[TCP (", u, ")] ", source.NetAddr(), " ==> ", destination.NetAddr()).AtInfo().WriteToLog(errors.ExportIDToError(ctx))
+			} else {
+				newError("[TCP (", u, "/", packageName, ")] ", source.NetAddr(), " ==> ", destination.NetAddr()).AtInfo().WriteToLog(errors.ExportIDToError(ctx))
+			}
+		}
 	}
 
 	if !isDns && (t.sniffing || t.fakedns) {
@@ -249,8 +288,8 @@ func (t *Tun2ray) NewConnection(source v2rayNet.Destination, destination v2rayNe
 		})
 	}
 
-	var stats *appStats
-	if hasUID && t.trafficStats && !self {
+	if t.trafficStats && uid != t.selfUID {
+		var stats *appStats
 		if iStats, exists := t.appStats.Load(uid); exists {
 			stats = iStats.(*appStats)
 		} else {
@@ -298,6 +337,7 @@ func (t *Tun2ray) NewConnection(source v2rayNet.Destination, destination v2rayNe
 	proxyConn, err := t.v2ray.dial(ctx, destination)
 	if err != nil {
 		newError(err).AtError().WriteToLog(errors.ExportIDToError(ctx))
+		conn.Close()
 		return
 	}
 	defer common.CloseIgnore(proxyConn)
@@ -340,6 +380,23 @@ func (t *Tun2ray) NewPacket(source v2rayNet.Destination, destination v2rayNet.De
 	}
 	t.udpTableMu.Unlock()
 
+	if loaded && t.blockedUIDs != nil {
+		uid, err := t.uidDumper.DumpUid(unix.IPPROTO_UDP, source.Address.IP().String(), int32(source.Port), destination.Address.IP().String(), int32(destination.Port))
+		if err != nil {
+			uid = -1
+		}
+		if _, ok := t.blockedUIDs[uid]; ok {
+			data.Release()
+			packageName, _ := t.uidDumper.GetPackageName(uid)
+			if len(packageName) == 0 {
+				newError("blocked UDP from ", source.NetAddr(), " to ", destination.NetAddr(), " by ", uid).AtInfo().WriteToLog()
+			} else {
+				newError("blocked UDP from ", source.NetAddr(), " to ", destination.NetAddr(), " by ", packageName, " (", uid, ")").AtInfo().WriteToLog()
+			}
+			return
+		}
+	}
+
 	select {
 	case <-queue.closed:
 		data.Release()
@@ -380,25 +437,36 @@ func (t *Tun2ray) newPacket(queue *writeQueue, source v2rayNet.Destination, dest
 	ctx = session.ContextWithInbound(ctx, ib)
 	ctx = session.ContextWithID(ctx, session.NewID())
 
-	uid := int32(-1)
-	self := false
-	hasUID := false
-	uidDumper, _ := inbound.GetUidDumper()
-	if uidDumper != nil && (t.dumpUID || t.trafficStats) {
-		var err error
-		uid, err = uidDumper.DumpUid(unix.IPPROTO_UDP, source.Address.IP().String(), int32(source.Port), destination.Address.IP().String(), int32(destination.Port))
-		if err == nil {
-			self = int(uid) == os.Getuid()
-			if !self {
-				if packageName, _ := uidDumper.GetPackageName(int32(uid)); len(packageName) == 0 {
-					newError("[UDP (", uid, ")] ", source.NetAddr(), " ==> ", destination.NetAddr()).AtInfo().WriteToLog(errors.ExportIDToError(ctx))
+	var uid int32
+	if t.dumpUID || t.trafficStats || t.blockedUIDs != nil {
+		u, err := t.uidDumper.DumpUid(unix.IPPROTO_UDP, source.Address.IP().String(), int32(source.Port), destination.Address.IP().String(), int32(destination.Port))
+		if err != nil {
+			u = -1
+		}
+		ib.UID = &u
+		uid = u
+		packageName, _ := t.uidDumper.GetPackageName(u)
+		if t.blockedUIDs != nil {
+			if _, ok := t.blockedUIDs[u]; ok {
+				t.udpTableMu.Lock()
+				delete(t.udpTable, natKey)
+				t.udpTableMu.Unlock()
+				close(queue.closed)
+				if len(packageName) == 0 {
+					newError("blocked UDP from ", source.NetAddr(), " to ", destination.NetAddr(), " by ", u).AtInfo().WriteToLog()
 				} else {
-					newError("[UDP (", uid, "/", packageName, ")] ", source.NetAddr(), " ==> ", destination.NetAddr()).AtInfo().WriteToLog(errors.ExportIDToError(ctx))
+					newError("blocked UDP from ", source.NetAddr(), " to ", destination.NetAddr(), " by ", packageName, " (", u, ")").AtInfo().WriteToLog()
 				}
+				return
 			}
 		}
-		ib.UID = &uid
-		hasUID = true
+		if u != t.selfUID {
+			if len(packageName) == 0 {
+				newError("[UDP (", u, ")] ", source.NetAddr(), " ==> ", destination.NetAddr()).AtInfo().WriteToLog(errors.ExportIDToError(ctx))
+			} else {
+				newError("[UDP (", u, "/", packageName, ")] ", source.NetAddr(), " ==> ", destination.NetAddr()).AtInfo().WriteToLog(errors.ExportIDToError(ctx))
+			}
+		}
 	}
 
 	if !isDns && (t.sniffing || t.fakedns) {
@@ -440,8 +508,8 @@ func (t *Tun2ray) newPacket(queue *writeQueue, source v2rayNet.Destination, dest
 		return
 	}
 
-	var stats *appStats
-	if hasUID && t.trafficStats && !self {
+	if t.trafficStats && uid != t.selfUID {
+		var stats *appStats
 		if iStats, exists := t.appStats.Load(uid); exists {
 			stats = iStats.(*appStats)
 		} else {

@@ -33,15 +33,11 @@
             app:key="serverMASQUEURITemplate"
             app:title="@string/uri_template"
             app:useSimpleSummaryProvider="true" />
-        <io.nekohasekai.sagernet.widget.SimpleMenuPreference
-            app:defaultValue="3"
-            app:entries="@array/masque_protocol_entry"
-            app:entryValues="@array/masque_protocol_value"
+        <SwitchPreference
+            app:defaultValue="true"
             app:icon="@drawable/ic_baseline_layers_24"
-            app:key="serverProtocol"
-            app:singleLineTitle="false"
-            app:title="@string/protocol"
-            app:useSimpleSummaryProvider="true" />
+            app:key="serverMASQUEHTTP3"
+            app:title="@string/action_http3" />
         <io.nekohasekai.sagernet.widget.SimpleMenuPreference
             app:defaultValue="tls"
             app:entries="@array/masque_transport_layer_encryption_value"

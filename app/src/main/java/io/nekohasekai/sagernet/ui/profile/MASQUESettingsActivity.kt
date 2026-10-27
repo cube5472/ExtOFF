@@ -44,7 +44,7 @@ class MASQUESettingsActivity: ProfileSettingsActivity<MASQUEBean>() {
         DataStore.serverUsername = username
         DataStore.serverPassword = password
         DataStore.serverMASQUEURITemplate = uriTemplate
-        DataStore.serverProtocolVersion = httpVersion
+        DataStore.serverMASQUEHTTP3 = http3
         DataStore.serverSecurity = security
         DataStore.serverMASQUEMTU = mtu
         DataStore.serverSNI = sni
@@ -69,7 +69,7 @@ class MASQUESettingsActivity: ProfileSettingsActivity<MASQUEBean>() {
         username = DataStore.serverUsername
         password = DataStore.serverPassword
         uriTemplate = DataStore.serverMASQUEURITemplate
-        httpVersion = DataStore.serverProtocolVersion
+        http3 = DataStore.serverMASQUEHTTP3
         security = DataStore.serverSecurity
         mtu = DataStore.serverMASQUEMTU
         sni =  DataStore.serverSNI
@@ -87,7 +87,7 @@ class MASQUESettingsActivity: ProfileSettingsActivity<MASQUEBean>() {
         serverNameToVerify = DataStore.serverServerNameToVerify
     }
 
-    lateinit var httpVersion: ListPreference
+    lateinit var http3: SwitchPreference
     lateinit var securityCategory: PreferenceCategory
     lateinit var security: ListPreference
     lateinit var sni: EditTextPreference
@@ -119,7 +119,7 @@ class MASQUESettingsActivity: ProfileSettingsActivity<MASQUEBean>() {
         findPreference<EditTextPreference>(Key.SERVER_MASQUE_MTU)!!.apply {
             setOnBindEditTextListener(EditTextPreferenceModifiers.Number)
         }
-        httpVersion = findPreference(Key.SERVER_PROTOCOL)!!
+        http3 = findPreference(Key.SERVER_MASQUE_HTTP3)!!
         securityCategory = findPreference(Key.SERVER_SECURITY_CATEGORY)!!
         security = findPreference(Key.SERVER_SECURITY)!!
         sni = findPreference(Key.SERVER_SNI)!!
@@ -146,18 +146,18 @@ class MASQUESettingsActivity: ProfileSettingsActivity<MASQUEBean>() {
         if (security.value !in securityValues) {
             security.value = "tls"
         }
-        updateSecurity(security.value, httpVersion.value.toInt())
+        updateSecurity(security.value, http3.isChecked)
         security.setOnPreferenceChangeListener { _, newValue ->
-            updateSecurity(newValue as String, httpVersion.value.toInt())
+            updateSecurity(newValue as String, http3.isChecked)
             true
         }
-        httpVersion.setOnPreferenceChangeListener { _, newValue ->
-            updateSecurity(security.value, (newValue as String).toInt())
+        http3.setOnPreferenceChangeListener { _, newValue ->
+            updateSecurity(security.value, newValue as Boolean)
             true
         }
     }
 
-    fun updateSecurity(security: String, httpVersion: Int) {
+    fun updateSecurity(security: String, http3: Boolean) {
         val isTLS = security == "tls"
         securityCategory.isVisible = isTLS
         certificates.isVisible = isTLS
@@ -172,7 +172,7 @@ class MASQUESettingsActivity: ProfileSettingsActivity<MASQUEBean>() {
         echEnabled.isVisible = isTLS
         echConfigList.isVisible = isTLS
         echQueryName.isVisible = isTLS
-        utlsFingerprint.isVisible = isTLS && httpVersion != 3
+        utlsFingerprint.isVisible = isTLS && !http3
     }
 
 }

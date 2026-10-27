@@ -2015,24 +2015,16 @@ fun buildV2RayConfig(
                                         if (bean.username.isNotEmpty()) username = bean.username
                                         if (bean.password.isNotEmpty()) password = bean.password
                                         if (bean.uriTemplate.isNotEmpty()) uriTemplate = bean.uriTemplate
-                                        version = bean.httpVersion
+                                        if (bean.http3) http3 = true
                                         if (bean.mtu != 0) mtu = bean.mtu
                                     }
                                 )
-                                if (bean.httpVersion != 1 && bean.security != "tls") {
-                                    error("TLS required")
-                                }
                                 if (bean.security == "tls") {
                                     streamSettings = StreamSettingsObject().apply {
                                         security = "tls"
                                         tlsSettings = TLSObject().apply {
                                             if (bean.sni.isNotEmpty()) {
                                                 serverName = bean.sni
-                                            }
-                                            when (bean.httpVersion) {
-                                                1 -> alpn = listOf("http/1.1")
-                                                2 -> alpn = listOf("h2", "http/1.1")
-                                                3 -> alpn = listOf("h3")
                                             }
                                             if (bean.certificates.isNotEmpty() || bean.mtlsCertificate.isNotEmpty() || bean.mtlsCertificatePrivateKey.isNotEmpty()) {
                                                 certificates = mutableListOf()
@@ -2066,7 +2058,7 @@ fun buildV2RayConfig(
                                             if (bean.allowInsecure) {
                                                 allowInsecure = true
                                             }
-                                            if (bean.httpVersion != 3) {
+                                            if (!bean.http3) {
                                                 val overrideFingerprint = DataStore.experimentalFlagsProperties.getProperty("overrideUTLSFingerprintForTLS")
                                                 if (!overrideFingerprint.isNullOrEmpty()) {
                                                     fingerprint = overrideFingerprint
@@ -2088,7 +2080,7 @@ fun buildV2RayConfig(
                                                 serverNameToVerify = bean.serverNameToVerify.listByLineOrComma()
                                             }
                                         }
-                                        if (bean.httpVersion != 3 && DataStore.enableFragment) {
+                                        if (!bean.http3 && DataStore.enableFragment) {
                                             sockopt = StreamSettingsObject.SockoptObject().apply {
                                                 tlsFragmentation = StreamSettingsObject.SockoptObject.TLSFragmentationObject().apply {
                                                     when (DataStore.fragmentMethod) {
@@ -2445,7 +2437,7 @@ fun buildV2RayConfig(
         for (rule in extraRules) {
             val uidList = mutableListOf<Int>()
             if (rule.packages.isNotEmpty() || rule.customPackageNames.isNotEmpty()) {
-                if (!isVpn) {
+                if (!isVpn && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     alerts.add(Alerts.ROUTE_ALERT_NOT_VPN to rule.displayName())
                     continue
                 }
@@ -3124,7 +3116,6 @@ fun buildCustomConfig(proxy: ProxyEntity, forTest: Boolean = false, forExport: B
                     routeOnly = DataStore.trafficSniffing && !DataStore.destinationOverride
                 }
             }
-            if (shouldDumpUID) dumpUID = true
         })
         inbounds.add(InboundObject().apply {
             tag = TAG_DNS_IN

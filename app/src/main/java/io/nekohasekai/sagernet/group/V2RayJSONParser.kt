@@ -852,11 +852,21 @@ fun parseV2RayOutbound(outbound: JsonObject): List<AbstractBean> {
                                 v2rayBean.password = it
                             }
                             settings.getString("plugin")?.also { pluginId ->
-                                v2rayBean.plugin = PluginOptions(pluginId, settings.getString("pluginOpts")).toString(trimId = false)
+                                val pluginOpts = PluginOptions(pluginId, settings.getString("pluginOpts"))
+                                // https://github.com/shadowsocks/simple-obfs does not support "obfs-host=".
+                                if (pluginOpts["obfs-host"] == "") {
+                                    pluginOpts.remove("obfs-host")
+                                }
+                                v2rayBean.plugin = pluginOpts.toString(trimId = false)
                             }
                         } ?: settings.getArray("servers")?.get(0)?.also { server ->
                             settings.getString("plugin")?.also { pluginId ->
-                                v2rayBean.plugin = PluginOptions(pluginId, settings.getString("pluginOpts")).toString(trimId = false)
+                                val pluginOpts = PluginOptions(pluginId, settings.getString("pluginOpts"))
+                                // https://github.com/shadowsocks/simple-obfs does not support "obfs-host=".
+                                if (pluginOpts["obfs-host"] == "") {
+                                    pluginOpts.remove("obfs-host")
+                                }
+                                v2rayBean.plugin = pluginOpts.toString(trimId = false)
                             }
                             server.getString("address")?.also {
                                 v2rayBean.serverAddress = it
@@ -908,7 +918,12 @@ fun parseV2RayOutbound(outbound: JsonObject): List<AbstractBean> {
                             }
                         }
                         settings.getString("plugin")?.also { pluginId ->
-                            v2rayBean.plugin = PluginOptions(pluginId, settings.getString("pluginOpts")).toString(trimId = false)
+                            val pluginOpts = PluginOptions(pluginId, settings.getString("pluginOpts"))
+                            // https://github.com/shadowsocks/simple-obfs does not support "obfs-host=".
+                            if (pluginOpts["obfs-host"] == "") {
+                                pluginOpts.remove("obfs-host")
+                            }
+                            v2rayBean.plugin = pluginOpts.toString(trimId = false)
                         }
                     }
                 }
@@ -932,7 +947,12 @@ fun parseV2RayOutbound(outbound: JsonObject): List<AbstractBean> {
                             v2rayBean.password = it
                         }
                         settings.getString("plugin")?.also { pluginId ->
-                            v2rayBean.plugin = PluginOptions(pluginId, settings.getString("pluginOpts")).toString(trimId = false)
+                            val pluginOpts = PluginOptions(pluginId, settings.getString("pluginOpts"))
+                            // https://github.com/shadowsocks/simple-obfs does not support "obfs-host=".
+                            if (pluginOpts["obfs-host"] == "") {
+                                pluginOpts.remove("obfs-host")
+                            }
+                            v2rayBean.plugin = pluginOpts.toString(trimId = false)
                         }
                     }
                 }
@@ -1042,6 +1062,12 @@ fun parseV2RayOutbound(outbound: JsonObject): List<AbstractBean> {
                                     v2rayBean.password = it
                                 }
                             }
+                        }
+                        settings.getBoolean("connectUDP")?.also {
+                            v2rayBean.connectUDP = it
+                        }
+                        settings.getString("uriTemplate")?.also {
+                            v2rayBean.uriTemplate = it
                         }
                     }
                 }
@@ -1387,6 +1413,12 @@ fun parseV2RayOutbound(outbound: JsonObject): List<AbstractBean> {
                 }
                 settings.getString("password")?.also {
                     http3Bean.password = it
+                }
+                settings.getBoolean("connectUDP")?.also {
+                    http3Bean.connectUDP = it
+                }
+                settings.getString("uriTemplate")?.also {
+                    http3Bean.uriTemplate = it
                 }
                 settings.getObject("tlsSettings")?.also {
                     // old version of Exclave compatibility
@@ -2189,7 +2221,7 @@ fun parseV2RayOutbound(outbound: JsonObject): List<AbstractBean> {
                     masqueBean.uriTemplate = it
                 }
                 settings.getInt("version")?.takeIf { it in 1..3 }?.also {
-                    masqueBean.httpVersion = it
+                    masqueBean.http3 = it == 3
                 } ?: return listOf()
                 settings.getInt("mtu")?.takeIf { it > 0 }?.also {
                     masqueBean.mtu = it
@@ -2197,7 +2229,7 @@ fun parseV2RayOutbound(outbound: JsonObject): List<AbstractBean> {
             }
             outbound.getObject("streamSettings")?.also { streamSettings ->
                 val tlsEnabled = streamSettings.getString("security") == "tls"
-                if (masqueBean.httpVersion != 1 && !tlsEnabled) return listOf()
+                if (masqueBean.http3 && !tlsEnabled) return listOf()
                 masqueBean.security = if (tlsEnabled) "tls" else ""
                 if (tlsEnabled) {
                     streamSettings.getObject("tlsSettings")?.also { tlsSettings ->
@@ -2283,7 +2315,7 @@ fun parseV2RayOutbound(outbound: JsonObject): List<AbstractBean> {
                             }?: streamSettings.getObject("tlsSettings")?.getString("alpn")?.also {
                                 alpn.add(it)
                             }
-                            masqueBean.httpVersion = if (!(alpn.contains("h2") && !alpn.contains("h3"))) 3 else 2
+                            masqueBean.http3 = !(alpn.contains("h2") && !alpn.contains("h3"))
                             streamSettings.getObject("masqueSettings")?.also { masqueSettings ->
                                 masqueSettings.getObject("warp")?.also {
                                     return listOf()
@@ -2315,7 +2347,7 @@ fun parseV2RayOutbound(outbound: JsonObject): List<AbstractBean> {
                     }
                     streamSettings.getObject("finalmask")?.also { finalmask ->
                         // ban Xray finalmask
-                        finalmask.getArray(if (masqueBean.httpVersion == 3) "udp" else "tcp")?.takeIf { it.isNotEmpty() }?.also {
+                        finalmask.getArray(if (masqueBean.http3) "udp" else "tcp")?.takeIf { it.isNotEmpty() }?.also {
                             return listOf()
                         }
                     }

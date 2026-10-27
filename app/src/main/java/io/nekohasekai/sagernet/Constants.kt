@@ -270,6 +270,7 @@ object Key {
     const val SERVER_HTTP_CONNECT_UDP_URI_TEMPLATE = "serverHTTPConnectUDPURITemplate"
     const val SERVER_MASQUE_URI_TEMPLATE = "serverMASQUEURITemplate"
     const val SERVER_MASQUE_MTU = "serverMASQUEMTU"
+    const val SERVER_MASQUE_HTTP3 = "serverMASQUEHTTP3"
 
     const val SERVER_PORTS = "serverPorts"
     const val SERVER_HOP_INTERVAL = "serverHopInterval"

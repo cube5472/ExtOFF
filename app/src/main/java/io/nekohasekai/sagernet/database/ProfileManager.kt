@@ -251,15 +251,6 @@ object ProfileManager {
                 }
                 "RU" -> {
                     createRule(
-                        // https://habr.com/ru/articles/1020080/
-                        // Added because of the request from users. Do not rely on it.
-                        RuleEntity(
-                            name = "UID -1", // TODO: l10n
-                            customPackageNames = listOf("-1"),
-                            outbound = -1
-                        ), false
-                    )
-                    createRule(
                         RuleEntity(
                             name = app.getString(R.string.route_bypass_domain, displayCountry),
                             domains = "geosite:category-ru",

@@ -40,6 +40,7 @@ import io.nekohasekai.sagernet.ktx.getBooleanProperty
 import io.nekohasekai.sagernet.ktx.listByLineOrComma
 import io.nekohasekai.sagernet.ui.VpnRequestActivity
 import io.nekohasekai.sagernet.utils.DefaultNetworkListener
+import io.nekohasekai.sagernet.utils.PackageCache
 import io.nekohasekai.sagernet.utils.Subnet
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -317,6 +318,18 @@ class VpnService : BaseVpnService(),
 
         if (DataStore.experimentalFlagsProperties.getBooleanProperty("discardIPv6BasedOnNetwork")) {
             config.discardIPv6BasedOnNetwork = true
+        }
+
+        DataStore.experimentalFlagsProperties.getProperty("tunBlockedUIDsOrPackageNames")?.let { uidsOrPackageNames ->
+            PackageCache.awaitLoadSync()
+            config.blockedUIDs = Libexclavecore.newBlockedUIDList()
+            for (uidOrPackageName in uidsOrPackageNames.split(",")) {
+                uidOrPackageName.toIntOrNull()?.let {
+                    config.blockedUIDs.add(it)
+                } ?: PackageCache[uidOrPackageName]?.let {
+                    config.blockedUIDs.add(it)
+                }
+            }
         }
 
         if (tunImplementation == TunImplementation.SYSTEM) {

@@ -37,8 +37,8 @@ type legacyUidDumper struct {
 	uidDumper UidDumper
 }
 
-func (d *legacyUidDumper) DumpUid(ipProto int32, srcIP string, srcPort int32, _ string, _ int32) (int32, error) {
-	return querySocketUidFromProcFs(ipProto, net.ParseIP(srcIP), uint16(srcPort)), nil
+func (d *legacyUidDumper) DumpUid(ipProto int32, srcIP string, srcPort int32, dstIP string, dstPort int32) (int32, error) {
+	return querySocketUidFromProcFs(ipProto, net.ParseIP(srcIP), uint16(srcPort), net.ParseIP(dstIP), uint16(dstPort)), nil
 }
 
 func (d *legacyUidDumper) GetPackageName(uid int32) (string, error) {
