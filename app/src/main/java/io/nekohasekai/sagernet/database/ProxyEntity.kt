@@ -93,6 +93,37 @@ data class ProxyEntity(
     // at config build time. Survives backups, NOT subscription re-imports.
     @ColumnInfo(defaultValue = "0")
     var chainVia: Long = 0L,
+    // NextClave v34: raw JSON deep-merged into this node's outbound object at
+    // config build time. Applied wherever the node is used (main, chain hop,
+    // rule outbound, fork target). Survives backups, NOT subscription re-imports.
+    @ColumnInfo(defaultValue = "")
+    var ncOverrideJson: String = "",
+    // NextClave v34: per-profile fork ("Развилка") — traffic exceptions that
+    // leave this profile's normal path. Two slots: "direct" (bypass) and
+    // "node" (route through the profile referenced by forkNodeTarget).
+    // Survives backups, NOT subscription re-imports.
+    @ColumnInfo(defaultValue = "")
+    var forkDirectDomains: String = "",
+    @ColumnInfo(defaultValue = "")
+    var forkDirectIp: String = "",
+    @ColumnInfo(defaultValue = "")
+    var forkDirectPort: String = "",
+    @ColumnInfo(defaultValue = "")
+    var forkDirectPackages: String = "",
+    @ColumnInfo(defaultValue = "")
+    var forkDirectNetwork: String = "",
+    @ColumnInfo(defaultValue = "0")
+    var forkNodeTarget: Long = 0L,
+    @ColumnInfo(defaultValue = "")
+    var forkNodeDomains: String = "",
+    @ColumnInfo(defaultValue = "")
+    var forkNodeIp: String = "",
+    @ColumnInfo(defaultValue = "")
+    var forkNodePort: String = "",
+    @ColumnInfo(defaultValue = "")
+    var forkNodePackages: String = "",
+    @ColumnInfo(defaultValue = "")
+    var forkNodeNetwork: String = "",
     var socksBean: SOCKSBean? = null,
     var httpBean: HttpBean? = null,
     var ssBean: ShadowsocksBean? = null,
@@ -172,7 +203,7 @@ data class ProxyEntity(
     }
 
     override fun serializeToBuffer(output: ByteBufferOutput) {
-        output.writeInt(1)
+        output.writeInt(2)
 
         output.writeLong(id)
         output.writeLong(groupId)
@@ -191,6 +222,18 @@ data class ProxyEntity(
 
         output.writeBoolean(dirty)
         output.writeLong(chainVia)
+        output.writeString(ncOverrideJson)
+        output.writeString(forkDirectDomains)
+        output.writeString(forkDirectIp)
+        output.writeString(forkDirectPort)
+        output.writeString(forkDirectPackages)
+        output.writeString(forkDirectNetwork)
+        output.writeLong(forkNodeTarget)
+        output.writeString(forkNodeDomains)
+        output.writeString(forkNodeIp)
+        output.writeString(forkNodePort)
+        output.writeString(forkNodePackages)
+        output.writeString(forkNodeNetwork)
     }
 
     override fun deserializeFromBuffer(input: ByteBufferInput) {
@@ -211,6 +254,20 @@ data class ProxyEntity(
         dirty = input.readBoolean()
         if (version >= 1) {
             chainVia = input.readLong()
+        }
+        if (version >= 2) {
+            ncOverrideJson = input.readString()
+            forkDirectDomains = input.readString()
+            forkDirectIp = input.readString()
+            forkDirectPort = input.readString()
+            forkDirectPackages = input.readString()
+            forkDirectNetwork = input.readString()
+            forkNodeTarget = input.readLong()
+            forkNodeDomains = input.readString()
+            forkNodeIp = input.readString()
+            forkNodePort = input.readString()
+            forkNodePackages = input.readString()
+            forkNodeNetwork = input.readString()
         }
     }
 

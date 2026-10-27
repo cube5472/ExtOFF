@@ -330,7 +330,19 @@ fun buildV2RayConfig(
     var hasTagDirect = false
     var directNeedsInterruption = false
 
-    val shouldDumpUID = extraRules.any { it.packages.isNotEmpty() || it.customPackageNames.isNotEmpty() }
+    // NextClave v34: per-profile fork ("Развилка") — exceptions defined in the
+    // profile editor. Active only in rule-based routing (same condition as the
+    // custom route rules); skipped for URL tests like the extraRules themselves.
+    val ncForkEnabled = !forTest && routeMode == RouteMode.RULE && (
+            proxy.forkDirectDomains.isNotBlank() || proxy.forkDirectIp.isNotBlank()
+                    || proxy.forkDirectPort.isNotBlank() || proxy.forkDirectPackages.isNotBlank()
+                    || (proxy.forkNodeTarget > 0L && (
+                    proxy.forkNodeDomains.isNotBlank() || proxy.forkNodeIp.isNotBlank()
+                            || proxy.forkNodePort.isNotBlank() || proxy.forkNodePackages.isNotBlank()))
+            )
+
+    val shouldDumpUID = extraRules.any { it.packages.isNotEmpty() || it.customPackageNames.isNotEmpty() } ||
+            (ncForkEnabled && (proxy.forkDirectPackages.isNotBlank() || proxy.forkNodePackages.isNotBlank()))
     val alerts = mutableListOf<Pair<Int, String>>()
 
     lateinit var result: V2rayBuildResult
@@ -2419,6 +2431,88 @@ fun buildV2RayConfig(
             }
         }
 
+        // NextClave v34: fork ("Развилка") — build the target node's outbound
+        // (same scheme as custom rule outbounds) and add the exception rules
+        // ABOVE the clash rules and the user's route rules: a fork is an
+        // explicit per-profile decision, so it outranks everything else.
+        fun buildForkRule(
+            fDomains: String, fIp: String, fPort: String, fPackages: String,
+            fNetwork: String, fOutboundTag: String,
+        ): RoutingObject.RuleObject {
+            return RoutingObject.RuleObject().apply {
+                type = "field"
+                if (fPackages.isNotBlank()) {
+                    PackageCache.awaitLoadSync()
+                    val uidList = mutableListOf<Int>()
+                    fPackages.listByLineOrComma().forEach { entry ->
+                        entry.toIntOrNull()?.let {
+                            uidList.add(it)
+                        } ?: PackageCache[entry]?.let {
+                            uidList.add(it)
+                        }
+                    }
+                    if (uidList.isNotEmpty()) uid = uidList
+                }
+                if (fDomains.isNotBlank()) {
+                    domains = fDomains.listByLineOrComma()
+                }
+                if (fIp.isNotBlank()) {
+                    ip = fIp.listByLineOrComma()
+                }
+                if (fPort.isNotBlank()) {
+                    port = fPort.listByLineOrComma().joinToString(",")
+                }
+                if (fNetwork.isNotBlank()) {
+                    network = fNetwork
+                }
+                outboundTag = fOutboundTag
+            }
+        }
+
+        if (ncForkEnabled) {
+            // "direct" slot — everything matched goes around the VPN path
+            if (proxy.forkDirectDomains.isNotBlank() || proxy.forkDirectIp.isNotBlank()
+                || proxy.forkDirectPort.isNotBlank() || proxy.forkDirectPackages.isNotBlank()
+            ) {
+                routing.rules.add(
+                    buildForkRule(
+                        proxy.forkDirectDomains, proxy.forkDirectIp,
+                        proxy.forkDirectPort, proxy.forkDirectPackages,
+                        proxy.forkDirectNetwork, TAG_BYPASS,
+                    )
+                )
+            }
+            // "node" slot — matched traffic is rebuilt through another profile
+            val forkTargetId = proxy.forkNodeTarget
+            if (forkTargetId > 0L && forkTargetId != proxy.id
+                && (proxy.forkNodeDomains.isNotBlank() || proxy.forkNodeIp.isNotBlank()
+                    || proxy.forkNodePort.isNotBlank() || proxy.forkNodePackages.isNotBlank())
+            ) {
+                val targetEntity = try {
+                    SagerDatabase.proxyDao.getById(forkTargetId)
+                } catch (e: Exception) {
+                    null
+                }
+                if (targetEntity != null && targetEntity.type != ProxyEntity.TYPE_BALANCER
+                    && !(targetEntity.type == ProxyEntity.TYPE_CONFIG
+                            && targetEntity.configBean?.type == "v2ray")
+                ) {
+                    if (!tagMap.containsKey(forkTargetId)) {
+                        tagMap[forkTargetId] = buildChain(
+                            "$TAG_AGENT-$forkTargetId", targetEntity.resolveChain(), false
+                        ) { null }
+                    }
+                    routing.rules.add(
+                        buildForkRule(
+                            proxy.forkNodeDomains, proxy.forkNodeIp,
+                            proxy.forkNodePort, proxy.forkNodePackages,
+                            proxy.forkNodeNetwork, tagMap[forkTargetId]!!,
+                        )
+                    )
+                }
+            }
+        }
+
         val isVpn = DataStore.serviceMode == Key.MODE_VPN
 
         // NextClave: clash-r — inject Clash rules from the last updated
@@ -2995,9 +3089,13 @@ fun buildV2RayConfig(
 
         if (trafficStatistics) stats = emptyMap()
 
+        // NextClave v34: per-profile JSON overrides — merged at the very end,
+        // over the fully serialized config (see NodeOverrides for semantics).
+        val ncConfigJson = NodeOverrides.apply(gson.toJson(this), outboundTagsAll)
+
         @Suppress("UNCHECKED_CAST")
         result = V2rayBuildResult(
-            gson.toJson(this),
+            ncConfigJson,
             indexMap,
             requireWs,
             if (requireWs) browserForwarder.listenPort else 0,

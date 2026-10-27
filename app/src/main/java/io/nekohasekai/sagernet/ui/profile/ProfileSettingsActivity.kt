@@ -20,7 +20,9 @@
 package io.nekohasekai.sagernet.ui.profile
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
+import android.graphics.Typeface
 import android.os.Build
 import android.os.Bundle
 import android.view.Menu
@@ -38,12 +40,14 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
 import androidx.preference.EditTextPreference
+import androidx.preference.ListPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceCategory
 import androidx.preference.PreferenceDataStore
 import androidx.preference.PreferenceFragmentCompat
 import com.esotericsoftware.kryo.io.ByteBufferInput
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.gson.JsonParser
 import io.nekohasekai.sagernet.Key
 import io.nekohasekai.sagernet.QuickToggleShortcut
 import io.nekohasekai.sagernet.R
@@ -63,6 +67,7 @@ import io.nekohasekai.sagernet.ktx.onMainDispatcher
 import io.nekohasekai.sagernet.ktx.runOnDefaultDispatcher
 import io.nekohasekai.sagernet.ui.ProfileSelectActivity
 import io.nekohasekai.sagernet.ui.ThemedActivity
+import io.nekohasekai.sagernet.widget.ReselectableSimpleMenuPreference
 import java.io.ByteArrayOutputStream
 import kotlin.properties.Delegates
 
@@ -169,6 +174,7 @@ abstract class ProfileSettingsActivity<T : AbstractBean>(
             bean = if (editingId == 0L) {
                 DataStore.editingGroup = DataStore.selectedGroupForImport()
                 DataStore.ncChainVia = 0L
+                resetNodeExtras()
                 createEntity().applyDefaultValues()
             } else {
                 val proxyEntity = SagerDatabase.proxyDao.getById(editingId)
@@ -180,6 +186,7 @@ abstract class ProfileSettingsActivity<T : AbstractBean>(
                 }
                 DataStore.editingGroup = proxyEntity.groupId
                 DataStore.ncChainVia = proxyEntity.chainVia
+                loadNodeExtras(proxyEntity)
                 (proxyEntity.requireBean() as T)
             }
             bean!!.init()
@@ -216,11 +223,28 @@ abstract class ProfileSettingsActivity<T : AbstractBean>(
         val editingId = DataStore.editingId
         // NextClave v32: persist the chain entry hop picked in the editor
         val chainVia = DataStore.ncChainVia
+        // NextClave v34: reject a malformed JSON override before anything is written
+        val overrideJson = DataStore.ncOverrideJson.trim()
+        if (overrideJson.isNotEmpty()) {
+            try {
+                JsonParser.parseString(overrideJson)
+            } catch (e: Exception) {
+                onMainDispatcher {
+                    MaterialAlertDialogBuilder(this@ProfileSettingsActivity)
+                        .setTitle(R.string.nc_override_invalid)
+                        .setMessage(e.message ?: e.toString())
+                        .setPositiveButton(android.R.string.ok, null)
+                        .show()
+                }
+                return
+            }
+        }
         if (editingId == 0L) {
             val editingGroup = DataStore.editingGroup
             val created = ProfileManager.createProfile(editingGroup, createEntity().apply { serialize() })
-            if (chainVia > 0L) {
-                created.chainVia = chainVia
+            created.chainVia = chainVia
+            created.applyNodeExtras()
+            if (chainVia > 0L || created.hasNodeExtras()) {
                 ProfileManager.updateProfile(created)
             }
         } else {
@@ -230,6 +254,7 @@ abstract class ProfileSettingsActivity<T : AbstractBean>(
                 return
             }
             entity.chainVia = chainVia
+            entity.applyNodeExtras()
             ProfileManager.updateProfile(entity.apply { (requireBean() as T).serialize() })
         }
         setResult(RESULT_OK)
@@ -414,6 +439,278 @@ abstract class ProfileSettingsActivity<T : AbstractBean>(
         }
     }
 
+    // ------------------------------------------------------------------ //
+    // NextClave v34: node extras — JSON override ("Переопределение")
+    // and per-profile fork ("Развилка")
+    // ------------------------------------------------------------------ //
+
+    private var forkTargetPref: Preference? = null
+
+    private val selectForkTargetProfile =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { (resultCode, data) ->
+            if (resultCode == Activity.RESULT_OK) runOnDefaultDispatcher {
+                val profileId = data?.getLongExtra(ProfileSelectActivity.EXTRA_PROFILE_ID, 0L) ?: 0L
+                if (profileId != 0L && profileId == DataStore.editingId) {
+                    onMainDispatcher {
+                        MaterialAlertDialogBuilder(this@ProfileSettingsActivity)
+                            .setTitle(R.string.chain_via_not_allowed)
+                            .setMessage(R.string.chain_via_self_sum)
+                            .setPositiveButton(android.R.string.ok, null).show()
+                    }
+                    return@runOnDefaultDispatcher
+                }
+                val picked = profileId.takeIf { it > 0L }?.let {
+                    try {
+                        SagerDatabase.proxyDao.getById(it)
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+                if (profileId > 0L && (picked == null ||
+                            picked.type == ProxyEntity.TYPE_BALANCER ||
+                            (picked.type == ProxyEntity.TYPE_CONFIG && picked.configBean?.type == "v2ray"))
+                ) {
+                    onMainDispatcher {
+                        MaterialAlertDialogBuilder(this@ProfileSettingsActivity)
+                            .setTitle(R.string.chain_via_not_allowed)
+                            .setMessage(R.string.chain_via_not_allowed_sum)
+                            .setPositiveButton(android.R.string.ok, null).show()
+                    }
+                    return@runOnDefaultDispatcher
+                }
+                DataStore.ncForkNodeTarget = profileId
+                dirty = true
+                onBackPressedCallback.isEnabled = true
+                updateForkTargetSummary()
+            }
+        }
+
+    private fun resetNodeExtras() {
+        DataStore.ncOverrideJson = ""
+        DataStore.ncForkDirectDomains = ""
+        DataStore.ncForkDirectIp = ""
+        DataStore.ncForkDirectPort = ""
+        DataStore.ncForkDirectPackages = ""
+        DataStore.ncForkDirectNetwork = ""
+        DataStore.ncForkNodeTarget = 0L
+        DataStore.ncForkNodeDomains = ""
+        DataStore.ncForkNodeIp = ""
+        DataStore.ncForkNodePort = ""
+        DataStore.ncForkNodePackages = ""
+        DataStore.ncForkNodeNetwork = ""
+    }
+
+    private fun loadNodeExtras(entity: ProxyEntity) {
+        DataStore.ncOverrideJson = entity.ncOverrideJson
+        DataStore.ncForkDirectDomains = entity.forkDirectDomains
+        DataStore.ncForkDirectIp = entity.forkDirectIp
+        DataStore.ncForkDirectPort = entity.forkDirectPort
+        DataStore.ncForkDirectPackages = entity.forkDirectPackages
+        DataStore.ncForkDirectNetwork = entity.forkDirectNetwork
+        DataStore.ncForkNodeTarget = entity.forkNodeTarget
+        DataStore.ncForkNodeDomains = entity.forkNodeDomains
+        DataStore.ncForkNodeIp = entity.forkNodeIp
+        DataStore.ncForkNodePort = entity.forkNodePort
+        DataStore.ncForkNodePackages = entity.forkNodePackages
+        DataStore.ncForkNodeNetwork = entity.forkNodeNetwork
+    }
+
+    private fun ProxyEntity.applyNodeExtras(): ProxyEntity {
+        ncOverrideJson = DataStore.ncOverrideJson.trim()
+        forkDirectDomains = DataStore.ncForkDirectDomains.trim()
+        forkDirectIp = DataStore.ncForkDirectIp.trim()
+        forkDirectPort = DataStore.ncForkDirectPort.trim()
+        forkDirectPackages = DataStore.ncForkDirectPackages.trim()
+        forkDirectNetwork = DataStore.ncForkDirectNetwork.trim()
+        forkNodeTarget = DataStore.ncForkNodeTarget
+        forkNodeDomains = DataStore.ncForkNodeDomains.trim()
+        forkNodeIp = DataStore.ncForkNodeIp.trim()
+        forkNodePort = DataStore.ncForkNodePort.trim()
+        forkNodePackages = DataStore.ncForkNodePackages.trim()
+        forkNodeNetwork = DataStore.ncForkNodeNetwork.trim()
+        return this
+    }
+
+    private fun ProxyEntity.hasNodeExtras(): Boolean {
+        return ncOverrideJson.isNotBlank() || forkDirectDomains.isNotBlank()
+                || forkDirectIp.isNotBlank() || forkDirectPort.isNotBlank()
+                || forkDirectPackages.isNotBlank() || forkNodeTarget > 0L
+                || forkNodeDomains.isNotBlank() || forkNodeIp.isNotBlank()
+                || forkNodePort.isNotBlank() || forkNodePackages.isNotBlank()
+    }
+
+    fun updateForkTargetSummary() {
+        val pref = forkTargetPref ?: return
+        runOnDefaultDispatcher {
+            val targetId = DataStore.ncForkNodeTarget
+            val name = if (targetId <= 0L) "" else try {
+                SagerDatabase.proxyDao.getById(targetId)?.displayName() ?: ""
+            } catch (e: Exception) {
+                ""
+            }
+            val summary = if (targetId <= 0L || name.isEmpty()) {
+                getString(R.string.nc_fork_target_none)
+            } else {
+                name
+            }
+            onMainDispatcher {
+                pref.summary = summary
+            }
+        }
+    }
+
+    private fun nodeTextPreference(
+        ctx: Context, key: String, title: String, multiLine: Boolean,
+        hint: Int = R.string.one_per_line,
+    ): EditTextPreference {
+        return EditTextPreference(ctx).apply {
+            this.key = key
+            this.title = title
+            isIconSpaceReserved = false
+            dialogMessage = ctx.getString(hint)
+            if (multiLine) {
+                setOnBindEditTextListener { editText ->
+                    editText.setSingleLine(false)
+                    editText.setHorizontallyScrolling(false)
+                    editText.minLines = 3
+                }
+            }
+            summaryProvider = EditTextPreference.SimpleSummaryProvider.getInstance()
+        }
+    }
+
+    private fun nodeNetworkPreference(ctx: Context, key: String): ReselectableSimpleMenuPreference {
+        return ReselectableSimpleMenuPreference(ctx).apply {
+            this.key = key
+            title = ctx.getString(R.string.nc_fork_network)
+            isIconSpaceReserved = false
+            entries = ctx.resources.getStringArray(R.array.route_protocol_entry)
+            entryValues = ctx.resources.getStringArray(R.array.route_protocol_value)
+            summaryProvider = ListPreference.SimpleSummaryProvider.getInstance()
+        }
+    }
+
+    // NextClave v34: append the node extras section to every protocol editor,
+    // after the type-specific preferences and the chain entry section.
+    // Skipped for the editors that ARE chain-related themselves (chain,
+    // balancer, custom config) — their semantics already cover routing.
+    fun addNodeExtrasPreference(fragment: MyPreferenceFragmentCompat) {
+        val currentBean = bean
+        if (currentBean is ChainBean || currentBean is BalancerBean || currentBean is ConfigBean) {
+            return
+        }
+        val screen = fragment.preferenceScreen ?: return
+        val ctx = fragment.requireContext()
+
+        // --- JSON override ---
+        val overrideCategory = PreferenceCategory(ctx).apply {
+            key = "nc_override_category"
+            title = getString(R.string.nc_override_category)
+            isIconSpaceReserved = false
+        }
+        screen.addPreference(overrideCategory)
+        overrideCategory.addPreference(EditTextPreference(ctx).apply {
+            key = Key.NC_OVERRIDE_JSON
+            title = getString(R.string.nc_override_title)
+            isIconSpaceReserved = false
+            dialogMessage = getString(R.string.nc_override_hint)
+            setOnBindEditTextListener { editText ->
+                editText.setSingleLine(false)
+                editText.setHorizontallyScrolling(false)
+                editText.minLines = 4
+                editText.typeface = Typeface.MONOSPACE
+            }
+            summaryProvider = Preference.SummaryProvider<EditTextPreference> { pref ->
+                val text = pref.text?.trim()
+                if (text.isNullOrEmpty()) {
+                    ctx.getString(R.string.nc_not_set)
+                } else {
+                    ctx.getString(R.string.nc_override_set)
+                }
+            }
+        })
+
+        // --- fork ---
+        val forkCategory = PreferenceCategory(ctx).apply {
+            key = "nc_fork_category"
+            title = getString(R.string.nc_fork_category)
+            isIconSpaceReserved = false
+        }
+        screen.addPreference(forkCategory)
+
+        val directCategory = PreferenceCategory(ctx).apply {
+            key = "nc_fork_direct_category"
+            title = getString(R.string.nc_fork_direct_title)
+            isIconSpaceReserved = false
+        }
+        forkCategory.addPreference(directCategory)
+        directCategory.addPreference(
+            nodeTextPreference(ctx, Key.NC_FORK_DIRECT_DOMAINS, getString(R.string.nc_fork_domains), true)
+        )
+        directCategory.addPreference(
+            nodeTextPreference(ctx, Key.NC_FORK_DIRECT_IP, getString(R.string.nc_fork_ip), true)
+        )
+        directCategory.addPreference(
+            nodeTextPreference(ctx, Key.NC_FORK_DIRECT_PORT, getString(R.string.nc_fork_port), false)
+        )
+        directCategory.addPreference(
+            nodeTextPreference(ctx, Key.NC_FORK_DIRECT_PACKAGES, getString(R.string.nc_fork_packages), true)
+        )
+        directCategory.addPreference(nodeNetworkPreference(ctx, Key.NC_FORK_DIRECT_NETWORK))
+
+        val nodeCategory = PreferenceCategory(ctx).apply {
+            key = "nc_fork_node_category"
+            title = getString(R.string.nc_fork_node_title)
+            isIconSpaceReserved = false
+        }
+        forkCategory.addPreference(nodeCategory)
+        val targetPref = Preference(ctx).apply {
+            key = Key.NC_FORK_NODE_TARGET
+            title = getString(R.string.nc_fork_target_title)
+            isIconSpaceReserved = false
+            setOnPreferenceClickListener {
+                MaterialAlertDialogBuilder(this@ProfileSettingsActivity)
+                    .setTitle(R.string.nc_fork_target_title)
+                    .setItems(
+                        arrayOf(
+                            getString(R.string.chain_via_pick),
+                            getString(R.string.chain_via_reset),
+                        )
+                    ) { _, which ->
+                        when (which) {
+                            0 -> selectForkTargetProfile.launch(
+                                Intent(this@ProfileSettingsActivity, ProfileSelectActivity::class.java)
+                            )
+                            else -> runOnDefaultDispatcher {
+                                DataStore.ncForkNodeTarget = 0L
+                                dirty = true
+                                onBackPressedCallback.isEnabled = true
+                                updateForkTargetSummary()
+                            }
+                        }
+                    }
+                    .show()
+                true
+            }
+        }
+        nodeCategory.addPreference(targetPref)
+        forkTargetPref = targetPref
+        updateForkTargetSummary()
+        nodeCategory.addPreference(
+            nodeTextPreference(ctx, Key.NC_FORK_NODE_DOMAINS, getString(R.string.nc_fork_domains), true)
+        )
+        nodeCategory.addPreference(
+            nodeTextPreference(ctx, Key.NC_FORK_NODE_IP, getString(R.string.nc_fork_ip), true)
+        )
+        nodeCategory.addPreference(
+            nodeTextPreference(ctx, Key.NC_FORK_NODE_PORT, getString(R.string.nc_fork_port), false)
+        )
+        nodeCategory.addPreference(
+            nodeTextPreference(ctx, Key.NC_FORK_NODE_PACKAGES, getString(R.string.nc_fork_packages), true)
+        )
+        nodeCategory.addPreference(nodeNetworkPreference(ctx, Key.NC_FORK_NODE_NETWORK))
+    }
+
     class MyPreferenceFragmentCompat : PreferenceFragmentCompat() {
 
         val activity: ProfileSettingsActivity<*>
@@ -431,6 +728,12 @@ abstract class ProfileSettingsActivity<T : AbstractBean>(
             // NextClave v32: shared chain entry section
             try {
                 activity.addChainPreference(this)
+            } catch (e: Exception) {
+                Logs.w(e)
+            }
+            // NextClave v34: shared node extras (JSON override + fork)
+            try {
+                activity.addNodeExtrasPreference(this)
             } catch (e: Exception) {
                 Logs.w(e)
             }

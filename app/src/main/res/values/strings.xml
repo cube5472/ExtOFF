@@ -229,6 +229,23 @@
     <string name="chain_via_not_allowed">Not allowed</string>
     <string name="chain_via_self_sum">A profile can not dial through itself.</string>
     <string name="chain_via_not_allowed_sum">This profile can not be used as the entry node.</string>
+    <!-- NextClave v34: node extras — JSON override + per-profile fork -->
+    <string name="nc_not_set">Not set</string>
+    <string name="nc_override_category">Config override</string>
+    <string name="nc_override_title">Node JSON override</string>
+    <string name="nc_override_set">JSON override is set — deep-merged into this node&#8217;s outbound on every config build</string>
+    <string name="nc_override_invalid">Invalid JSON</string>
+    <string name="nc_override_hint">A JSON object deep-merged into this node&#8217;s outbound (works in chains, balancers and route outbounds too). Object keys merge recursively, null deletes a key, arrays and scalars replace. Example: {\"streamSettings\":{\"sockopt\":{\"tcpFastOpen\":true}}}. Saved text must be valid JSON.</string>
+    <string name="nc_fork_category">Fork (traffic split)</string>
+    <string name="nc_fork_direct_title">Send directly (bypass this node)</string>
+    <string name="nc_fork_node_title">Send through another node</string>
+    <string name="nc_fork_domains">domains</string>
+    <string name="nc_fork_ip">ip</string>
+    <string name="nc_fork_port">port</string>
+    <string name="nc_fork_packages">apps (package name or UID)</string>
+    <string name="nc_fork_network">network</string>
+    <string name="nc_fork_target_title">Target node</string>
+    <string name="nc_fork_target_none">Not set — pick a node above</string>
     <string name="config_settings">Config settings</string>
     <string name="circular_reference">Circular reference</string>
     <string name="circular_reference_sum">Route cannot contain itself.</string>

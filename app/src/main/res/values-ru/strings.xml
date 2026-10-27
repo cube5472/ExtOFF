@@ -230,6 +230,23 @@
     <string name="chain_via_not_allowed">Недопустимо</string>
     <string name="chain_via_self_sum">Профиль не может идти через самого себя.</string>
     <string name="chain_via_not_allowed_sum">Этот профиль нельзя использовать как входной.</string>
+    <!-- NextClave v34: node extras — JSON override + per-profile fork -->
+    <string name="nc_not_set">Не задано</string>
+    <string name="nc_override_category">Переопределение конфига</string>
+    <string name="nc_override_title">JSON-переопределение ноды</string>
+    <string name="nc_override_set">JSON-переопределение задано — вливается в аутбаунд этой ноды при каждой сборке конфига</string>
+    <string name="nc_override_invalid">Некорректный JSON</string>
+    <string name="nc_override_hint">JSON-объект, глубоко вливаемый в аутбаунд этой ноды (работает и в цепочках, и в балансерах, и в правилах маршрута). Ключи-объекты сливаются рекурсивно, null удаляет ключ, массивы и скаляры заменяют значение целиком. Пример: {\"streamSettings\":{\"sockopt\":{\"tcpFastOpen\":true}}}. Сохраняемый текст должен быть корректным JSON.</string>
+    <string name="nc_fork_category">Развилка (разделение трафика)</string>
+    <string name="nc_fork_direct_title">Отправлять напрямую (мимо этой ноды)</string>
+    <string name="nc_fork_node_title">Отправлять через другую ноду</string>
+    <string name="nc_fork_domains">домены</string>
+    <string name="nc_fork_ip">ip</string>
+    <string name="nc_fork_port">порты</string>
+    <string name="nc_fork_packages">приложения (имя пакета или UID)</string>
+    <string name="nc_fork_network">тип трафика</string>
+    <string name="nc_fork_target_title">Целевая нода</string>
+    <string name="nc_fork_target_none">Не выбрана — выберите ноду выше</string>
     <string name="balancer_strategy">Стратегия</string>
     <string name="balancer_type">Тип</string>
     <string name="balancer_settings">Настройки балансировщика</string>

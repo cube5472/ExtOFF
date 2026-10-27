@@ -156,6 +156,20 @@ object Key {
     // NextClave v32: per-profile chain entry ("dial through") — editor cache key
     // holding the ProxyEntity id of the chosen entry hop while the editor is open.
     const val NC_CHAIN_VIA = "ncChainVia"
+    // NextClave v34: node extras — editor cache keys for the per-profile JSON
+    // override ("Переопределение") and the per-profile fork ("Развилка").
+    const val NC_OVERRIDE_JSON = "ncOverrideJson"
+    const val NC_FORK_DIRECT_DOMAINS = "ncForkDirectDomains"
+    const val NC_FORK_DIRECT_IP = "ncForkDirectIp"
+    const val NC_FORK_DIRECT_PORT = "ncForkDirectPort"
+    const val NC_FORK_DIRECT_PACKAGES = "ncForkDirectPackages"
+    const val NC_FORK_DIRECT_NETWORK = "ncForkDirectNetwork"
+    const val NC_FORK_NODE_TARGET = "ncForkNodeTarget"
+    const val NC_FORK_NODE_DOMAINS = "ncForkNodeDomains"
+    const val NC_FORK_NODE_IP = "ncForkNodeIp"
+    const val NC_FORK_NODE_PORT = "ncForkNodePort"
+    const val NC_FORK_NODE_PACKAGES = "ncForkNodePackages"
+    const val NC_FORK_NODE_NETWORK = "ncForkNodeNetwork"
     const val PROFILE_ID = "profileId"
     const val PROFILE_NAME = "profileName"
     const val PROFILE_GROUP = "profileGroup"
