@@ -43,10 +43,12 @@ jobs:
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
         run: |
-          # NextClave: the core ships PREBUILT (committed at
-          # app/libs/libexclavecore.aar). CI does not compile the core unless
-          # NEXTCLAVE_FORCE_CORE_BUILD=1. bin/lib/core/build.sh enforces the
-          # same skip as a second layer.
+          # NextClave: the core is ALWAYS built from source (no prebuilt AAR
+          # since the v15/v16 era is retired). library/core/stage_core_patch.sh
+          # staged the pinned exclave-core + NoDPI disorder patch before this
+          # step; go.mod replaces wire in the patched UrlTest wrapper.
+          # bin/lib/core/build.sh verifies both patch markers inside the
+          # produced libgojni.so and fails the build if either is missing.
           ./run lib core
       - name: Core verification (URL-test patch guard)
         run: |
