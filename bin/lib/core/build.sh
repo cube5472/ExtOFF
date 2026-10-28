@@ -20,14 +20,17 @@ cd library/core
 
 # Post-build guards: both patch markers must be inside the produced
 # libgojni.so, otherwise abort instead of shipping a silently broken core.
-if ! unzip -p libexclavecore.aar libs/arm64-v8a/libgojni.so | grep -aq "invalid status: %s"; then
+# gomobile stores natives as jni/<abi>/libgojni.so - match any layout/abi.
+if ! unzip -p libexclavecore.aar '*libgojni.so' | grep -aq "invalid status: %s"; then
   echo ">> FAIL: patched UrlTest NOT found in libgojni.so - the core was" >&2
   echo ">> built from the pristine wrapper (replace lost in go.mod?). Abort." >&2
+  unzip -l libexclavecore.aar | grep libgojni >&2 || true
   exit 1
 fi
-if ! unzip -p libexclavecore.aar libs/arm64-v8a/libgojni.so | grep -aq "setSocketTTL"; then
+if ! unzip -p libexclavecore.aar '*libgojni.so' | grep -aq "setSocketTTL"; then
   echo ">> FAIL: NoDPI disorder (setSocketTTL) NOT found in libgojni.so -" >&2
   echo ">> core-disorder.patch was not applied (stage_core_patch.sh). Abort." >&2
+  unzip -l libexclavecore.aar | grep libgojni >&2 || true
   exit 1
 fi
 echo ">> OK: UrlTest patch + NoDPI disorder verified inside libgojni.so"
