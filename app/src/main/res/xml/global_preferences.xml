@@ -25,6 +25,11 @@
             app:singleLineTitle="false"
             app:title="@string/night_mode"
             app:useSimpleSummaryProvider="true" />
+        <SwitchPreference
+            app:icon="@drawable/ic_baseline_wb_sunny_24"
+            app:key="glassEffects"
+            app:summary="@string/glass_effects_sum"
+            app:title="@string/glass_effects" />
         <io.nekohasekai.sagernet.widget.ReselectableSimpleMenuPreference
             app:defaultValue=""
             app:entries="@array/language_entry"

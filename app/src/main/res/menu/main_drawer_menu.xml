@@ -40,6 +40,29 @@
             android:title="@string/menu_tools" />
     </group>
 
+    <!-- NextClave: quick traffic-mode presets (the existing DataStore.routeMode
+         values RULE/GLOBAL/DIRECT) right in the glass drawer -->
+    <group
+        android:id="@+id/route_mode"
+        android:checkableBehavior="single">
+        <item
+            android:enabled="false"
+            android:title="@string/drawer_route_section" />
+        <item
+            android:id="@+id/nav_route_mode_rule"
+            android:checkable="true"
+            android:checked="true"
+            android:title="@string/drawer_route_rule" />
+        <item
+            android:id="@+id/nav_route_mode_global"
+            android:checkable="true"
+            android:title="@string/drawer_route_global" />
+        <item
+            android:id="@+id/nav_route_mode_direct"
+            android:checkable="true"
+            android:title="@string/drawer_route_direct" />
+    </group>
+
     <group
         android:id="@+id/about"
         android:checkableBehavior="single">

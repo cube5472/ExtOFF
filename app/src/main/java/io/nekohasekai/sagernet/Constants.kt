@@ -114,6 +114,10 @@ object Key {
 
     const val ROUTE_MODE = "routeMode"
 
+    // NextClave: glass drawer - blur the content behind the navigation drawer
+    // (Android 12+ RenderEffect; scrim-only fallback below, off in power save)
+    const val GLASS_EFFECTS = "glassEffects"
+
     const val RULES_PROVIDER = "rulesProvider"
     const val RULES_GEOSITE_URL = "rulesGeositeUrl"
     const val RULES_GEOIP_URL = "rulesGeoipUrl"

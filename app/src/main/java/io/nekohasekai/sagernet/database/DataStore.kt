@@ -175,6 +175,9 @@ object DataStore : OnPreferenceDataStoreChangeListener {
 
     var routeMode by configurationStore.stringToInt(Key.ROUTE_MODE)
 
+    // NextClave: glass navigation drawer (blur behind, Android 12+)
+    var glassEffects by configurationStore.boolean(Key.GLASS_EFFECTS) { true }
+
     // NextClave: clash-r — apply Clash rules from the last updated subscription
     var clashRules by configurationStore.boolean(Key.CLASH_RULES)
 

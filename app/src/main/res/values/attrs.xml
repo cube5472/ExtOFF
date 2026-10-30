@@ -12,4 +12,5 @@
     <attr name="whiteOrTextPrimary" format="color" />
     <attr name="coalAppBarColor" format="color" />
     <attr name="coalBorderColor" format="color" />
+    <attr name="drawerGlassColor" format="color" />
 </resources>

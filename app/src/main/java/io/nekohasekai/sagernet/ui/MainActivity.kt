@@ -24,15 +24,20 @@ package io.nekohasekai.sagernet.ui
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.Manifest
+import android.graphics.Color
+import android.graphics.RenderEffect
+import android.graphics.Shader
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
 import android.os.RemoteException
 import android.provider.Settings
 import android.text.util.Linkify
 import android.view.KeyEvent
 import android.view.MenuItem
 import android.view.View
+import android.view.animation.DecelerateInterpolator
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
@@ -43,6 +48,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.setPadding
 import androidx.core.view.updatePadding
+import androidx.drawerlayout.widget.DrawerLayout
 import androidx.preference.PreferenceDataStore
 import com.google.android.material.bottomappbar.BottomAppBar.FAB_ALIGNMENT_MODE_CENTER
 import com.google.android.material.bottomappbar.BottomAppBar.FAB_ALIGNMENT_MODE_END
@@ -117,6 +123,33 @@ class MainActivity : ThemedActivity(),
             binding.drawerLayout.removeView(binding.navView)
         }
         navigation.setNavigationItemSelectedListener(this)
+
+        // NextClave: glass drawer - scale + dim the content behind the drawer,
+        // blur it on Android 12+ (RenderEffect), restore everything on close
+        binding.drawerLayout.setScrimColor(Color.argb(0x52, 0, 0, 0))
+        binding.drawerLayout.addDrawerListener(object : DrawerLayout.SimpleDrawerListener() {
+            override fun onDrawerSlide(drawerView: View, slideOffset: Float) {
+                val scale = 1f - 0.045f * slideOffset
+                binding.coordinator.scaleX = scale
+                binding.coordinator.scaleY = scale
+                val dir = if (resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL) -1f else 1f
+                binding.coordinator.translationX = dp2px(10) * slideOffset * dir
+            }
+
+            override fun onDrawerOpened(drawerView: View) {
+                syncRouteModeMenu()
+                animateDrawerHeader()
+                applyGlassBlur(true)
+            }
+
+            override fun onDrawerClosed(drawerView: View) {
+                applyGlassBlur(false)
+                binding.coordinator.scaleX = 1f
+                binding.coordinator.scaleY = 1f
+                binding.coordinator.translationX = 0f
+            }
+        })
+        syncRouteModeMenu()
         if (resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL) {
             ViewCompat.setOnApplyWindowInsetsListener(navigation) { v, insets ->
                 val bars = insets.getInsets(
@@ -355,10 +388,69 @@ class MainActivity : ThemedActivity(),
     }
 
     override fun onNavigationItemSelected(item: MenuItem): Boolean {
-        if (item.isChecked) binding.drawerLayout.closeDrawers() else {
-            return displayFragmentWithId(item.itemId)
+        when (item.itemId) {
+            // NextClave: traffic-mode presets switch the existing routeMode
+            // setting right from the drawer; applied by a service reload
+            R.id.nav_route_mode_rule -> setRouteMode(RouteMode.RULE)
+            R.id.nav_route_mode_global -> setRouteMode(RouteMode.GLOBAL)
+            R.id.nav_route_mode_direct -> setRouteMode(RouteMode.DIRECT)
+            else -> {
+                if (item.isChecked) binding.drawerLayout.closeDrawers() else {
+                    return displayFragmentWithId(item.itemId)
+                }
+            }
         }
         return true
+    }
+
+    // NextClave: traffic-mode preset selected in the glass drawer
+    private fun setRouteMode(mode: Int) {
+        binding.drawerLayout.closeDrawers()
+        if (DataStore.routeMode == mode) return
+        DataStore.routeMode = mode
+        syncRouteModeMenu()
+        if (SagerNet.started) {
+            snackbar(getString(R.string.restart)).setAction(R.string.apply) {
+                SagerNet.reloadService()
+            }.show()
+        }
+    }
+
+    // NextClave: check the drawer radio matching the current routeMode
+    private fun syncRouteModeMenu() {
+        val id = when (DataStore.routeMode) {
+            RouteMode.GLOBAL -> R.id.nav_route_mode_global
+            RouteMode.DIRECT -> R.id.nav_route_mode_direct
+            else -> R.id.nav_route_mode_rule
+        }
+        navigation.menu.findItem(id)?.isChecked = true
+    }
+
+    // NextClave: blur the content behind the drawer (Android 12+). Honors the
+    // user toggle and power saving; older versions keep the scrim only.
+    private fun applyGlassBlur(enabled: Boolean) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+        if (!enabled) {
+            binding.coordinator.setRenderEffect(null)
+            return
+        }
+        if (!DataStore.glassEffects) return
+        val powerManager = getSystemService(PowerManager::class.java)
+        if (powerManager != null && powerManager.isPowerSaveMode) return
+        val radius = dp2px(18).toFloat()
+        binding.coordinator.setRenderEffect(
+            RenderEffect.createBlurEffect(radius, radius, Shader.TileMode.CLAMP)
+        )
+    }
+
+    // NextClave: little entrance animation of the brand header
+    private fun animateDrawerHeader() {
+        val header = navigation.getHeaderView(0) ?: return
+        header.translationY = -dp2px(14).toFloat()
+        header.alpha = 0f
+        header.animate().translationY(0f).alpha(1f).setDuration(320L)
+            .setInterpolator(DecelerateInterpolator(1.6f))
+            .start()
     }
 
 

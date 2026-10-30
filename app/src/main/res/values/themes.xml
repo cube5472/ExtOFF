@@ -25,6 +25,7 @@
         <item name="tabIndicatorColor">@color/white</item>
         <item name="tabRippleColor">@color/white</item>
         <item name="whiteOrTextPrimary">@color/white</item>
+        <item name="drawerGlassColor">#D9F4F5F7</item>
 
         <item name="windowActionModeOverlay">true</item>
 
@@ -153,6 +154,7 @@
         <item name="fabColorBackground">?colorPrimaryDark</item>
         <item name="selectedColorPrimary">@color/white</item>
         <item name="itemShapeFillColor">#616161</item>
+        <item name="drawerGlassColor">#C2101211</item>
 
         <item name="accentOrTextSecondary">?android:textColorSecondary</item>
         <item name="accentOrTextPrimary">?android:textColorPrimary</item>
@@ -276,6 +278,7 @@
     </style>
 
     <style name="Theme.SagerNet.LightBlack">
+        <item name="drawerGlassColor">#C2101211</item>
         <item name="colorPrimary">@color/white</item>
         <item name="colorPrimaryDark">@color/material_light_white</item>
         <item name="colorAccent">@color/black</item>

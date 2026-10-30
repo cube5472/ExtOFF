@@ -696,4 +696,14 @@
     <string name="naiveproxy_idle_timeout">Idle timeout (s)</string>
     <string name="uri_template">URI Template</string>
     <string name="action_masque" translatable="false">MASQUE</string>
+
+    <!-- NextClave: glass navigation drawer -->
+    <string name="drawer_brand_title">/ мод ext.point</string>
+    <string name="drawer_brand_subtitle">for RKN OFF LINE · NextClave</string>
+    <string name="drawer_route_section">Traffic mode</string>
+    <string name="drawer_route_rule">Rule-based</string>
+    <string name="drawer_route_global">Global</string>
+    <string name="drawer_route_direct">Direct</string>
+    <string name="glass_effects">Glass effects</string>
+    <string name="glass_effects_sum">Blur the content behind the navigation drawer. Turned off automatically in power saving mode</string>
 </resources>
