@@ -704,6 +704,8 @@
     <string name="drawer_route_rule">Rule-based</string>
     <string name="drawer_route_global">Global</string>
     <string name="drawer_route_direct">Direct</string>
+    <string name="drawer_more_section">More</string>
+    <string name="drawer_connections">Requests</string>
     <string name="glass_effects">Glass effects</string>
     <string name="glass_effects_sum">Blur the content behind the navigation drawer. Turned off automatically in power saving mode</string>
 </resources>

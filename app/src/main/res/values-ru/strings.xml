@@ -670,6 +670,8 @@
     <string name="drawer_route_rule">По правилам</string>
     <string name="drawer_route_global">Глобальный</string>
     <string name="drawer_route_direct">Напрямую</string>
+    <string name="drawer_more_section">Ещё</string>
+    <string name="drawer_connections">Запросы</string>
     <string name="glass_effects">Эффекты стекла</string>
     <string name="glass_effects_sum">Размытие контента за панелью навигации. Автоматически отключается в режиме энергосбережения</string>
 </resources>

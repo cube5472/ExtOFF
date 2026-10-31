@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- NextClave: ids kept alive after the glass drawer menu restructure.
+     nav_configuration / nav_group are no longer drawer menu items, but they
+     are still referenced from MainActivity (displayFragmentWithId handlers
+     and back-press behavior), so their id resources must keep existing. -->
+<resources>
+    <item type="id" name="nav_configuration" />
+    <item type="id" name="nav_group" />
+</resources>

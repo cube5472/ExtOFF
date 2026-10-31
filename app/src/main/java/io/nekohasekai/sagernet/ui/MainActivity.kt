@@ -37,7 +37,7 @@ import android.text.util.Linkify
 import android.view.KeyEvent
 import android.view.MenuItem
 import android.view.View
-import android.view.animation.DecelerateInterpolator
+import android.view.animation.PathInterpolator
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
@@ -50,6 +50,7 @@ import androidx.core.view.setPadding
 import androidx.core.view.updatePadding
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.preference.PreferenceDataStore
+import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomappbar.BottomAppBar.FAB_ALIGNMENT_MODE_CENTER
 import com.google.android.material.bottomappbar.BottomAppBar.FAB_ALIGNMENT_MODE_END
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -85,6 +86,17 @@ class MainActivity : ThemedActivity(),
     lateinit var navigation: NavigationView
 
     val userInterface by lazy { GroupInterfaceAdapter(this) }
+
+    companion object {
+        // NextClave: drawer section holding the dynamic subscription group
+        // items; item ids are SUBS_ID_BASE + index into drawerGroupIds
+        private const val GROUP_SUBS = 0x5A17
+        private const val SUBS_ID_BASE = 1000
+    }
+
+    private val drawerGroupItems = ArrayList<MenuItem>()
+    private val drawerGroupIds = ArrayList<Long>()
+    private var drawerFxStarted = false
 
     override val onBackPressedCallback = object : OnBackPressedCallback(enabled = false) {
         override fun handleOnBackPressed() {
@@ -124,25 +136,40 @@ class MainActivity : ThemedActivity(),
         }
         navigation.setNavigationItemSelectedListener(this)
 
+        // NextClave: version footer - the last drawer row shows the app name
+        // and version, tapping it opens About (like the approved preview)
+        runCatching {
+            val ver = packageManager.getPackageInfo(packageName, 0).versionName
+            navigation.menu.findItem(R.id.nav_about)?.title =
+                getString(R.string.app_name) + " " + ver
+        }
+
         // NextClave: glass drawer - scale + dim the content behind the drawer,
-        // blur it on Android 12+ (RenderEffect), restore everything on close
-        binding.drawerLayout.setScrimColor(Color.argb(0x52, 0, 0, 0))
+        // blur it on Android 12+ (RenderEffect), restore everything on close.
+        // Numbers mirror the approved preview: content scale(.955) shift(5%),
+        // scrim rgba(0,0,0,.34); blur + item cascade fire early in the slide.
+        binding.drawerLayout.setScrimColor(Color.argb(0x57, 0, 0, 0))
         binding.drawerLayout.addDrawerListener(object : DrawerLayout.SimpleDrawerListener() {
             override fun onDrawerSlide(drawerView: View, slideOffset: Float) {
                 val scale = 1f - 0.045f * slideOffset
                 binding.coordinator.scaleX = scale
                 binding.coordinator.scaleY = scale
                 val dir = if (resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL) -1f else 1f
-                binding.coordinator.translationX = dp2px(10) * slideOffset * dir
+                binding.coordinator.translationX = binding.coordinator.width * 0.05f * slideOffset * dir
+                if (slideOffset > 0.08f && !drawerFxStarted) {
+                    drawerFxStarted = true
+                    applyGlassBlur(true)
+                    populateDrawerGroups()
+                }
             }
 
             override fun onDrawerOpened(drawerView: View) {
                 syncRouteModeMenu()
                 animateDrawerHeader()
-                applyGlassBlur(true)
             }
 
             override fun onDrawerClosed(drawerView: View) {
+                drawerFxStarted = false
                 applyGlassBlur(false)
                 binding.coordinator.scaleX = 1f
                 binding.coordinator.scaleY = 1f
@@ -150,6 +177,7 @@ class MainActivity : ThemedActivity(),
             }
         })
         syncRouteModeMenu()
+        populateDrawerGroups()
         if (resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL) {
             ViewCompat.setOnApplyWindowInsetsListener(navigation) { v, insets ->
                 val bars = insets.getInsets(
@@ -388,12 +416,39 @@ class MainActivity : ThemedActivity(),
     }
 
     override fun onNavigationItemSelected(item: MenuItem): Boolean {
+        // NextClave: subscription group items inserted dynamically into the
+        // drawer - switch the main list to that group tab
+        if (item.groupId == GROUP_SUBS) {
+            val idx = item.itemId - SUBS_ID_BASE
+            binding.drawerLayout.closeDrawers()
+            if (idx in drawerGroupIds.indices) {
+                for (gi in drawerGroupItems.indices) {
+                    drawerGroupItems[gi].isChecked = gi == idx
+                }
+                val fragment = supportFragmentManager
+                    .findFragmentById(R.id.fragment_holder) as? ConfigurationFragment
+                if (fragment != null) {
+                    val position = fragment.adapter.groupList
+                        .indexOfFirst { it.id == drawerGroupIds[idx] }
+                    if (position >= 0) {
+                        fragment.groupPager.currentItem = position
+                        DataStore.selectedGroup = drawerGroupIds[idx]
+                    }
+                }
+            }
+            return true
+        }
         when (item.itemId) {
             // NextClave: traffic-mode presets switch the existing routeMode
             // setting right from the drawer; applied by a service reload
             R.id.nav_route_mode_rule -> setRouteMode(RouteMode.RULE)
             R.id.nav_route_mode_global -> setRouteMode(RouteMode.GLOBAL)
             R.id.nav_route_mode_direct -> setRouteMode(RouteMode.DIRECT)
+            // NextClave: "Requests" in the More section - active connections
+            R.id.nav_connections -> {
+                binding.drawerLayout.closeDrawers()
+                startActivity(Intent(this, ConnectionsActivity::class.java))
+            }
             else -> {
                 if (item.isChecked) binding.drawerLayout.closeDrawers() else {
                     return displayFragmentWithId(item.itemId)
@@ -401,6 +456,71 @@ class MainActivity : ThemedActivity(),
             }
         }
         return true
+    }
+
+    // NextClave: rebuild the subscription group section of the glass drawer
+    // (name + node counter, e.g. "vps-R (15)"), mirroring the group tabs;
+    // then cascade the freshly inserted rows in like the preview does
+    private fun populateDrawerGroups() {
+        val menu = navigation.menu
+        for (item in drawerGroupItems) menu.removeItem(item.itemId)
+        drawerGroupItems.clear()
+        drawerGroupIds.clear()
+        runOnDefaultDispatcher {
+            val entries = ArrayList<Pair<String, Long>>()
+            for (group in SagerDatabase.groupDao.allGroups()) {
+                val count = SagerDatabase.proxyDao.countByGroup(group.id).toInt()
+                if (group.ungrouped && count == 0) continue
+                val title = if (count > 0) {
+                    group.displayName() + " ($count)"
+                } else {
+                    group.displayName()
+                }
+                entries.add(title to group.id)
+            }
+            onMainDispatcher {
+                for ((idx, entry) in entries.withIndex()) {
+                    val item = menu.add(
+                        GROUP_SUBS, SUBS_ID_BASE + idx, 100 + idx, entry.first
+                    )
+                    item.setCheckable(true)
+                    drawerGroupItems.add(item)
+                    drawerGroupIds.add(entry.second)
+                }
+                syncDrawerActiveGroup()
+                playDrawerCascade()
+            }
+        }
+    }
+
+    // NextClave: check the drawer row of the currently selected group tab
+    private fun syncDrawerActiveGroup() {
+        for ((idx, item) in drawerGroupItems.withIndex()) {
+            item.isChecked = drawerGroupIds[idx] == DataStore.selectedGroup
+        }
+    }
+
+    // NextClave: items cascade in on open - 130ms base delay, 42ms stagger,
+    // 500ms spring curve (0.20, 1.16, 0.34, 1) - exactly like the preview
+    private fun playDrawerCascade() {
+        val list = (0 until navigation.childCount)
+            .map { navigation.getChildAt(it) }
+            .filterIsInstance<RecyclerView>()
+            .firstOrNull() ?: return
+        val spring = PathInterpolator(0.20f, 1.16f, 0.34f, 1f)
+        var row = 0
+        for (i in 0 until list.childCount) {
+            val child = list.getChildAt(i) ?: continue
+            child.animate().cancel()
+            child.translationX = -dp2px(14).toFloat()
+            child.alpha = 0f
+            child.animate().translationX(0f).alpha(1f)
+                .setStartDelay(130L + 42L * row)
+                .setDuration(500L)
+                .setInterpolator(spring)
+                .start()
+            row++
+        }
     }
 
     // NextClave: traffic-mode preset selected in the glass drawer
@@ -438,18 +558,29 @@ class MainActivity : ThemedActivity(),
         val powerManager = getSystemService(PowerManager::class.java)
         if (powerManager != null && powerManager.isPowerSaveMode) return
         val radius = dp2px(18).toFloat()
-        binding.coordinator.setRenderEffect(
-            RenderEffect.createBlurEffect(radius, radius, Shader.TileMode.CLAMP)
+        val blur = RenderEffect.createBlurEffect(radius, radius, Shader.TileMode.CLAMP)
+        // saturate(1.55) brightness(1.06) chained after the blur - the exact
+        // glass recipe of the approved preview
+        val s = 1.55f
+        val b = 1.06f
+        val matrix = floatArrayOf(
+            b * (0.213f + 0.787f * s), b * (0.715f - 0.715f * s), b * (0.072f - 0.072f * s), 0f, 0f,
+            b * (0.213f - 0.213f * s), b * (0.715f + 0.285f * s), b * (0.072f - 0.072f * s), 0f, 0f,
+            b * (0.213f - 0.213f * s), b * (0.715f - 0.715f * s), b * (0.072f + 0.928f * s), 0f, 0f,
+            0f, 0f, 0f, 1f, 0f,
         )
+        val color = RenderEffect.createColorMatrixEffect(matrix)
+        binding.coordinator.setRenderEffect(RenderEffect.createChainEffect(color, blur))
     }
 
-    // NextClave: little entrance animation of the brand header
+    // NextClave: entrance animation of the brand header, same spring curve
+    // as the menu item cascade
     private fun animateDrawerHeader() {
         val header = navigation.getHeaderView(0) ?: return
         header.translationY = -dp2px(14).toFloat()
         header.alpha = 0f
-        header.animate().translationY(0f).alpha(1f).setDuration(320L)
-            .setInterpolator(DecelerateInterpolator(1.6f))
+        header.animate().translationY(0f).alpha(1f).setDuration(500L)
+            .setInterpolator(PathInterpolator(0.20f, 1.16f, 0.34f, 1f))
             .start()
     }
 

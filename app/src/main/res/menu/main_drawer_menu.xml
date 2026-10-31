@@ -1,74 +1,87 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- NextClave glass drawer, structured like the approved preview:
+     (1) brand header (layout_drawer_header, no avatar);
+     (2) subscription groups with node counters - inserted dynamically by
+         MainActivity below the header (orderInCategory 100+i);
+     (3) "Traffic mode" radio presets (RULE/GLOBAL/DIRECT);
+     (4) "More": Requests (connections), Log, Settings;
+     (5) route/traffic/tools kept for function parity;
+     (6) version footer - tapping it opens About.
+     All items are intentionally iconless to match the preview look. -->
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <group android:checkableBehavior="single">
-        <item
-            android:id="@+id/nav_configuration"
-            android:icon="@drawable/ic_action_description"
-            android:title="@string/menu_configuration" />
+    <!-- Subscription groups with node counters are inserted here dynamically
+         by MainActivity (menu group 0x5A17, orderInCategory 100+i) -->
 
-        <item
-            android:id="@+id/nav_group"
-            android:icon="@drawable/ic_baseline_view_list_24"
-            android:title="@string/menu_group" />
-
-        <item
-            android:id="@+id/nav_route"
-            android:icon="@drawable/ic_maps_directions"
-            android:title="@string/menu_route" />
-
-        <item
-            android:id="@+id/nav_settings"
-            android:icon="@drawable/ic_action_settings"
-            android:title="@string/settings" />
-    </group>
-
-    <group
-        android:id="@+id/misc"
-        android:checkableBehavior="single">
-        <item
-            android:id="@+id/nav_logcat"
-            android:icon="@drawable/ic_baseline_bug_report_24"
-            android:title="@string/menu_log" />
-        <item
-            android:id="@+id/nav_traffic"
-            android:icon="@drawable/ic_baseline_transform_24"
-            android:title="@string/menu_traffic" />
-        <item
-            android:id="@+id/nav_tools"
-            android:icon="@drawable/baseline_construction_24"
-            android:title="@string/menu_tools" />
-    </group>
-
-    <!-- NextClave: quick traffic-mode presets (the existing DataStore.routeMode
-         values RULE/GLOBAL/DIRECT) right in the glass drawer -->
     <group
         android:id="@+id/route_mode"
         android:checkableBehavior="single">
         <item
             android:enabled="false"
+            android:orderInCategory="200"
             android:title="@string/drawer_route_section" />
         <item
             android:id="@+id/nav_route_mode_rule"
             android:checkable="true"
             android:checked="true"
+            android:orderInCategory="201"
             android:title="@string/drawer_route_rule" />
         <item
             android:id="@+id/nav_route_mode_global"
             android:checkable="true"
+            android:orderInCategory="202"
             android:title="@string/drawer_route_global" />
         <item
             android:id="@+id/nav_route_mode_direct"
             android:checkable="true"
+            android:orderInCategory="203"
             android:title="@string/drawer_route_direct" />
     </group>
 
     <group
-        android:id="@+id/about"
+        android:id="@+id/drawer_more"
         android:checkableBehavior="single">
         <item
+            android:enabled="false"
+            android:orderInCategory="300"
+            android:title="@string/drawer_more_section" />
+        <item
+            android:id="@+id/nav_connections"
+            android:orderInCategory="301"
+            android:title="@string/drawer_connections" />
+        <item
+            android:id="@+id/nav_logcat"
+            android:orderInCategory="302"
+            android:title="@string/menu_log" />
+        <item
+            android:id="@+id/nav_settings"
+            android:orderInCategory="303"
+            android:title="@string/settings" />
+    </group>
+
+    <group
+        android:id="@+id/drawer_extra"
+        android:checkableBehavior="single">
+        <item
+            android:id="@+id/nav_route"
+            android:orderInCategory="310"
+            android:title="@string/menu_route" />
+        <item
+            android:id="@+id/nav_traffic"
+            android:orderInCategory="311"
+            android:title="@string/menu_traffic" />
+        <item
+            android:id="@+id/nav_tools"
+            android:orderInCategory="312"
+            android:title="@string/menu_tools" />
+    </group>
+
+    <group
+        android:id="@+id/drawer_footer"
+        android:checkableBehavior="none">
+        <item
             android:id="@+id/nav_about"
-            android:icon="@drawable/ic_baseline_info_24"
+            android:orderInCategory="400"
             android:title="@string/menu_about" />
     </group>
 
