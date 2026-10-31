@@ -100,7 +100,6 @@ class MainActivity : ThemedActivity(),
     )
 
     private val drawerGroups = ArrayList<DrawerGroupRow>()
-    private val modeRows = HashMap<Int, View>()
     private val moreRows = HashMap<Int, View>()
     private var drawerAccent = 0
     private var moreSelection = 0
@@ -160,10 +159,6 @@ class MainActivity : ThemedActivity(),
                 }
             }
 
-            override fun onDrawerOpened(drawerView: View) {
-                syncRouteModeMenu()
-            }
-
             override fun onDrawerClosed(drawerView: View) {
                 drawerFxStarted = false
                 applyGlassBlur(false)
@@ -172,7 +167,6 @@ class MainActivity : ThemedActivity(),
                 binding.coordinator.translationX = 0f
             }
         })
-        syncRouteModeMenu()
         populateDrawerGroups()
         // NextClave: float the panel in from the screen edges, clear of the
         // status bar, navigation bar and display cutout
@@ -404,21 +398,21 @@ class MainActivity : ThemedActivity(),
     }
 
     // NextClave: build the static part of the rebuilt glass drawer - accent
-    // color, brand badge, right rim, traffic-mode presets and the "more"
-    // rows. Group rows arrive asynchronously from populateDrawerGroups().
+    // color, brand badge, right rim, the clickable "groups" header and the
+    // "more" rows. Group rows arrive asynchronously from populateDrawerGroups().
     private fun buildDrawer() {
         drawerAccent = drawerAccentColor()
         binding.drawerHeader.drawerBadge.setTextColor(drawerAccent)
         applyDrawerRim()
-        addModeRow(RouteMode.RULE, R.string.drawer_route_rule)
-        addModeRow(RouteMode.GLOBAL, R.string.drawer_route_global)
-        addModeRow(RouteMode.DIRECT, R.string.drawer_route_direct)
+        // NextClave: the "groups" section header opens the groups editor
+        binding.drawerGroupsLabel.setOnClickListener {
+            displayFragmentWithId(R.id.nav_group)
+        }
         addMoreRow(R.id.nav_logcat, R.string.menu_log, R.drawable.ic_baseline_timelapse_24)
         addMoreRow(R.id.nav_settings, R.string.settings, R.drawable.ic_action_settings)
         addMoreRow(R.id.nav_route, R.string.menu_route, R.drawable.ic_baseline_multiple_stop_24)
         addMoreRow(R.id.nav_traffic, R.string.menu_traffic, R.drawable.ic_device_data_usage)
         addMoreRow(R.id.nav_tools, R.string.menu_tools, R.drawable.baseline_construction_24)
-        syncRouteModeMenu()
     }
 
     // NextClave: resolve a theme attribute color (following ?attr chains);
@@ -483,20 +477,6 @@ class MainActivity : ThemedActivity(),
         bar.visibility = if (visible) View.VISIBLE else View.GONE
     }
 
-    private fun addModeRow(mode: Int, titleRes: Int) {
-        val row = layoutInflater.inflate(
-            R.layout.layout_drawer_row, binding.drawerModesContainer, false
-        )
-        row.findViewById<TextView>(R.id.drawer_row_title).setText(titleRes)
-        row.findViewById<TextView>(R.id.drawer_row_count).visibility = View.GONE
-        paintRowBar(row, false)
-        row.setOnClickListener {
-            setRouteMode(mode)
-        }
-        binding.drawerModesContainer.addView(row)
-        modeRows[mode] = row
-    }
-
     private fun addMoreRow(navId: Int, titleRes: Int, iconRes: Int) {
         val row = layoutInflater.inflate(
             R.layout.layout_drawer_row, binding.drawerMoreContainer, false
@@ -532,18 +512,6 @@ class MainActivity : ThemedActivity(),
         } else {
             icon.setImageResource(R.drawable.ic_drawer_cb_off)
             icon.imageTintList = ColorStateList.valueOf(dimPrimary(0xB8))
-        }
-        paintRowBar(row, checked)
-    }
-
-    private fun paintModeIcon(row: View, checked: Boolean) {
-        val icon = row.findViewById<ImageView>(R.id.drawer_row_icon)
-        if (checked) {
-            icon.setImageResource(R.drawable.ic_drawer_rb_on)
-            icon.imageTintList = ColorStateList.valueOf(drawerAccent)
-        } else {
-            icon.setImageResource(R.drawable.ic_drawer_rb_off)
-            icon.imageTintList = ColorStateList.valueOf(dimPrimary(0x3D))
         }
         paintRowBar(row, checked)
     }
@@ -600,22 +568,27 @@ class MainActivity : ThemedActivity(),
     }
 
     // NextClave: subscription group tapped in the drawer - switch the main
-    // list to that group tab
+    // list to that group tab FROM ANY SCREEN: when another fragment is
+    // displayed, the selection is stored and the main list is shown; the
+    // fresh adapter reads DataStore.selectedGroup and opens the same tab.
     private fun selectDrawerGroup(idx: Int) {
-        binding.drawerLayout.closeDrawers()
         if (idx !in drawerGroups.indices) return
+        val groupId = drawerGroups[idx].groupId
         for ((gi, g) in drawerGroups.withIndex()) {
             paintGroupIcon(g.row, gi == idx)
         }
+        binding.drawerLayout.closeDrawers()
         val fragment = supportFragmentManager
             .findFragmentById(R.id.fragment_holder) as? ConfigurationFragment
-        if (fragment != null) {
-            val position = fragment.adapter.groupList
-                .indexOfFirst { it.id == drawerGroups[idx].groupId }
+        if (fragment != null && fragment.view != null && fragment::adapter.isInitialized) {
+            val position = fragment.adapter.groupList.indexOfFirst { it.id == groupId }
             if (position >= 0) {
                 fragment.groupPager.currentItem = position
-                DataStore.selectedGroup = drawerGroups[idx].groupId
             }
+            DataStore.selectedGroup = groupId
+        } else {
+            DataStore.selectedGroup = groupId
+            displayFragment(ConfigurationFragment())
         }
     }
 
@@ -623,26 +596,6 @@ class MainActivity : ThemedActivity(),
     private fun syncDrawerActiveGroup() {
         for (g in drawerGroups) {
             paintGroupIcon(g.row, g.groupId == DataStore.selectedGroup)
-        }
-    }
-
-    // NextClave: traffic-mode preset selected in the glass drawer
-    private fun setRouteMode(mode: Int) {
-        binding.drawerLayout.closeDrawers()
-        if (DataStore.routeMode == mode) return
-        DataStore.routeMode = mode
-        syncRouteModeMenu()
-        if (SagerNet.started) {
-            snackbar(getString(R.string.restart)).setAction(R.string.apply) {
-                SagerNet.reloadService()
-            }.show()
-        }
-    }
-
-    // NextClave: highlight the drawer preset matching the current routeMode
-    private fun syncRouteModeMenu() {
-        for ((mode, row) in modeRows) {
-            paintModeIcon(row, mode == DataStore.routeMode)
         }
     }
 

@@ -151,12 +151,17 @@
                     android:layout_height="wrap_content"
                     android:orientation="vertical">
 
+                    <!-- NextClave: the "groups" header opens the groups editor
+                         (GroupFragment), so it carries the ripple background -->
                     <TextView
                         android:id="@+id/drawer_groups_label"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="22dp"
                         android:layout_marginBottom="4dp"
+                        android:background="?android:attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
                         android:letterSpacing="0.15"
                         android:paddingStart="22dp"
                         android:paddingEnd="24dp"
@@ -187,26 +192,9 @@
                             android:orientation="vertical" />
                     </io.nekohasekai.sagernet.widget.DrawerGroupsScrollView>
 
-                    <TextView
-                        android:id="@+id/drawer_modes_label"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="22dp"
-                        android:layout_marginBottom="4dp"
-                        android:paddingStart="22dp"
-                        android:paddingEnd="24dp"
-                        android:text="@string/drawer_route_section"
-                        android:textAllCaps="true"
-                        android:textColor="?android:attr/textColorTertiary"
-                        android:letterSpacing="0.15"
-                        android:textSize="11sp"
-                        android:textStyle="bold" />
-
-                    <LinearLayout
-                        android:id="@+id/drawer_modes_container"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical" />
+                    <!-- NextClave: the traffic-mode presets were removed from
+                         the drawer on request; the mode is still switched in
+                         the route settings -->
 
                     <TextView
                         android:id="@+id/drawer_more_label"
