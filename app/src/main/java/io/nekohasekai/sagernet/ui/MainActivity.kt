@@ -615,12 +615,15 @@ class MainActivity : ThemedActivity(),
             R.id.nav_about -> displayFragment(AboutFragment())
             else -> return false
         }
-        navigation.menu.findItem(id).isChecked = true
+        // NextClave: nav_configuration/nav_group now live as dynamic drawer
+        // rows (subscription groups), so findItem may legitimately return
+        // null here - never crash on the checkmark
+        navigation.menu.findItem(id)?.isChecked = true
         return true
     }
 
     fun ruleCreated() {
-        navigation.menu.findItem(R.id.nav_route).isChecked = true
+        navigation.menu.findItem(R.id.nav_route)?.isChecked = true
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragment_holder, RouteFragment())
             .commitAllowingStateLoss()
