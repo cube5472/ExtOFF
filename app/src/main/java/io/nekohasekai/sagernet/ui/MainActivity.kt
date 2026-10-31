@@ -587,6 +587,13 @@ class MainActivity : ThemedActivity(),
                     binding.drawerGroupsContainer.addView(row)
                     drawerGroups.add(DrawerGroupRow(entry.first, entry.second, entry.third, row))
                 }
+                // NextClave: exactly four subscription rows stay visible in the
+                // block - with more groups the block scrolls in place (its
+                // height is capped at four 52dp rows), with fewer it shrinks so
+                // the lower sections never drift down
+                binding.drawerGroupsScroll.layoutParams.height =
+                    dp2px(52) * minOf(binding.drawerGroupsContainer.childCount, 4)
+                binding.drawerGroupsScroll.requestLayout()
                 syncDrawerActiveGroup()
             }
         }

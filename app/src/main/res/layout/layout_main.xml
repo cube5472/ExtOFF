@@ -107,12 +107,14 @@
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
     <!-- NextClave: glass drawer rebuilt one-to-one after the approved preview:
-         a floating rounded panel with the brand header and one scrollable
+         a floating rounded panel with a fixed brand header and a scrollable
          body holding the subscription-group block, traffic-mode presets and
-         the "more" list. A single body scroll (weight=1) guarantees that no
-         row is ever clipped by the panel edge on short screens; all rows are
-         built by MainActivity from layout_drawer_row; the right rim is
-         painted in code so it always follows the selected Coal accent color. -->
+         the "more" list. The group block shows four rows and scrolls in place
+         (height capped by MainActivity), so a long subscription list never
+         pushes the lower sections off the panel; on short screens the body
+         itself still scrolls so no row is ever clipped. All rows are built by
+         MainActivity from layout_drawer_row; the right rim is painted in code
+         so it always follows the selected Coal accent color. -->
     <FrameLayout
         android:id="@+id/drawer_panel"
         android:layout_width="330dp"
@@ -164,11 +166,23 @@
                         android:textSize="11sp"
                         android:textStyle="bold" />
 
-                    <LinearLayout
-                        android:id="@+id/drawer_groups_container"
+                    <!-- NextClave: the subscription block keeps its own scroll -
+                         MainActivity caps its height at four 52dp rows, so a
+                         long list scrolls in place instead of pushing the
+                         traffic-mode and "more" sections off the panel -->
+                    <ScrollView
+                        android:id="@+id/drawer_groups_scroll"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="vertical" />
+                        android:overScrollMode="never"
+                        android:scrollbars="none">
+
+                        <LinearLayout
+                            android:id="@+id/drawer_groups_container"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical" />
+                    </ScrollView>
 
                     <TextView
                         android:id="@+id/drawer_modes_label"
