@@ -169,8 +169,11 @@
                     <!-- NextClave: the subscription block keeps its own scroll -
                          MainActivity caps its height at four 52dp rows, so a
                          long list scrolls in place instead of pushing the
-                         traffic-mode and "more" sections off the panel -->
-                    <ScrollView
+                         traffic-mode and "more" sections off the panel.
+                         DrawerGroupsScrollView claims the drag from the outer
+                         body scroll, otherwise the parent steals the gesture
+                         and the block never scrolls. -->
+                    <io.nekohasekai.sagernet.widget.DrawerGroupsScrollView
                         android:id="@+id/drawer_groups_scroll"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -182,7 +185,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:orientation="vertical" />
-                    </ScrollView>
+                    </io.nekohasekai.sagernet.widget.DrawerGroupsScrollView>
 
                     <TextView
                         android:id="@+id/drawer_modes_label"
