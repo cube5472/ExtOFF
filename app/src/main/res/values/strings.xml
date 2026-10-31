@@ -700,8 +700,9 @@
     <!-- NextClave: glass navigation drawer -->
     <string name="drawer_brand_title">/ мод ext.point</string>
     <string name="drawer_brand_subtitle">for RKN OFF LINE · NextClave</string>
+    <string name="drawer_groups_section">Groups</string>
     <string name="drawer_route_section">Traffic mode</string>
-    <string name="drawer_route_rule">Rule-based</string>
+    <string name="drawer_route_rule">Rules</string>
     <string name="drawer_route_global">Global</string>
     <string name="drawer_route_direct">Direct</string>
     <string name="drawer_more_section">More</string>

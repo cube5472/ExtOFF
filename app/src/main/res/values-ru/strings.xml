@@ -666,8 +666,9 @@
 
     <!-- NextClave: стеклянная панель навигации -->
     <string name="drawer_brand_subtitle">для RKN OFF LINE · NextClave</string>
+    <string name="drawer_groups_section">Группы</string>
     <string name="drawer_route_section">Режим трафика</string>
-    <string name="drawer_route_rule">По правилам</string>
+    <string name="drawer_route_rule">Правила</string>
     <string name="drawer_route_global">Глобальный</string>
     <string name="drawer_route_direct">Напрямую</string>
     <string name="drawer_more_section">Ещё</string>

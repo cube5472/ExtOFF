@@ -24,11 +24,14 @@ package io.nekohasekai.sagernet.ui
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.Manifest
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.RenderEffect
 import android.graphics.Shader
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.LayerDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -36,26 +39,29 @@ import android.os.PowerManager
 import android.os.RemoteException
 import android.provider.Settings
 import android.text.util.Linkify
+import android.util.TypedValue
 import android.view.KeyEvent
-import android.view.MenuItem
 import android.view.View
+import android.view.ViewGroup
 import android.view.animation.PathInterpolator
+import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.annotation.IdRes
 import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.ColorUtils
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.setPadding
-import androidx.core.view.updatePadding
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.preference.PreferenceDataStore
 import com.google.android.material.bottomappbar.BottomAppBar.FAB_ALIGNMENT_MODE_CENTER
 import com.google.android.material.bottomappbar.BottomAppBar.FAB_ALIGNMENT_MODE_END
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.google.android.material.navigation.NavigationView
 import com.google.android.material.snackbar.Snackbar
 import io.nekohasekai.sagernet.*
 import io.nekohasekai.sagernet.aidl.AppStats
@@ -74,29 +80,32 @@ import io.nekohasekai.sagernet.group.GroupInterfaceAdapter
 import io.nekohasekai.sagernet.ktx.*
 import io.nekohasekai.sagernet.plugin.PluginManager
 import io.nekohasekai.sagernet.utils.PackageCache
+import kotlin.math.min
 import kotlinx.coroutines.delay
 import io.noties.markwon.Markwon
 import libexclavecore.Libexclavecore
 
 class MainActivity : ThemedActivity(),
     SagerConnection.Callback,
-    OnPreferenceDataStoreChangeListener,
-    NavigationView.OnNavigationItemSelectedListener {
+    OnPreferenceDataStoreChangeListener {
 
     lateinit var binding: LayoutMainBinding
-    lateinit var navigation: NavigationView
 
     val userInterface by lazy { GroupInterfaceAdapter(this) }
 
-    companion object {
-        // NextClave: drawer section holding the dynamic subscription group
-        // items; item ids are SUBS_ID_BASE + index into drawerGroupIds
-        private const val GROUP_SUBS = 0x5A17
-        private const val SUBS_ID_BASE = 1000
-    }
+    // NextClave: one entry per subscription group row of the rebuilt drawer
+    private class DrawerGroupRow(
+        val title: String,
+        val count: Int,
+        val groupId: Long,
+        val row: View,
+    )
 
-    private val drawerGroupItems = ArrayList<MenuItem>()
-    private val drawerGroupIds = ArrayList<Long>()
+    private val drawerGroups = ArrayList<DrawerGroupRow>()
+    private val modeRows = HashMap<Int, View>()
+    private val moreRows = HashMap<Int, View>()
+    private var drawerAccent = 0
+    private var moreSelection = 0
     private var drawerFxStarted = false
 
     override val onBackPressedCallback = object : OnBackPressedCallback(enabled = false) {
@@ -125,25 +134,14 @@ class MainActivity : ThemedActivity(),
         }
 
         binding.fab.initProgress(binding.fabProgress)
-        if (themeResId !in intArrayOf(
-                R.style.Theme_SagerNet_Black, R.style.Theme_SagerNet_LightBlack
-            )
-        ) {
-            navigation = binding.navView
-            binding.drawerLayout.removeView(binding.navViewBlack)
-        } else {
-            navigation = binding.navViewBlack
-            binding.drawerLayout.removeView(binding.navView)
-        }
-        navigation.setNavigationItemSelectedListener(this)
 
-        // NextClave: version footer - the last drawer row shows the app name
-        // and version, tapping it opens About (like the approved preview)
-        runCatching {
-            val ver = packageManager.getPackageInfo(packageName, 0).versionName
-            navigation.menu.findItem(R.id.nav_about)?.title =
-                getString(R.string.app_name) + " " + ver
-        }
+        // NextClave: rebuilt glass drawer - cap the panel width by the screen
+        // like the approved preview (floating panel, never full-width), then
+        // build its static parts (badge, accent rim, mode presets, "more")
+        val panelLp = binding.drawerPanel.layoutParams as DrawerLayout.LayoutParams
+        panelLp.width = min(dp2px(330), resources.displayMetrics.widthPixels - dp2px(96))
+        binding.drawerPanel.layoutParams = panelLp
+        buildDrawer()
 
         // NextClave: glass drawer - scale + dim the content behind the drawer,
         // blur it on Android 12+ (RenderEffect), restore everything on close.
@@ -179,32 +177,24 @@ class MainActivity : ThemedActivity(),
         })
         syncRouteModeMenu()
         populateDrawerGroups()
-        if (resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL) {
-            ViewCompat.setOnApplyWindowInsetsListener(navigation) { v, insets ->
-                val bars = insets.getInsets(
-                    WindowInsetsCompat.Type.systemBars()
-                            or WindowInsetsCompat.Type.displayCutout()
-                )
-                v.updatePadding(
-                    top = bars.top,
-                    right = bars.right,
-                    bottom = bars.bottom,
-                )
-                insets
+        // NextClave: float the panel in from the screen edges, clear of the
+        // status bar, navigation bar and display cutout
+        ViewCompat.setOnApplyWindowInsetsListener(binding.drawerPanel) { v, insets ->
+            val bars = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars()
+                        or WindowInsetsCompat.Type.displayCutout()
+            )
+            val lp = v.layoutParams as DrawerLayout.LayoutParams
+            val gap = dp2px(12)
+            if (resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL) {
+                lp.rightMargin = bars.right + gap
+            } else {
+                lp.leftMargin = bars.left + gap
             }
-        } else {
-            ViewCompat.setOnApplyWindowInsetsListener(navigation) { v, insets ->
-                val bars = insets.getInsets(
-                    WindowInsetsCompat.Type.systemBars()
-                            or WindowInsetsCompat.Type.displayCutout()
-                )
-                v.updatePadding(
-                    top = bars.top,
-                    left = bars.left,
-                    bottom = bars.bottom,
-                )
-                insets
-            }
+            lp.topMargin = bars.top + gap
+            lp.bottomMargin = bars.bottom + gap
+            v.layoutParams = lp
+            insets
         }
 
         if (savedInstanceState == null) {
@@ -416,94 +406,233 @@ class MainActivity : ThemedActivity(),
             ).show()
     }
 
-    override fun onNavigationItemSelected(item: MenuItem): Boolean {
-        // NextClave: subscription group items inserted dynamically into the
-        // drawer - switch the main list to that group tab
-        if (item.groupId == GROUP_SUBS) {
-            val idx = item.itemId - SUBS_ID_BASE
-            binding.drawerLayout.closeDrawers()
-            if (idx in drawerGroupIds.indices) {
-                for (gi in drawerGroupItems.indices) {
-                    drawerGroupItems[gi].isChecked = gi == idx
-                }
-                val fragment = supportFragmentManager
-                    .findFragmentById(R.id.fragment_holder) as? ConfigurationFragment
-                if (fragment != null) {
-                    val position = fragment.adapter.groupList
-                        .indexOfFirst { it.id == drawerGroupIds[idx] }
-                    if (position >= 0) {
-                        fragment.groupPager.currentItem = position
-                        DataStore.selectedGroup = drawerGroupIds[idx]
-                    }
-                }
-            }
-            return true
-        }
-        when (item.itemId) {
-            // NextClave: traffic-mode presets switch the existing routeMode
-            // setting right from the drawer; applied by a service reload
-            R.id.nav_route_mode_rule -> setRouteMode(RouteMode.RULE)
-            R.id.nav_route_mode_global -> setRouteMode(RouteMode.GLOBAL)
-            R.id.nav_route_mode_direct -> setRouteMode(RouteMode.DIRECT)
-            // NextClave: "Requests" in the More section - active connections
-            R.id.nav_connections -> {
-                binding.drawerLayout.closeDrawers()
-                startActivity(Intent(this, ConnectionsActivity::class.java))
-            }
-            else -> {
-                if (item.isChecked) binding.drawerLayout.closeDrawers() else {
-                    return displayFragmentWithId(item.itemId)
-                }
-            }
-        }
-        return true
+    // NextClave: build the static part of the rebuilt glass drawer - accent
+    // color, brand badge, right rim, traffic-mode presets and the "more"
+    // rows. Group rows arrive asynchronously from populateDrawerGroups().
+    private fun buildDrawer() {
+        drawerAccent = drawerAccentColor()
+        binding.drawerHeader.drawerBadge.setTextColor(drawerAccent)
+        applyDrawerRim()
+        addModeRow(RouteMode.RULE, R.string.drawer_route_rule)
+        addModeRow(RouteMode.GLOBAL, R.string.drawer_route_global)
+        addModeRow(RouteMode.DIRECT, R.string.drawer_route_direct)
+        addMoreRow(R.id.nav_logcat, R.string.menu_log, R.drawable.ic_baseline_timelapse_24)
+        addMoreRow(R.id.nav_settings, R.string.settings, R.drawable.ic_action_settings)
+        addMoreRow(R.id.nav_tools, R.string.menu_tools, R.drawable.baseline_construction_24)
+        syncRouteModeMenu()
     }
 
-    // NextClave: rebuild the subscription group section of the glass drawer
-    // (name + node counter, e.g. "vps-R (15)"), mirroring the group tabs.
-    // The rebuild is skipped when nothing changed, so opening the drawer
-    // never churns the menu adapter mid-layout.
+    // NextClave: resolve a theme attribute color (following ?attr chains);
+    // returns 0 when the attribute is missing or transparent
+    private fun resolveAttrColor(attr: Int): Int {
+        var current = attr
+        repeat(4) {
+            val tv = TypedValue()
+            if (!theme.resolveAttribute(current, tv, true)) return 0
+            when (tv.type) {
+                TypedValue.TYPE_ATTRIBUTE -> current = tv.data
+                in TypedValue.TYPE_FIRST_COLOR_INT..TypedValue.TYPE_LAST_COLOR_INT -> return tv.data
+                else -> return try {
+                    ContextCompat.getColor(this, tv.resourceId)
+                } catch (_: Exception) {
+                    0
+                }
+            }
+        }
+        return 0
+    }
+
+    // NextClave: the selected Coal accent (coalBorderColor is re-defined by
+    // every accent overlay); falls back to colorPrimary, then to Coal Pink
+    private fun drawerAccentColor(): Int {
+        val accent = resolveAttrColor(R.attr.coalBorderColor)
+        if (accent != 0 && Color.alpha(accent) != 0) return accent
+        val primary = resolveAttrColor(androidx.appcompat.R.attr.colorPrimary)
+        if (primary != 0 && Color.alpha(primary) != 0) return primary
+        return 0xFFC11D5E.toInt()
+    }
+
+    // NextClave: dimmed copy of the primary text color for idle row icons
+    private fun dimPrimary(alpha: Int): Int {
+        var base = resolveAttrColor(android.R.attr.textColorPrimary)
+        if (base == 0 || Color.alpha(base) == 0) base = 0xFFE8EAED.toInt()
+        return ColorUtils.setAlphaComponent(base, alpha)
+    }
+
+    // NextClave: the accent rim on the right edge of the panel - vertical
+    // accent gradient fading at both ends, rounded on the right, exactly
+    // like the approved preview
+    private fun applyDrawerRim() {
+        val r = dp2px(26).toFloat()
+        val a = drawerAccent
+        val rim = GradientDrawable().apply {
+            orientation = GradientDrawable.Orientation.TOP_BOTTOM
+            colors = intArrayOf(
+                ColorUtils.setAlphaComponent(a, 0x2E),
+                ColorUtils.setAlphaComponent(a, 0xB4),
+                ColorUtils.setAlphaComponent(a, 0xB4),
+                ColorUtils.setAlphaComponent(a, 0x28),
+            )
+            setCornerRadii(floatArrayOf(0f, 0f, r, r, r, r, 0f, 0f))
+        }
+        binding.drawerRim.background = rim
+    }
+
+    private fun paintRowBar(row: View, visible: Boolean) {
+        val bar = row.findViewById<View>(R.id.drawer_row_bar)
+        bar.background.mutate().setTint(drawerAccent)
+        bar.visibility = if (visible) View.VISIBLE else View.GONE
+    }
+
+    private fun addModeRow(mode: Int, titleRes: Int) {
+        val row = layoutInflater.inflate(
+            R.layout.layout_drawer_row, binding.drawerModesContainer, false
+        )
+        row.findViewById<TextView>(R.id.drawer_row_title).setText(titleRes)
+        row.findViewById<TextView>(R.id.drawer_row_count).visibility = View.GONE
+        paintRowBar(row, false)
+        row.setOnClickListener {
+            setRouteMode(mode)
+        }
+        binding.drawerModesContainer.addView(row)
+        modeRows[mode] = row
+    }
+
+    private fun addMoreRow(navId: Int, titleRes: Int, iconRes: Int) {
+        val row = layoutInflater.inflate(
+            R.layout.layout_drawer_row, binding.drawerMoreContainer, false
+        )
+        row.findViewById<TextView>(R.id.drawer_row_title).setText(titleRes)
+        row.findViewById<TextView>(R.id.drawer_row_count).visibility = View.GONE
+        val icon = row.findViewById<ImageView>(R.id.drawer_row_icon)
+        icon.setImageResource(iconRes)
+        icon.imageTintList = ColorStateList.valueOf(dimPrimary(0xB8))
+        paintRowBar(row, false)
+        row.setOnClickListener {
+            if (moreSelection == navId) {
+                binding.drawerLayout.closeDrawers()
+            } else {
+                displayFragmentWithId(navId)
+            }
+        }
+        binding.drawerMoreContainer.addView(row)
+        moreRows[navId] = row
+    }
+
+    private fun paintGroupIcon(row: View, checked: Boolean) {
+        val icon = row.findViewById<ImageView>(R.id.drawer_row_icon)
+        if (checked) {
+            val fill = AppCompatResources.getDrawable(this, R.drawable.ic_drawer_cb_fill)!!
+                .mutate()
+            fill.setTint(drawerAccent)
+            val tick = AppCompatResources.getDrawable(this, R.drawable.ic_drawer_tick)!!
+                .mutate()
+            tick.setTint(Color.WHITE)
+            icon.imageTintList = null
+            icon.setImageDrawable(LayerDrawable(arrayOf(fill, tick)))
+        } else {
+            icon.setImageResource(R.drawable.ic_drawer_cb_off)
+            icon.imageTintList = ColorStateList.valueOf(dimPrimary(0xB8))
+        }
+        paintRowBar(row, checked)
+    }
+
+    private fun paintModeIcon(row: View, checked: Boolean) {
+        val icon = row.findViewById<ImageView>(R.id.drawer_row_icon)
+        if (checked) {
+            icon.setImageResource(R.drawable.ic_drawer_rb_on)
+            icon.imageTintList = ColorStateList.valueOf(drawerAccent)
+        } else {
+            icon.setImageResource(R.drawable.ic_drawer_rb_off)
+            icon.imageTintList = ColorStateList.valueOf(dimPrimary(0x3D))
+        }
+        paintRowBar(row, checked)
+    }
+
+    // NextClave: cap the scrollable group block at about a third of the
+    // screen, always leaving room for the mode and "more" sections below
+    private fun capDrawerGroups() {
+        val scroll = binding.drawerGroupsScroll
+        val screenH = resources.displayMetrics.heightPixels
+        val maxPx = min(
+            (screenH * 0.34f).toInt(),
+            screenH - dp2px(580)
+        ).coerceAtLeast(dp2px(52))
+        val contentPx = drawerGroups.size * dp2px(52)
+        scroll.layoutParams.height =
+            if (contentPx > maxPx) maxPx else ViewGroup.LayoutParams.WRAP_CONTENT
+        scroll.requestLayout()
+    }
+
+    // NextClave: rebuild the subscription group rows of the glass drawer
+    // (name + node counter), mirroring the group tabs. The rebuild is skipped
+    // when nothing changed, so opening the drawer never churns the rows
+    // mid-layout.
     private fun populateDrawerGroups() {
-        val menu = navigation.menu
         runOnDefaultDispatcher {
-            val entries = ArrayList<Pair<String, Long>>()
+            val entries = ArrayList<Triple<String, Int, Long>>()
             for (group in SagerDatabase.groupDao.allGroups()) {
                 val count = SagerDatabase.proxyDao.countByGroup(group.id).toInt()
                 if (group.ungrouped && count == 0) continue
-                val title = if (count > 0) {
-                    group.displayName() + " ($count)"
-                } else {
-                    group.displayName()
-                }
-                entries.add(title to group.id)
+                entries.add(Triple(group.displayName(), count, group.id))
             }
             onMainDispatcher {
-                val unchanged = entries.size == drawerGroupIds.size &&
+                val unchanged = entries.size == drawerGroups.size &&
                         entries.withIndex().all { (i, entry) ->
-                            drawerGroupIds[i] == entry.second &&
-                                    drawerGroupItems.getOrNull(i)?.title?.toString() == entry.first
+                            drawerGroups[i].groupId == entry.third &&
+                                    drawerGroups[i].title == entry.first &&
+                                    drawerGroups[i].count == entry.second
                         }
                 if (unchanged) return@onMainDispatcher
-                for (item in drawerGroupItems) menu.removeItem(item.itemId)
-                drawerGroupItems.clear()
-                drawerGroupIds.clear()
+                binding.drawerGroupsContainer.removeAllViews()
+                drawerGroups.clear()
                 for ((idx, entry) in entries.withIndex()) {
-                    val item = menu.add(
-                        GROUP_SUBS, SUBS_ID_BASE + idx, 100 + idx, entry.first
+                    val row = layoutInflater.inflate(
+                        R.layout.layout_drawer_row, binding.drawerGroupsContainer, false
                     )
-                    item.setCheckable(true)
-                    drawerGroupItems.add(item)
-                    drawerGroupIds.add(entry.second)
+                    row.findViewById<TextView>(R.id.drawer_row_title).text = entry.first
+                    val counter = row.findViewById<TextView>(R.id.drawer_row_count)
+                    if (entry.second > 0) {
+                        counter.text = entry.second.toString()
+                        counter.visibility = View.VISIBLE
+                    } else {
+                        counter.visibility = View.GONE
+                    }
+                    paintRowBar(row, false)
+                    row.setOnClickListener { selectDrawerGroup(idx) }
+                    binding.drawerGroupsContainer.addView(row)
+                    drawerGroups.add(DrawerGroupRow(entry.first, entry.second, entry.third, row))
                 }
+                capDrawerGroups()
                 syncDrawerActiveGroup()
             }
         }
     }
 
-    // NextClave: check the drawer row of the currently selected group tab
+    // NextClave: subscription group tapped in the drawer - switch the main
+    // list to that group tab
+    private fun selectDrawerGroup(idx: Int) {
+        binding.drawerLayout.closeDrawers()
+        if (idx !in drawerGroups.indices) return
+        for ((gi, g) in drawerGroups.withIndex()) {
+            paintGroupIcon(g.row, gi == idx)
+        }
+        val fragment = supportFragmentManager
+            .findFragmentById(R.id.fragment_holder) as? ConfigurationFragment
+        if (fragment != null) {
+            val position = fragment.adapter.groupList
+                .indexOfFirst { it.id == drawerGroups[idx].groupId }
+            if (position >= 0) {
+                fragment.groupPager.currentItem = position
+                DataStore.selectedGroup = drawerGroups[idx].groupId
+            }
+        }
+    }
+
+    // NextClave: highlight the drawer row of the currently selected group tab
     private fun syncDrawerActiveGroup() {
-        for ((idx, item) in drawerGroupItems.withIndex()) {
-            item.isChecked = drawerGroupIds[idx] == DataStore.selectedGroup
+        for (g in drawerGroups) {
+            paintGroupIcon(g.row, g.groupId == DataStore.selectedGroup)
         }
     }
 
@@ -520,14 +649,25 @@ class MainActivity : ThemedActivity(),
         }
     }
 
-    // NextClave: check the drawer radio matching the current routeMode
+    // NextClave: highlight the drawer preset matching the current routeMode
     private fun syncRouteModeMenu() {
-        val id = when (DataStore.routeMode) {
-            RouteMode.GLOBAL -> R.id.nav_route_mode_global
-            RouteMode.DIRECT -> R.id.nav_route_mode_direct
-            else -> R.id.nav_route_mode_rule
+        for ((mode, row) in modeRows) {
+            paintModeIcon(row, mode == DataStore.routeMode)
         }
-        navigation.menu.findItem(id)?.isChecked = true
+    }
+
+    // NextClave: highlight the "more" row of the screen on display
+    // (0 = none of them)
+    private fun syncMoreSelection(navId: Int) {
+        moreSelection = navId
+        for ((id, row) in moreRows) {
+            val selected = id == navId
+            val icon = row.findViewById<ImageView>(R.id.drawer_row_icon)
+            icon.imageTintList = ColorStateList.valueOf(
+                if (selected) drawerAccent else dimPrimary(0xB8)
+            )
+            paintRowBar(row, selected)
+        }
     }
 
     // NextClave: blur the content behind the drawer (Android 12+). Honors the
@@ -558,9 +698,9 @@ class MainActivity : ThemedActivity(),
     }
 
     // NextClave: entrance animation of the brand header, same spring curve
-    // as the menu item cascade
+    // as the approved preview
     private fun animateDrawerHeader() {
-        val header = navigation.getHeaderView(0) ?: return
+        val header = binding.drawerHeader.root
         header.translationY = -dp2px(14).toFloat()
         header.alpha = 0f
         header.animate().translationY(0f).alpha(1f).setDuration(500L)
@@ -597,15 +737,20 @@ class MainActivity : ThemedActivity(),
             R.id.nav_about -> displayFragment(AboutFragment())
             else -> return false
         }
-        // NextClave: nav_configuration/nav_group now live as dynamic drawer
-        // rows (subscription groups), so findItem may legitimately return
-        // null here - never crash on the checkmark
-        navigation.menu.findItem(id)?.isChecked = true
+        // NextClave: highlight the matching "more" row (Журнал/Настройки/
+        // Инструменты); screens without a drawer row clear the highlight
+        syncMoreSelection(
+            if (id == R.id.nav_logcat || id == R.id.nav_settings || id == R.id.nav_tools) {
+                id
+            } else {
+                0
+            }
+        )
         return true
     }
 
     fun ruleCreated() {
-        navigation.menu.findItem(R.id.nav_route)?.isChecked = true
+        syncMoreSelection(0)
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragment_holder, RouteFragment())
             .commitAllowingStateLoss()
@@ -890,7 +1035,7 @@ class MainActivity : ThemedActivity(),
             KeyEvent.KEYCODE_DPAD_LEFT -> {
                 if (super.onKeyDown(keyCode, event)) return true
                 binding.drawerLayout.open()
-                navigation.requestFocus()
+                binding.drawerPanel.requestFocus()
             }
             KeyEvent.KEYCODE_DPAD_RIGHT -> {
                 if (binding.drawerLayout.isOpen) {

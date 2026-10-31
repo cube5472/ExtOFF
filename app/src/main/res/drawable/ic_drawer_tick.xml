@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- NextClave: white tick layered over the filled checkbox (ic_drawer_cb_fill)
+     by MainActivity. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M10.2,14.7 L7.2,11.7 L5.9,13 L10.2,17.3 L18.2,9.3 L16.9,8 Z" />
+</vector>

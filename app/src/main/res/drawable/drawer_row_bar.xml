@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- NextClave: selection bar of a drawer row; the color is applied in code
+     (mutate + setTint) so it always follows the selected Coal accent. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="2dp" />
+    <solid android:color="#FFFFFFFF" />
+</shape>

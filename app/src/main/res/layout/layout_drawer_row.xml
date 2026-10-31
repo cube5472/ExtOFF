@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- NextClave: one row of the rebuilt glass drawer (group / mode / more).
+     The 3x25dp accent bar at the panel edge marks the selected row; icon,
+     title and the optional counter are laid out exactly like the approved
+     preview. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="52dp"
+    android:background="?android:attr/selectableItemBackground">
+
+    <View
+        android:id="@+id/drawer_row_bar"
+        android:layout_width="3dp"
+        android:layout_height="25dp"
+        android:layout_gravity="start|center_vertical"
+        android:background="@drawable/drawer_row_bar"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="22dp"
+        android:paddingEnd="24dp">
+
+        <ImageView
+            android:id="@+id/drawer_row_icon"
+            android:layout_width="24dp"
+            android:layout_height="24dp" />
+
+        <TextView
+            android:id="@+id/drawer_row_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="7dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:singleLine="true"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textSize="15sp" />
+
+        <TextView
+            android:id="@+id/drawer_row_count"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:singleLine="true"
+            android:textColor="?android:attr/textColorSecondary"
+            android:textSize="13sp" />
+
+    </LinearLayout>
+
+</FrameLayout>
