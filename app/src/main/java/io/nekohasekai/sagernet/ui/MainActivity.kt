@@ -52,7 +52,6 @@ import androidx.core.view.setPadding
 import androidx.core.view.updatePadding
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.preference.PreferenceDataStore
-import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomappbar.BottomAppBar.FAB_ALIGNMENT_MODE_CENTER
 import com.google.android.material.bottomappbar.BottomAppBar.FAB_ALIGNMENT_MODE_END
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -461,13 +460,11 @@ class MainActivity : ThemedActivity(),
     }
 
     // NextClave: rebuild the subscription group section of the glass drawer
-    // (name + node counter, e.g. "vps-R (15)"), mirroring the group tabs;
-    // then cascade the freshly inserted rows in like the preview does
+    // (name + node counter, e.g. "vps-R (15)"), mirroring the group tabs.
+    // The rebuild is skipped when nothing changed, so opening the drawer
+    // never churns the menu adapter mid-layout.
     private fun populateDrawerGroups() {
         val menu = navigation.menu
-        for (item in drawerGroupItems) menu.removeItem(item.itemId)
-        drawerGroupItems.clear()
-        drawerGroupIds.clear()
         runOnDefaultDispatcher {
             val entries = ArrayList<Pair<String, Long>>()
             for (group in SagerDatabase.groupDao.allGroups()) {
@@ -481,6 +478,15 @@ class MainActivity : ThemedActivity(),
                 entries.add(title to group.id)
             }
             onMainDispatcher {
+                val unchanged = entries.size == drawerGroupIds.size &&
+                        entries.withIndex().all { (i, entry) ->
+                            drawerGroupIds[i] == entry.second &&
+                                    drawerGroupItems.getOrNull(i)?.title?.toString() == entry.first
+                        }
+                if (unchanged) return@onMainDispatcher
+                for (item in drawerGroupItems) menu.removeItem(item.itemId)
+                drawerGroupItems.clear()
+                drawerGroupIds.clear()
                 for ((idx, entry) in entries.withIndex()) {
                     val item = menu.add(
                         GROUP_SUBS, SUBS_ID_BASE + idx, 100 + idx, entry.first
@@ -490,7 +496,6 @@ class MainActivity : ThemedActivity(),
                     drawerGroupIds.add(entry.second)
                 }
                 syncDrawerActiveGroup()
-                playDrawerCascade()
             }
         }
     }
@@ -499,29 +504,6 @@ class MainActivity : ThemedActivity(),
     private fun syncDrawerActiveGroup() {
         for ((idx, item) in drawerGroupItems.withIndex()) {
             item.isChecked = drawerGroupIds[idx] == DataStore.selectedGroup
-        }
-    }
-
-    // NextClave: items cascade in on open - 130ms base delay, 42ms stagger,
-    // 500ms spring curve (0.20, 1.16, 0.34, 1) - exactly like the preview
-    private fun playDrawerCascade() {
-        val list = (0 until navigation.childCount)
-            .map { navigation.getChildAt(it) }
-            .filterIsInstance<RecyclerView>()
-            .firstOrNull() ?: return
-        val spring = PathInterpolator(0.20f, 1.16f, 0.34f, 1f)
-        var row = 0
-        for (i in 0 until list.childCount) {
-            val child = list.getChildAt(i) ?: continue
-            child.animate().cancel()
-            child.translationX = -dp2px(14).toFloat()
-            child.alpha = 0f
-            child.animate().translationX(0f).alpha(1f)
-                .setStartDelay(130L + 42L * row)
-                .setDuration(500L)
-                .setInterpolator(spring)
-                .start()
-            row++
         }
     }
 
