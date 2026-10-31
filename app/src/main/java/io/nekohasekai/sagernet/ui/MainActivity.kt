@@ -42,8 +42,6 @@ import android.text.util.Linkify
 import android.util.TypedValue
 import android.view.KeyEvent
 import android.view.View
-import android.view.ViewGroup
-import android.view.animation.PathInterpolator
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
@@ -164,7 +162,6 @@ class MainActivity : ThemedActivity(),
 
             override fun onDrawerOpened(drawerView: View) {
                 syncRouteModeMenu()
-                animateDrawerHeader()
             }
 
             override fun onDrawerClosed(drawerView: View) {
@@ -418,6 +415,8 @@ class MainActivity : ThemedActivity(),
         addModeRow(RouteMode.DIRECT, R.string.drawer_route_direct)
         addMoreRow(R.id.nav_logcat, R.string.menu_log, R.drawable.ic_baseline_timelapse_24)
         addMoreRow(R.id.nav_settings, R.string.settings, R.drawable.ic_action_settings)
+        addMoreRow(R.id.nav_route, R.string.menu_route, R.drawable.ic_baseline_multiple_stop_24)
+        addMoreRow(R.id.nav_traffic, R.string.menu_traffic, R.drawable.ic_device_data_usage)
         addMoreRow(R.id.nav_tools, R.string.menu_tools, R.drawable.baseline_construction_24)
         syncRouteModeMenu()
     }
@@ -549,21 +548,6 @@ class MainActivity : ThemedActivity(),
         paintRowBar(row, checked)
     }
 
-    // NextClave: cap the scrollable group block at about a third of the
-    // screen, always leaving room for the mode and "more" sections below
-    private fun capDrawerGroups() {
-        val scroll = binding.drawerGroupsScroll
-        val screenH = resources.displayMetrics.heightPixels
-        val maxPx = min(
-            (screenH * 0.34f).toInt(),
-            screenH - dp2px(580)
-        ).coerceAtLeast(dp2px(52))
-        val contentPx = drawerGroups.size * dp2px(52)
-        scroll.layoutParams.height =
-            if (contentPx > maxPx) maxPx else ViewGroup.LayoutParams.WRAP_CONTENT
-        scroll.requestLayout()
-    }
-
     // NextClave: rebuild the subscription group rows of the glass drawer
     // (name + node counter), mirroring the group tabs. The rebuild is skipped
     // when nothing changed, so opening the drawer never churns the rows
@@ -603,7 +587,6 @@ class MainActivity : ThemedActivity(),
                     binding.drawerGroupsContainer.addView(row)
                     drawerGroups.add(DrawerGroupRow(entry.first, entry.second, entry.third, row))
                 }
-                capDrawerGroups()
                 syncDrawerActiveGroup()
             }
         }
@@ -697,18 +680,9 @@ class MainActivity : ThemedActivity(),
         binding.coordinator.setRenderEffect(RenderEffect.createChainEffect(color, blur))
     }
 
-    // NextClave: entrance animation of the brand header, same spring curve
-    // as the approved preview
-    private fun animateDrawerHeader() {
-        val header = binding.drawerHeader.root
-        header.translationY = -dp2px(14).toFloat()
-        header.alpha = 0f
-        header.animate().translationY(0f).alpha(1f).setDuration(500L)
-            .setInterpolator(PathInterpolator(0.20f, 1.16f, 0.34f, 1f))
-            .start()
-    }
-
-
+    // NextClave: entrance animation removed - it replayed after the drawer
+    // was already fully open, so the brand header visibly jumped (reported
+    // as "верхняя строка дергается при открытии"). The header is static now.
     fun displayFragment(fragment: ToolbarFragment) {
         if (fragment !is LogcatFragment) {
             binding.fab.show()
@@ -738,9 +712,13 @@ class MainActivity : ThemedActivity(),
             else -> return false
         }
         // NextClave: highlight the matching "more" row (Журнал/Настройки/
-        // Инструменты); screens without a drawer row clear the highlight
+        // Маршруты/Трафик/Инструменты); screens without a drawer row clear
+        // the highlight
         syncMoreSelection(
-            if (id == R.id.nav_logcat || id == R.id.nav_settings || id == R.id.nav_tools) {
+            if (id == R.id.nav_logcat || id == R.id.nav_settings ||
+                id == R.id.nav_route || id == R.id.nav_traffic ||
+                id == R.id.nav_tools
+            ) {
                 id
             } else {
                 0
@@ -750,7 +728,7 @@ class MainActivity : ThemedActivity(),
     }
 
     fun ruleCreated() {
-        syncMoreSelection(0)
+        syncMoreSelection(R.id.nav_route)
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragment_holder, RouteFragment())
             .commitAllowingStateLoss()

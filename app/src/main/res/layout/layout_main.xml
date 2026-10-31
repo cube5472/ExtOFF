@@ -107,11 +107,12 @@
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
     <!-- NextClave: glass drawer rebuilt one-to-one after the approved preview:
-         a floating rounded panel with the brand header, a capped scrollable
-         subscription-group block, traffic-mode presets and a compact "more"
-         list. All rows are built by MainActivity from layout_drawer_row;
-         the right rim is painted in code so it always follows the selected
-         Coal accent color. -->
+         a floating rounded panel with the brand header and one scrollable
+         body holding the subscription-group block, traffic-mode presets and
+         the "more" list. A single body scroll (weight=1) guarantees that no
+         row is ever clipped by the panel edge on short screens; all rows are
+         built by MainActivity from layout_drawer_row; the right rim is
+         painted in code so it always follows the selected Coal accent color. -->
     <FrameLayout
         android:id="@+id/drawer_panel"
         android:layout_width="330dp"
@@ -131,78 +132,88 @@
                 android:id="@+id/drawer_header"
                 layout="@layout/layout_drawer_header" />
 
-            <TextView
-                android:id="@+id/drawer_groups_label"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="30dp"
-                android:layout_marginBottom="4dp"
-                android:letterSpacing="0.15"
-                android:paddingStart="22dp"
-                android:paddingEnd="24dp"
-                android:text="@string/drawer_groups_section"
-                android:textAllCaps="true"
-                android:textColor="?android:attr/textColorTertiary"
-                android:textSize="11sp"
-                android:textStyle="bold" />
-
             <ScrollView
-                android:id="@+id/drawer_groups_scroll"
+                android:id="@+id/drawer_body"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:fadingEdgeLength="26dp"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:clipToPadding="false"
+                android:fadingEdgeLength="0dp"
                 android:overScrollMode="never"
-                android:requiresFadingEdge="vertical"
+                android:paddingBottom="10dp"
+                android:requiresFadingEdge="none"
                 android:scrollbars="none">
 
                 <LinearLayout
-                    android:id="@+id/drawer_groups_container"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical" />
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/drawer_groups_label"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="22dp"
+                        android:layout_marginBottom="4dp"
+                        android:letterSpacing="0.15"
+                        android:paddingStart="22dp"
+                        android:paddingEnd="24dp"
+                        android:text="@string/drawer_groups_section"
+                        android:textAllCaps="true"
+                        android:textColor="?android:attr/textColorTertiary"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+
+                    <LinearLayout
+                        android:id="@+id/drawer_groups_container"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical" />
+
+                    <TextView
+                        android:id="@+id/drawer_modes_label"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="22dp"
+                        android:layout_marginBottom="4dp"
+                        android:paddingStart="22dp"
+                        android:paddingEnd="24dp"
+                        android:text="@string/drawer_route_section"
+                        android:textAllCaps="true"
+                        android:textColor="?android:attr/textColorTertiary"
+                        android:letterSpacing="0.15"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+
+                    <LinearLayout
+                        android:id="@+id/drawer_modes_container"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical" />
+
+                    <TextView
+                        android:id="@+id/drawer_more_label"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="22dp"
+                        android:layout_marginBottom="4dp"
+                        android:letterSpacing="0.15"
+                        android:paddingStart="22dp"
+                        android:paddingEnd="24dp"
+                        android:text="@string/drawer_more_section"
+                        android:textAllCaps="true"
+                        android:textColor="?android:attr/textColorTertiary"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+
+                    <LinearLayout
+                        android:id="@+id/drawer_more_container"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical" />
+
+                </LinearLayout>
             </ScrollView>
-
-            <TextView
-                android:id="@+id/drawer_modes_label"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="22dp"
-                android:layout_marginBottom="4dp"
-                android:letterSpacing="0.15"
-                android:paddingStart="22dp"
-                android:paddingEnd="24dp"
-                android:text="@string/drawer_route_section"
-                android:textAllCaps="true"
-                android:textColor="?android:attr/textColorTertiary"
-                android:textSize="11sp"
-                android:textStyle="bold" />
-
-            <LinearLayout
-                android:id="@+id/drawer_modes_container"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical" />
-
-            <TextView
-                android:id="@+id/drawer_more_label"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="22dp"
-                android:layout_marginBottom="4dp"
-                android:letterSpacing="0.15"
-                android:paddingStart="22dp"
-                android:paddingEnd="24dp"
-                android:text="@string/drawer_more_section"
-                android:textAllCaps="true"
-                android:textColor="?android:attr/textColorTertiary"
-                android:textSize="11sp"
-                android:textStyle="bold" />
-
-            <LinearLayout
-                android:id="@+id/drawer_more_container"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical" />
 
         </LinearLayout>
 
