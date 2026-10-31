@@ -580,7 +580,13 @@ class MainActivity : ThemedActivity(),
         binding.drawerLayout.closeDrawers()
         val fragment = supportFragmentManager
             .findFragmentById(R.id.fragment_holder) as? ConfigurationFragment
-        if (fragment != null && fragment.view != null && fragment::adapter.isInitialized) {
+        // NextClave: a live main list switches the tab in place; anything
+        // else (no fragment / view not ready yet) stores the selection and
+        // shows the main list - the fresh adapter opens the stored group tab
+        // itself. (adapter is assigned in onViewCreated, so a created view
+        // guarantees it is initialized; ::adapter.isInitialized is NOT usable
+        // here - the backing field of another class is not accessible.)
+        if (fragment != null && fragment.view != null) {
             val position = fragment.adapter.groupList.indexOfFirst { it.id == groupId }
             if (position >= 0) {
                 fragment.groupPager.currentItem = position
