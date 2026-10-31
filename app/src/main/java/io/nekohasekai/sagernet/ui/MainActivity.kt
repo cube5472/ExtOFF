@@ -26,6 +26,7 @@ import android.content.pm.PackageManager
 import android.Manifest
 import android.graphics.Color
 import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
 import android.graphics.RenderEffect
 import android.graphics.Shader
 import android.net.Uri
@@ -570,7 +571,7 @@ class MainActivity : ThemedActivity(),
             b * (0.213f - 0.213f * s), b * (0.715f - 0.715f * s), b * (0.072f + 0.928f * s), 0f, 0f,
             0f, 0f, 0f, 1f, 0f,
         )
-        val color = RenderEffect.createColorMatrixEffect(ColorMatrix(matrix))
+        val color = RenderEffect.createColorFilterEffect(ColorMatrixColorFilter(ColorMatrix(matrix)))
         binding.coordinator.setRenderEffect(RenderEffect.createChainEffect(color, blur))
     }
 
