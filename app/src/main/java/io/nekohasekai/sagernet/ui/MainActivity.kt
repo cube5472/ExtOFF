@@ -596,6 +596,13 @@ class MainActivity : ThemedActivity(),
             DataStore.selectedGroup = groupId
             displayFragment(ConfigurationFragment())
         }
+        // NextClave: the main list has no row in the "more" section - after
+        // switching to it from another screen the stale highlight of that
+        // screen must be cleared, otherwise its row still counts itself as
+        // active and swallows its own tap (just closes the drawer) until
+        // some other row is picked first (reported as "настройки не
+        // открываются повторно после выбора подписки")
+        syncMoreSelection(0)
     }
 
     // NextClave: highlight the drawer row of the currently selected group tab
