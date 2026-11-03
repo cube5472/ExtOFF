@@ -403,6 +403,16 @@ class MainActivity : ThemedActivity(),
     private fun buildDrawer() {
         drawerAccent = drawerAccentColor()
         binding.drawerHeader.drawerBadge.setTextColor(drawerAccent)
+        // NextClave: the "/" badge is the entry point to the "about" screen.
+        // The legacy drawer opened it from the version footer, which the
+        // glass rebuild dropped, leaving the screen unreachable; the brand
+        // badge takes over its role. nav_about has no row in the "more"
+        // section, so displayFragmentWithId clears the row highlight by
+        // itself (syncMoreSelection(0)) and repeated taps simply re-open
+        // the screen.
+        binding.drawerHeader.drawerBadge.setOnClickListener {
+            displayFragmentWithId(R.id.nav_about)
+        }
         applyDrawerRim()
         // NextClave: the "groups" section header opens the groups editor
         binding.drawerGroupsLabel.setOnClickListener {
