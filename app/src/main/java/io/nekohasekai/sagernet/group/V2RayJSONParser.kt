@@ -649,12 +649,28 @@ fun parseV2RayOutbound(outbound: JsonObject): List<AbstractBean> {
                         }
                         else -> return listOf()
                     }
-                    // NextClave: Xray "finalmask" (byte-length TCP/UDP
-                    // fragmentation) is tolerated, not rejected — the
-                    // panel-side scheme has no counterpart in this mod, the
-                    // core fragments TLS records / TCP segments itself
-                    // (global setting + per-node NoDPI disorder), so the
-                    // mask is ignored and the node imports.
+                    // NextClave hotfix-12: the Xray finalmask TCP "fragment"
+                    // mask is now applied as per-node byte-length
+                    // fragmentation (StandardV2RayBean.fragmentLengths /
+                    // fragmentDelays) instead of being ignored; UDP masks for
+                    // non-kcp transports stay ignored.
+                    streamSettings.getObject("finalmask")?.also { finalmask ->
+                        finalmask.getArray("tcp")?.takeIf { it.isNotEmpty() }?.forEach { mask ->
+                            if (mask.getString("type") != "fragment") return@forEach
+                            mask.getObject("settings")?.also { settings ->
+                                val lengths = settings.getString("length")
+                                    ?: settings.getStringArray("lengths")?.filter { it.isNotBlank() }?.joinToString(",")
+                                val delays = settings.getString("interval")
+                                    ?: settings.getStringArray("delays")?.filter { it.isNotBlank() }?.joinToString(",")
+                                if (!lengths.isNullOrBlank()) {
+                                    v2rayBean.fragmentLengths = lengths.trim()
+                                    if (!delays.isNullOrBlank()) {
+                                        v2rayBean.fragmentDelays = delays.trim()
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
             when (proto) {

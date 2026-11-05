@@ -1,14 +1,24 @@
 #!/usr/bin/env bash
 # Stage a locally patched copy of the pinned exclave-core module and point
-# go.mod's replace directive at it. Required for the NoDPI "disorder" feature:
-# the patch in core-disorder.patch adds disorder/TTL support to the TLS
-# fragmentation dialer. Run before `gomobile bind` (CI: ./run lib core).
+# go.mod's replace directive at it. Required for:
+#  - the NoDPI "disorder" feature: core-disorder.patch adds disorder/TTL
+#    support to the TLS fragmentation dialer;
+#  - hotfix-12: core-finalmask.patch adds byte-length ClientHello
+#    fragmentation (the Xray finalmask TCP "fragment" mask, fm=) — per-node
+#    lengths/delays are parsed from sockopt.tlsFragmentation and applied in
+#    tlsFragmentConn instead of the fixed SNI-label splits.
+# Run before `gomobile bind` (CI: ./run lib core).
 set -euo pipefail
 cd "$(dirname "$0")"
 
 PATCH_FILE="core-disorder.patch"
 if [ ! -f "$PATCH_FILE" ]; then
   echo "ERROR: $PATCH_FILE not found" >&2
+  exit 1
+fi
+PATCH_FILE2="core-finalmask.patch"
+if [ ! -f "$PATCH_FILE2" ]; then
+  echo "ERROR: $PATCH_FILE2 not found" >&2
   exit 1
 fi
 
@@ -38,16 +48,19 @@ mkdir -p core-patched
 cp -a "${SRC}/." core-patched/
 chmod -R u+w core-patched
 
-# 4. Apply the disorder patch. Any failure must abort the build.
+# 4. Apply the patches. Any failure must abort the build.
 patch -d core-patched -p1 --forward < "$PATCH_FILE"
+patch -d core-patched -p1 --forward < "$PATCH_FILE2"
 
-# 5. Sanity check: the patched tree must contain the new feature.
-grep -q 'func NewTLSFragmentConn(ctx context.Context, conn net.Conn, splitRecord, splitPacket, disorder bool, ttl int)' \
+# 5. Sanity check: the patched tree must contain the new features.
+grep -q 'func NewTLSFragmentConn(ctx context.Context, conn net.Conn, splitRecord, splitPacket, disorder bool, ttl int, lengths, delays []int32)' \
   core-patched/transport/internet/tlsfragment/tlsfragment.go
 grep -q 'instanceCache' core-patched/common/serial/typed_message.go
+grep -q 'writeByLengths' core-patched/transport/internet/tlsfragment/tlsfragment.go
+grep -q 'parseRangeSpecs' core-patched/infra/conf/cfgcommon/socketcfg/socket.go
 
 # 6. Restore go.mod with the replace directive.
 mv -f go.mod.with-replace go.mod
 trap - EXIT
 
-echo ">> core-patched ready (disorder enabled)"
+echo ">> core-patched ready (disorder + byte-length finalmask enabled)"

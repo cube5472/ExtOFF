@@ -1116,6 +1116,13 @@ public class V2RayConfig {
                 // it with the restored default TTL. Requires core >= v17 (disorder patch).
                 public Boolean disorder;
                 public Integer ttl;
+                // NextClave hotfix-12: per-node byte-length fragmentation (the Xray
+                // finalmask TCP "fragment" mask): ClientHello fragment sizes in bytes
+                // and inter-fragment delays in milliseconds, as Int32Range strings
+                // ("10-20"). The last entry keeps applying to all subsequent fragments.
+                // Requires the hotfix-12 core patch; older cores ignore these fields.
+                public List<String> lengths;
+                public List<String> delays;
 
             }
 

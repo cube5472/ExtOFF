@@ -1291,7 +1291,17 @@ fun buildV2RayConfig(
                                         }
                                     }
                                     val nodeDisorder = bean.fragmentDisorder
-                                    if ((DataStore.enableFragment || nodeDisorder)
+                                    // NextClave hotfix-12: per-node byte-length fragmentation
+                                    // imported from the panel-side fm/finalmask mask
+                                    // ("fragment tlshello, length 10-20, interval 10-20"). When
+                                    // present it overrides the global toggle for this node: the
+                                    // ClientHello is re-encapsulated into byte-length TLS
+                                    // records, one TCP segment at a time — what TSPU-class DPI
+                                    // fails to reassemble (2-3 SNI-label splits it handles fine).
+                                    val nodeLengths = bean.fragmentLengths?.trim().orEmpty()
+                                    val nodeDelays = bean.fragmentDelays?.trim().orEmpty()
+                                    val nodeFragment = nodeLengths.isNotEmpty()
+                                    if ((DataStore.enableFragment || nodeDisorder || nodeFragment)
                                         && (network != "kcp" && network != "quic" && network != "hysteria2")
                                         && (security == "tls" || security == "reality")
                                         && !(bean is ShadowsocksBean && bean.plugin.isNotEmpty() && PluginConfiguration(bean.plugin).selected.isNotEmpty())
@@ -1300,7 +1310,16 @@ fun buildV2RayConfig(
                                     ) {
                                         sockopt = StreamSettingsObject.SockoptObject().apply {
                                             tlsFragmentation = StreamSettingsObject.SockoptObject.TLSFragmentationObject().apply {
-                                                if (DataStore.enableFragment) {
+                                                if (nodeFragment) {
+                                                    // fm "tlshello": each fragment becomes its own
+                                                    // TLS record, written as a separate TCP segment
+                                                    tlsRecordFragmentation = true
+                                                    tcpSegmentation = true
+                                                    lengths = nodeLengths.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+                                                    if (nodeDelays.isNotEmpty()) {
+                                                        delays = nodeDelays.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+                                                    }
+                                                } else if (DataStore.enableFragment) {
                                                     when (DataStore.fragmentMethod) {
                                                         TLS_FRAGMENTATION_METHOD.TLS_RECORD_FRAGMENTATION -> {
                                                             tlsRecordFragmentation = true
@@ -1774,10 +1793,25 @@ fun buildV2RayConfig(
                                         }
                                     }
                                     val nodeDisorder = bean.fragmentDisorder
-                                    if (DataStore.enableFragment || nodeDisorder) {
+                                    // NextClave hotfix-12: per-node byte-length fragmentation
+                                    // (fm/finalmask) — same as the main path above; the url-test
+                                    // config must fragment exactly like the real one.
+                                    val nodeLengths = bean.fragmentLengths?.trim().orEmpty()
+                                    val nodeDelays = bean.fragmentDelays?.trim().orEmpty()
+                                    val nodeFragment = nodeLengths.isNotEmpty()
+                                    if (DataStore.enableFragment || nodeDisorder || nodeFragment) {
                                         sockopt = StreamSettingsObject.SockoptObject().apply {
                                             tlsFragmentation = StreamSettingsObject.SockoptObject.TLSFragmentationObject().apply {
-                                                if (DataStore.enableFragment) {
+                                                if (nodeFragment) {
+                                                    // fm "tlshello": each fragment becomes its own
+                                                    // TLS record, written as a separate TCP segment
+                                                    tlsRecordFragmentation = true
+                                                    tcpSegmentation = true
+                                                    lengths = nodeLengths.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+                                                    if (nodeDelays.isNotEmpty()) {
+                                                        delays = nodeDelays.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+                                                    }
+                                                } else if (DataStore.enableFragment) {
                                                     when (DataStore.fragmentMethod) {
                                                         TLS_FRAGMENTATION_METHOD.TLS_RECORD_FRAGMENTATION -> {
                                                             tlsRecordFragmentation = true

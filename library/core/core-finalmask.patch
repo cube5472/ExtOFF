@@ -1,0 +1,327 @@
+diff -ruN a/... b/...
+--- a/infra/conf/cfgcommon/socketcfg/socket.go	2026-11-05 19:03:54.286603511 +0000
++++ b/infra/conf/cfgcommon/socketcfg/socket.go	2026-11-05 19:10:53.077395033 +0000
+@@ -1,6 +1,7 @@
+ package socketcfg
+ 
+ import (
++	"strconv"
+ 	"strings"
+ 
+ 	"github.com/exclavenetwork/exclave-core/v5/transport/internet"
+@@ -32,6 +33,16 @@
+ 	// of the ClientHello and cannot match the SNI signature.
+ 	Disorder bool `json:"disorder"`
+ 	TTL      int  `json:"ttl"`
++	// NextClave: byte-length fragmentation specs (the Xray finalmask TCP
++	// "fragment" mask, fm=). Each ClientHello fragment is sized from
++	// Lengths (bytes) and followed by a pause drawn from Delays
++	// (milliseconds); both are Int32Range strings ("10-20"), the last
++	// entry keeps applying to all subsequent fragments. The singular
++	// panel spellings are accepted as well.
++	Length   string   `json:"length"`
++	Lengths  []string `json:"lengths"`
++	Interval string   `json:"interval"`
++	Delays   []string `json:"delays"`
+ }
+ 
+ // Build implements Buildable.
+@@ -99,8 +110,57 @@
+ 			TcpSegmentation:        c.TLSFragmentation.TCPSegmentation,
+ 			Disorder:               c.TLSFragmentation.Disorder,
+ 			Ttl:                    int32(ttl),
++			// NextClave: byte-length fragment specs, flattened from/to pairs
++			Lengths: parseRangeSpecs(c.TLSFragmentation.Length, c.TLSFragmentation.Lengths, 1, 65535),
++			Delays:  parseRangeSpecs(c.TLSFragmentation.Interval, c.TLSFragmentation.Delays, 0, 60000),
+ 		}
+ 	}
+ 
+ 	return config, nil
+ }
++
++// parseRangeSpecs flattens Int32Range strings ("10-20", "50") into from/to
++// pairs, clamped to [minV, maxV]. Unparsable entries are dropped so a bad
++// panel-side mask can never break the whole socket config.
++func parseRangeSpecs(singular string, list []string, minV, maxV int32) []int32 {
++	specs := list
++	if len(specs) == 0 && strings.TrimSpace(singular) != "" {
++		specs = []string{singular}
++	}
++	var out []int32
++	for _, spec := range specs {
++		spec = strings.TrimSpace(spec)
++		if spec == "" {
++			continue
++		}
++		var from, to int64
++		if idx := strings.IndexByte(spec, '-'); idx > 0 {
++			a, err1 := strconv.ParseInt(strings.TrimSpace(spec[:idx]), 10, 32)
++			b, err2 := strconv.ParseInt(strings.TrimSpace(spec[idx+1:]), 10, 32)
++			if err1 != nil || err2 != nil {
++				continue
++			}
++			from, to = a, b
++		} else {
++			v, err := strconv.ParseInt(spec, 10, 32)
++			if err != nil {
++				continue
++			}
++			from, to = v, v
++		}
++		if from < int64(minV) {
++			from = int64(minV)
++		}
++		if to < from {
++			to = from
++		}
++		if to > int64(maxV) {
++			to = int64(maxV)
++		}
++		if from > int64(maxV) {
++			from = int64(maxV)
++		}
++		out = append(out, int32(from), int32(to))
++	}
++	return out
++}
+diff -ruN a/... b/...
+--- a/transport/internet/config.pb.go	2026-11-05 19:03:54.286603511 +0000
++++ b/transport/internet/config.pb.go	2026-11-05 19:10:53.077395033 +0000
+@@ -522,6 +522,12 @@
+ 	// instance cache and would be lost by a Marshal/Unmarshal round trip.
+ 	Disorder      bool  `protobuf:"varint,3,opt,name=disorder,json=disorder,proto3" json:"disorder,omitempty"`
+ 	Ttl           int32 `protobuf:"varint,4,opt,name=ttl,json=ttl,proto3" json:"ttl,omitempty"`
++	// NextClave: internal extension fields for byte-length fragmentation
++	// (flattened Int32Range from/to pairs, see socketcfg.parseRangeSpecs).
++	// Not part of the protobuf schema; transported in memory through the
++	// serial instance cache like Disorder/Ttl above.
++	Lengths       []int32 `protobuf:"varint,5,rep,packed,name=lengths,proto3" json:"lengths,omitempty"`
++	Delays        []int32 `protobuf:"varint,6,rep,packed,name=delays,proto3" json:"delays,omitempty"`
+ 	unknownFields protoimpl.UnknownFields
+ 	sizeCache     protoimpl.SizeCache
+ }
+@@ -584,6 +590,20 @@
+ 	return 0
+ }
+ 
++func (x *TLSFragmentation) GetLengths() []int32 {
++	if x != nil {
++		return x.Lengths
++	}
++	return nil
++}
++
++func (x *TLSFragmentation) GetDelays() []int32 {
++	if x != nil {
++		return x.Delays
++	}
++	return nil
++}
++
+ var File_transport_internet_config_proto protoreflect.FileDescriptor
+ 
+ const file_transport_internet_config_proto_rawDesc = "" +
+diff -ruN a/... b/...
+--- a/transport/internet/dialer.go	2026-11-05 19:03:54.286603511 +0000
++++ b/transport/internet/dialer.go	2026-11-05 19:10:53.077395033 +0000
+@@ -99,7 +99,7 @@
+ 		if err != nil {
+ 			return nil, err
+ 		}
+-		if dest.Network == net.Network_TCP && sockopt != nil && sockopt.TlsFragmentation != nil && (sockopt.TlsFragmentation.TlsRecordFragmentation || sockopt.TlsFragmentation.TcpSegmentation) {
++		if dest.Network == net.Network_TCP && sockopt != nil && sockopt.TlsFragmentation != nil && (sockopt.TlsFragmentation.TlsRecordFragmentation || sockopt.TlsFragmentation.TcpSegmentation || len(sockopt.TlsFragmentation.Lengths) > 0) {
+ 			return tlsfragment.NewTLSFragmentConn(
+ 				context.TODO(),
+ 				detourConn,
+@@ -107,6 +107,8 @@
+ 				sockopt.TlsFragmentation.TcpSegmentation,
+ 				sockopt.TlsFragmentation.Disorder,
+ 				int(sockopt.TlsFragmentation.Ttl),
++				sockopt.TlsFragmentation.Lengths,
++				sockopt.TlsFragmentation.Delays,
+ 			), nil
+ 		}
+ 		return detourConn, nil
+@@ -117,7 +119,7 @@
+ 		return nil, err
+ 	}
+ 	connectionPool := session.ConnectionPoolFromContext(ctx)
+-	if dest.Network == net.Network_TCP && sockopt != nil && sockopt.TlsFragmentation != nil && (sockopt.TlsFragmentation.TlsRecordFragmentation || sockopt.TlsFragmentation.TcpSegmentation) {
++	if dest.Network == net.Network_TCP && sockopt != nil && sockopt.TlsFragmentation != nil && (sockopt.TlsFragmentation.TlsRecordFragmentation || sockopt.TlsFragmentation.TcpSegmentation || len(sockopt.TlsFragmentation.Lengths) > 0) {
+ 		tlsfragmentConn := tlsfragment.NewTLSFragmentConn(
+ 			context.TODO(),
+ 			rawConn,
+@@ -125,6 +127,8 @@
+ 			sockopt.TlsFragmentation.TcpSegmentation,
+ 			sockopt.TlsFragmentation.Disorder,
+ 			int(sockopt.TlsFragmentation.Ttl),
++			sockopt.TlsFragmentation.Lengths,
++			sockopt.TlsFragmentation.Delays,
+ 		)
+ 		if connectionPool != nil {
+ 			return newTrackedConn(tlsfragmentConn, connectionPool), nil
+diff -ruN a/... b/...
+--- a/transport/internet/tlsfragment/tlsfragment.go	2026-11-05 19:03:54.286603511 +0000
++++ b/transport/internet/tlsfragment/tlsfragment.go	2026-11-05 19:10:53.078395040 +0000
+@@ -12,7 +12,7 @@
+ 	"golang.org/x/net/publicsuffix"
+ )
+ 
+-func NewTLSFragmentConn(ctx context.Context, conn net.Conn, splitRecord, splitPacket, disorder bool, ttl int) net.Conn {
++func NewTLSFragmentConn(ctx context.Context, conn net.Conn, splitRecord, splitPacket, disorder bool, ttl int, lengths, delays []int32) net.Conn {
+ 	if ttl <= 0 {
+ 		ttl = 1
+ 	}
+@@ -23,6 +23,8 @@
+ 		splitPacket: splitPacket,
+ 		disorder:    disorder,
+ 		ttl:         ttl,
++		lengths:     lengths,
++		delays:      delays,
+ 	}
+ 	if tcpConn, ok := conn.(*net.TCPConn); ok {
+ 		fragmentConn.tcpConn = tcpConn
+@@ -38,6 +40,8 @@
+ 	splitRecord        bool
+ 	disorder           bool
+ 	ttl                int
++	lengths            []int32
++	delays             []int32
+ 	firstPacketWritten bool
+ }
+ 
+@@ -46,6 +50,17 @@
+ 		return c.Conn.Write(b)
+ 	}
+ 	c.firstPacketWritten = true
++
++	// NextClave: byte-length mode (the Xray finalmask TCP "fragment" mask,
++	// fm=): split the whole ClientHello into fragments of the configured
++	// sizes instead of one random split per SNI DNS label. Takes precedence
++	// over the SNI-label mode whenever length specs are present; the write
++	// must be exactly one TLS record, otherwise fall through.
++	if len(c.lengths) >= 2 && len(b) > recordLayerHeaderLen && b[0] == contentType &&
++		int(binary.BigEndian.Uint16(b[3:recordLayerHeaderLen])) == len(b)-recordLayerHeaderLen {
++		return c.writeByLengths(b)
++	}
++
+ 	serverName := indexTLSServerName(b)
+ 	if serverName == nil {
+ 		return c.Conn.Write(b)
+@@ -283,3 +298,116 @@
+ 	}
+ 	return nil
+ }
++
++// writeByLengths fragments the first TLS record (the ClientHello) into
++// fragments sized from the flattened Int32Range pairs in lengths (bytes),
++// paced by delays (milliseconds); the last entry of each list keeps applying
++// to all subsequent fragments, mirroring the Xray finalmask "fragment" mask.
++// Every fragment is re-encapsulated as its own TLS record (the fm "tlshello"
++// behaviour) and written as a separate TCP segment; each non-final write
++// waits for the ACK like the SNI-label mode does.
++func (c *tlsFragmentConn) writeByLengths(b []byte) (int, error) {
++	if c.tcpConn != nil {
++		c.tcpConn.SetNoDelay(true)
++	}
++	payload := b[recordLayerHeaderLen:]
++	pos := 0
++	for fragIdx := 0; pos < len(payload); fragIdx++ {
++		if fragIdx == 256 {
++			// hard cap: flush the remainder as one final fragment instead of
++			// looping forever on a degenerate (e.g. 1-1) length spec
++			if err := c.writeLengthFragment(b, payload[pos:], fragIdx, true); err != nil {
++				return 0, err
++			}
++			return len(b), nil
++		}
++		from, to := rangeAt(c.lengths, fragIdx)
++		size := int(from)
++		if size < 1 {
++			size = 1
++		}
++		if span := int(to) - int(from); span > 0 {
++			size += rand.Intn(span + 1)
++		}
++		remaining := len(payload) - pos
++		if size > remaining {
++			size = remaining
++		}
++		if err := c.writeLengthFragment(b, payload[pos:pos+size], fragIdx, size == remaining); err != nil {
++			return 0, err
++		}
++		pos += size
++	}
++	return len(b), nil
++}
++
++// writeLengthFragment sends one fragment as its own TLS record (the first
++// three header bytes of the original record plus a per-fragment length, like
++// the splitRecord path). With disorder enabled the very first fragment is
++// sent with a tiny TTL instead, so it dies before reaching DPI and is
++// retransmitted by the kernel with the restored TTL (see the SNI-label
++// disorder mode). Final fragments are written without the ACK wait.
++func (c *tlsFragmentConn) writeLengthFragment(b []byte, frag []byte, fragIdx int, isLast bool) error {
++	var buffer bytes.Buffer
++	buffer.Write(b[:3])
++	binary.Write(&buffer, binary.BigEndian, uint16(len(frag)))
++	buffer.Write(frag)
++
++	fromMs, toMs := rangeAt(c.delays, fragIdx)
++	pauseMs := int(fromMs)
++	if spanMs := int(toMs) - int(fromMs); spanMs > 0 {
++		pauseMs += rand.Intn(spanMs + 1)
++	}
++
++	if !isLast && c.disorder && c.tcpConn != nil && fragIdx == 0 {
++		if restore, ok := setSocketTTL(c.tcpConn, c.ttl); ok {
++			if _, err := c.Conn.Write(buffer.Bytes()); err != nil {
++				restore()
++				return err
++			}
++			// give the dying packet ~10ms to leave the host before the
++			// TTL is restored
++			select {
++			case <-c.ctx.Done():
++				restore()
++				return c.ctx.Err()
++			case <-time.After(10 * time.Millisecond):
++			}
++			restore()
++			select {
++			case <-c.ctx.Done():
++				return c.ctx.Err()
++			case <-time.After(time.Millisecond * time.Duration(pauseMs)):
++			}
++			return nil
++		}
++	}
++
++	if !isLast && c.tcpConn != nil {
++		return writeAndWaitAck(c.ctx, c.tcpConn, buffer.Bytes(), time.Millisecond*time.Duration(pauseMs))
++	}
++	if _, err := c.Conn.Write(buffer.Bytes()); err != nil {
++		return err
++	}
++	if !isLast {
++		select {
++		case <-c.ctx.Done():
++			return c.ctx.Err()
++		case <-time.After(time.Millisecond * time.Duration(pauseMs)):
++		}
++	}
++	return nil
++}
++
++// rangeAt returns the from/to pair at index i; the last pair keeps applying
++// to all subsequent fragments. Missing specs degrade to (0, 0).
++func rangeAt(specs []int32, i int) (int32, int32) {
++	if len(specs) < 2 {
++		return 0, 0
++	}
++	idx := i * 2
++	if idx+1 >= len(specs) {
++		idx = len(specs) - 2
++	}
++	return specs[idx], specs[idx+1]
++}

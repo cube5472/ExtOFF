@@ -461,16 +461,35 @@ fun parseV2Ray(link: String): StandardV2RayBean {
     }
 
     url.queryParameter("fm")?.let { finalmask ->
-        // NextClave: the v2rayNG/Xray "fm" TCP finalmask (byte-length
-        // fragmentation) is no longer a rejection reason. The panel-side
-        // scheme has no counterpart in this mod — fragmentation is done by
-        // the core at the TLS record / TCP segment level (global setting +
-        // per-node NoDPI disorder) — so the mask is simply not applied and
-        // the node imports. Only the kcp mask mapping below is still
-        // honoured, and malformed JSON no longer drops the whole node.
+        // NextClave hotfix-12: the v2rayNG/Xray "fm" TCP finalmask is now
+        // APPLIED, not just tolerated. The Xray TCP "fragment" mask (e.g.
+        // {"type":"fragment","settings":{"length":"10-20","packets":"tlshello",
+        // "interval":"10-20"}}) becomes per-node byte-length fragmentation
+        // (bean.fragmentLengths/fragmentDelays): the core re-encapsulates the
+        // ClientHello into byte-length TLS records, which TSPU-class DPI
+        // currently fails to reassemble — unlike the 2-3 SNI-label splits it
+        // handles with ease. The kcp mask mapping below is still honoured and
+        // malformed JSON no longer drops the whole node.
         try {
             val json = parseJson(finalmask).asJsonObject
             if (!json.isEmpty) {
+                json.getArray("tcp", ignoreCase = true)?.takeIf { it.isNotEmpty() }?.forEach { mask ->
+                    if (mask.getString("type", ignoreCase = true) != "fragment") return@forEach
+                    mask.getObject("settings", ignoreCase = true)?.also { settings ->
+                        val lengths = settings.getString("length", ignoreCase = true)
+                            ?: settings.getStringArray("lengths", ignoreCase = true)
+                                ?.filter { it.isNotBlank() }?.joinToString(",")
+                        val delays = settings.getString("interval", ignoreCase = true)
+                            ?: settings.getStringArray("delays", ignoreCase = true)
+                                ?.filter { it.isNotBlank() }?.joinToString(",")
+                        if (!lengths.isNullOrBlank()) {
+                            bean.fragmentLengths = lengths.trim()
+                            if (!delays.isNullOrBlank()) {
+                                bean.fragmentDelays = delays.trim()
+                            }
+                        }
+                    }
+                }
                 when (bean.type) {
                     "kcp" -> {
                         json.getArray("udp", ignoreCase = true)?.takeIf { it.isNotEmpty() }?.also { udpMasks ->

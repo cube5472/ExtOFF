@@ -82,6 +82,15 @@ public abstract class StandardV2RayBean extends AbstractBean {
     public boolean fragmentDisorder;
     public int fragmentTtl = 1;
 
+    // NextClave hotfix-12: per-node byte-length fragmentation imported from
+    // the panel-side fm/finalmask mask (Xray TCP "fragment", e.g.
+    // {"type":"fragment","settings":{"length":"10-20","packets":"tlshello",
+    // "interval":"10-20"}}): comma-separated Int32Range specs — ClientHello
+    // fragment sizes in bytes and inter-fragment delays in ms. Empty = no
+    // per-node fragmentation; the node then follows the global toggle.
+    public String fragmentLengths = "";
+    public String fragmentDelays = "";
+
     public Long hy2DownMbps;
     public Long hy2UpMbps;
     public String hy2Password;
@@ -185,7 +194,7 @@ public abstract class StandardV2RayBean extends AbstractBean {
 
     @Override
     public void serialize(ByteBufferOutput output) {
-        output.writeInt(41);
+        output.writeInt(42);
         super.serialize(output);
 
         output.writeString(uuid);
@@ -326,6 +335,9 @@ public abstract class StandardV2RayBean extends AbstractBean {
 
         output.writeBoolean(fragmentDisorder);
         output.writeInt(fragmentTtl);
+
+        output.writeString(fragmentLengths);
+        output.writeString(fragmentDelays);
     }
 
     @Override
@@ -597,6 +609,16 @@ public abstract class StandardV2RayBean extends AbstractBean {
             fragmentTtl = input.readInt();
             if (fragmentTtl <= 0) {
                 fragmentTtl = 1;
+            }
+        }
+        if (version >= 42) {
+            fragmentLengths = input.readString();
+            fragmentDelays = input.readString();
+            if (fragmentLengths == null) {
+                fragmentLengths = "";
+            }
+            if (fragmentDelays == null) {
+                fragmentDelays = "";
             }
         }
     }

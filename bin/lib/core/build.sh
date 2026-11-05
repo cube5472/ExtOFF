@@ -33,7 +33,13 @@ if ! unzip -p libexclavecore.aar '*libgojni.so' | grep -aq "setSocketTTL"; then
   unzip -l libexclavecore.aar | grep libgojni >&2 || true
   exit 1
 fi
-echo ">> OK: UrlTest patch + NoDPI disorder verified inside libgojni.so"
+if ! unzip -p libexclavecore.aar '*libgojni.so' | grep -aq "writeByLengths"; then
+  echo ">> FAIL: byte-length finalmask (writeByLengths) NOT found in libgojni.so -" >&2
+  echo ">> core-finalmask.patch was not applied (stage_core_patch.sh). Abort." >&2
+  unzip -l libexclavecore.aar | grep libgojni >&2 || true
+  exit 1
+fi
+echo ">> OK: UrlTest patch + NoDPI disorder + byte-length finalmask verified inside libgojni.so"
 
 mkdir -p "$PROJECT/app/libs"
 cp -f libexclavecore.aar "$PROJECT/app/libs"
