@@ -649,29 +649,12 @@ fun parseV2RayOutbound(outbound: JsonObject): List<AbstractBean> {
                         }
                         else -> return listOf()
                     }
-                    when (v2rayBean.type) {
-                        "tcp", "ws", "grpc", "httpupgrade", "http" -> {
-                            streamSettings.getObject("finalmask")?.also { finalmask ->
-                                // ban Xray TCP finalmask
-                                finalmask.getArray("tcp")?.takeIf { it.isNotEmpty() }?.also {
-                                    return listOf()
-                                }
-                            }
-                        }
-                        "splithttp" -> {
-                            streamSettings.getObject("finalmask")?.also { finalmask ->
-                                // leave it broken, I don't care
-                                // ban Xray TCP finalmask
-                                finalmask.getArray("tcp")?.takeIf { it.isNotEmpty() }?.also {
-                                    return listOf()
-                                }
-                                // ban Xray UDP finalmask
-                                finalmask.getArray("udp")?.takeIf { it.isNotEmpty() }?.also {
-                                    return listOf()
-                                }
-                            }
-                        }
-                    }
+                    // NextClave: Xray "finalmask" (byte-length TCP/UDP
+                    // fragmentation) is tolerated, not rejected — the
+                    // panel-side scheme has no counterpart in this mod, the
+                    // core fragments TLS records / TCP segments itself
+                    // (global setting + per-node NoDPI disorder), so the
+                    // mask is ignored and the node imports.
                 }
             }
             when (proto) {

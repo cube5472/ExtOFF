@@ -461,17 +461,17 @@ fun parseV2Ray(link: String): StandardV2RayBean {
     }
 
     url.queryParameter("fm")?.let { finalmask ->
-        // fuck RPRX
+        // NextClave: the v2rayNG/Xray "fm" TCP finalmask (byte-length
+        // fragmentation) is no longer a rejection reason. The panel-side
+        // scheme has no counterpart in this mod — fragmentation is done by
+        // the core at the TLS record / TCP segment level (global setting +
+        // per-node NoDPI disorder) — so the mask is simply not applied and
+        // the node imports. Only the kcp mask mapping below is still
+        // honoured, and malformed JSON no longer drops the whole node.
         try {
             val json = parseJson(finalmask).asJsonObject
             if (!json.isEmpty) {
                 when (bean.type) {
-                    "tcp", "ws", "grpc", "httpupgrade", "http" -> {
-                        // ban Xray TCP finalmask
-                        json.getArray("tcp", ignoreCase = true)?.takeIf { it.isNotEmpty() }?.also {
-                            error("unsupported")
-                        }
-                    }
                     "kcp" -> {
                         json.getArray("udp", ignoreCase = true)?.takeIf { it.isNotEmpty() }?.also { udpMasks ->
                             if (udpMasks.size !in 1..2) error("unsupported")
@@ -527,21 +527,10 @@ fun parseV2Ray(link: String): StandardV2RayBean {
                             }
                         }
                     }
-                    "splithttp" -> {
-                        // leave it broken, I don't care
-                        // ban Xray TCP finalmask
-                        json.getArray("tcp", ignoreCase = true)?.takeIf { it.isNotEmpty() }?.also {
-                            error("unsupported")
-                        }
-                        // ban Xray UDP finalmask
-                        json.getArray("udp", ignoreCase = true)?.takeIf { it.isNotEmpty() }?.also {
-                            error("unsupported")
-                        }
-                    }
                 }
             }
-        } catch (e: Exception) {
-            throw e
+        } catch (_: Exception) {
+            // NextClave: a malformed finalmask must not cost the whole node
         }
     }
 
