@@ -53,11 +53,15 @@ patch -d core-patched -p1 --forward < "$PATCH_FILE"
 patch -d core-patched -p1 --forward < "$PATCH_FILE2"
 
 # 5. Sanity check: the patched tree must contain the new features.
-grep -q 'func NewTLSFragmentConn(ctx context.Context, conn net.Conn, splitRecord, splitPacket, disorder bool, ttl int, lengths, delays []int32)' \
+#    -F (fixed strings) is REQUIRED here: the signature contains "[]int32",
+#    and a regex grep parses "[" as the start of a bracket expression with
+#    no closing "]" -> "grep: Unmatched [" (exit 2) on every CI run
+#    (hotfix-12 first run, 2026-11-05).
+grep -qF 'func NewTLSFragmentConn(ctx context.Context, conn net.Conn, splitRecord, splitPacket, disorder bool, ttl int, lengths, delays []int32)' \
   core-patched/transport/internet/tlsfragment/tlsfragment.go
-grep -q 'instanceCache' core-patched/common/serial/typed_message.go
-grep -q 'writeByLengths' core-patched/transport/internet/tlsfragment/tlsfragment.go
-grep -q 'parseRangeSpecs' core-patched/infra/conf/cfgcommon/socketcfg/socket.go
+grep -qF 'instanceCache' core-patched/common/serial/typed_message.go
+grep -qF 'writeByLengths' core-patched/transport/internet/tlsfragment/tlsfragment.go
+grep -qF 'parseRangeSpecs' core-patched/infra/conf/cfgcommon/socketcfg/socket.go
 
 # 6. Restore go.mod with the replace directive.
 mv -f go.mod.with-replace go.mod
