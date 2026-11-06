@@ -32,6 +32,7 @@ import android.graphics.drawable.BitmapDrawable
 import android.os.Bundle
 import android.provider.OpenableColumns
 import android.text.TextPaint
+import android.text.format.DateUtils
 import android.view.*
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -43,6 +44,7 @@ import androidx.appcompat.widget.SearchView
 import androidx.appcompat.widget.Toolbar
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.google.android.material.color.MaterialColors
 import androidx.core.view.isGone
 import androidx.core.view.isVisible
 import androidx.core.view.updatePadding
@@ -1256,6 +1258,133 @@ class ConfigurationFragment @JvmOverloads constructor(
 
             }
 
+            // NextClave: Throne-style subscription info card above the list
+            // (quota / expiry / title / announcement from panel metadata).
+            bindSubscriptionInfo()
+
+        }
+
+        // NextClave: Throne's SubscriptionInfoCard. Bound from
+        // proxyGroup.subscription (filled by group/SubscriptionMetadata.kt on
+        // every update); the card hides itself when the tab is not a
+        // subscription or the panel provided no metadata. Refreshed on group
+        // updates through reloadProfiles().
+        fun bindSubscriptionInfo() {
+            val root = view ?: return
+            val card = root.findViewById<View>(R.id.subscription_info_card) ?: return
+            val subscription = proxyGroup.subscription
+            if (subscription == null) {
+                card.isVisible = false
+                return
+            }
+
+            val titleView = root.findViewById<TextView>(R.id.subscription_info_title)
+            val updatedView = root.findViewById<TextView>(R.id.subscription_info_updated)
+            val progressView = root.findViewById<com.google.android.material.progressindicator.LinearProgressIndicator>(R.id.subscription_info_progress)
+            val quotaView = root.findViewById<TextView>(R.id.subscription_info_quota)
+            val expireView = root.findViewById<TextView>(R.id.subscription_info_expire)
+            val announceView = root.findViewById<TextView>(R.id.subscription_info_announce)
+            val context = card.context
+            var hasInfo = false
+
+            // Title: the panel's Profile-Title when provided, else the group name
+            titleView.text = if (!subscription.subTitle.isNullOrEmpty()) {
+                hasInfo = true
+                subscription.subTitle
+            } else {
+                proxyGroup.displayName()
+            }
+
+            if (subscription.lastUpdated > 0L) {
+                hasInfo = true
+                updatedView.text = context.getString(
+                    R.string.subscription_info_updated,
+                    DateUtils.getRelativeTimeSpanString(subscription.lastUpdated * 1000L)
+                )
+                updatedView.isVisible = true
+            } else {
+                updatedView.isVisible = false
+            }
+
+            val used = subscription.bytesUsed
+            val remaining = subscription.bytesRemaining
+            if (used >= 0L || remaining > 0L) {
+                hasInfo = true
+                if (remaining > 0L) {
+                    // Same semantics as the old inline userinfo parser: total = used + remaining
+                    val safeUsed = used.coerceAtLeast(0L)
+                    val total = safeUsed + remaining
+                    val percent = ((safeUsed.toDouble() / total.toDouble()) * 100.0).toInt().coerceIn(0, 100)
+                    quotaView.text = context.getString(
+                        R.string.subscription_info_quota,
+                        FormatFileSizeCompat.formatFileSize(context, safeUsed, DataStore.useIECUnit),
+                        FormatFileSizeCompat.formatFileSize(context, total, DataStore.useIECUnit),
+                        percent
+                    )
+                    quotaView.isVisible = true
+                    progressView.isVisible = true
+                    progressView.setProgressCompat(percent, true)
+                    // Red bar when the quota is nearly exhausted (>= 90%)
+                    progressView.setIndicatorColor(
+                        if (percent >= 90) {
+                            MaterialColors.getColor(progressView, androidx.appcompat.R.attr.colorError)
+                        } else {
+                            MaterialColors.getColor(progressView, R.attr.selectedColorPrimary)
+                        }
+                    )
+                } else {
+                    // no total reported by the panel — used bytes only
+                    quotaView.text = context.getString(
+                        R.string.subscription_used,
+                        FormatFileSizeCompat.formatFileSize(context, used.coerceAtLeast(0L), DataStore.useIECUnit)
+                    )
+                    quotaView.isVisible = true
+                    progressView.isVisible = false
+                }
+            } else {
+                quotaView.isVisible = false
+                progressView.isVisible = false
+            }
+
+            if (subscription.expiryDate > 0L) {
+                hasInfo = true
+                expireView.text = context.getString(
+                    R.string.subscription_expire,
+                    DateUtils.getRelativeTimeSpanString(context, subscription.expiryDate * 1000L)
+                )
+                expireView.isVisible = true
+                // Urgent when <= 3 days left (Throne's SubscriptionInfoCard)
+                val daysLeft = (subscription.expiryDate * 1000L - System.currentTimeMillis()) / 86400000L
+                expireView.setTextColor(
+                    if (daysLeft <= 3) {
+                        MaterialColors.getColor(expireView, androidx.appcompat.R.attr.colorError)
+                    } else {
+                        MaterialColors.getColor(expireView, androidx.appcompat.R.attr.colorControlNormal)
+                    }
+                )
+            } else {
+                expireView.isVisible = false
+            }
+
+            val announce = subscription.announce?.trim().orEmpty()
+            if (announce.isNotEmpty()) {
+                hasInfo = true
+                announceView.isVisible = true
+                announceView.text = announce
+                announceView.setOnClickListener {
+                    if (!isAdded) return@setOnClickListener
+                    MaterialAlertDialogBuilder(requireContext())
+                        .setTitle(R.string.subscription_announce)
+                        .setMessage(announce)
+                        .setPositiveButton(android.R.string.ok, null)
+                        .show()
+                }
+            } else {
+                announceView.isVisible = false
+                announceView.setOnClickListener(null)
+            }
+
+            card.isVisible = hasInfo
         }
 
         override fun onDestroy() {
@@ -1624,6 +1753,10 @@ class ConfigurationFragment @JvmOverloads constructor(
                         layoutManager.scrollToPositionWithOffset(0, 0)
                         scrolled = true
                     }
+
+                    // NextClave: rebind the subscription info card — group
+                    // updates (subscription.lastUpdated / quota) arrive here
+                    bindSubscriptionInfo()
 
                 }
             }

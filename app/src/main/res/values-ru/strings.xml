@@ -53,6 +53,9 @@
     <string name="group_added">Добавлено: \n%s</string>
     <string name="group_delete_confirm_prompt">Удалить эту группу?</string>
     <string name="group_diff">Различия (%s)</string>
+    <!-- NextClave: Throne Surface.Diff — filtered count + huge list collapse -->
+    <string name="group_filtered">Отфильтровано по имени: %d</string>
+    <string name="group_more">… и ещё %d</string>
     <plurals name="group_updated">
         <item quantity="one">%s: обновлен %d прокси</item>
         <item quantity="few">%s: обновлено %d прокси</item>
@@ -123,6 +126,10 @@
     <string name="subscription_import">Импорт подписки</string>
     <string name="subscription_traffic">%s использовано / %s осталось</string>
     <string name="subscription_used">%s использовано</string>
+    <!-- NextClave: Throne SubscriptionInfoCard -->
+    <string name="subscription_info_updated">Обновлено %s</string>
+    <string name="subscription_info_quota">%1$s / %2$s (%3$d%%)</string>
+    <string name="subscription_announce">Объявление</string>
     <string name="subscription_update_message">Обновление %s …</string>
     <string name="subscription_update">Обновление подписки</string>
     <string name="service_subscription">Служба обновления подписки</string>

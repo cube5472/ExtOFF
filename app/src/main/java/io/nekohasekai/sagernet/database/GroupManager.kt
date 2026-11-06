@@ -44,6 +44,22 @@ object GroupManager {
             duplicate: List<String>
         )
 
+        // NextClave: Throne's Surface.Diff — updaters that apply name filters
+        // report how many nodes the filters dropped. Implementors that do not
+        // override this fall back to the plain report; GroupInterfaceAdapter
+        // overrides it to append a "filtered by name: N" line.
+        suspend fun onUpdateSuccess(
+            group: ProxyGroup,
+            changed: Int,
+            added: List<String>,
+            updated: Map<String, String>,
+            deleted: List<String>,
+            duplicate: List<String>,
+            filtered: Int
+        ) {
+            onUpdateSuccess(group, changed, added, updated, deleted, duplicate)
+        }
+
         suspend fun onUpdateFailure(group: ProxyGroup, message: String)
     }
 

@@ -132,6 +132,7 @@ object RawUpdater : GroupUpdater() {
         // editor: "exclude name regex" / "include name regex"). Matching is
         // case-insensitive like Throne's SubscriptionNameFilter; an invalid
         // regex is logged and ignored instead of failing the whole update.
+        var filterDropped = 0
         if (subscription.nameFilter.isNotEmpty()) {
             try {
                 val pattern = Regex(subscription.nameFilter, RegexOption.IGNORE_CASE)
@@ -141,6 +142,7 @@ object RawUpdater : GroupUpdater() {
                 if (dropped > 0) {
                     Logs.i("NextClave: exclude filter '${subscription.nameFilter}' dropped $dropped nodes")
                 }
+                filterDropped += dropped
             } catch (e: Exception) {
                 Logs.w("NextClave: invalid exclude regex '${subscription.nameFilter}' ignored (${e.message})")
             }
@@ -151,6 +153,7 @@ object RawUpdater : GroupUpdater() {
                 val before = proxies.size
                 proxies = proxies.filter { pattern.containsMatchIn(it.displayName()) }
                 Logs.i("NextClave: include filter '${subscription.nameFilter1}' kept ${proxies.size}/$before nodes")
+                filterDropped += before - proxies.size
             } catch (e: Exception) {
                 Logs.w("NextClave: invalid include regex '${subscription.nameFilter1}' ignored (${e.message})")
             }
@@ -266,7 +269,7 @@ object RawUpdater : GroupUpdater() {
         finishUpdate(proxyGroup)
 
         if (byUser && userInterface != null) {
-            userInterface.onUpdateSuccess(proxyGroup, changed, added, updated, deleted, duplicate)
+            userInterface.onUpdateSuccess(proxyGroup, changed, added, updated, deleted, duplicate, filterDropped)
         }
     }
 

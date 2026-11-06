@@ -58,8 +58,18 @@ class GroupInterfaceAdapter(val context: ThemedActivity) : GroupManager.Interfac
         updated: Map<String, String>,
         deleted: List<String>,
         duplicate: List<String>,
+    ) = onUpdateSuccess(group, changed, added, updated, deleted, duplicate, 0)
+
+    override suspend fun onUpdateSuccess(
+        group: ProxyGroup,
+        changed: Int,
+        added: List<String>,
+        updated: Map<String, String>,
+        deleted: List<String>,
+        duplicate: List<String>,
+        filtered: Int,
     ) {
-        if (changed == 0 && duplicate.isEmpty()) {
+        if (changed == 0 && duplicate.isEmpty() && filtered <= 0) {
             onMainDispatcher {
                 context.snackbar(context.getString(R.string.group_no_difference, group.displayName())).show()
             }
@@ -67,24 +77,30 @@ class GroupInterfaceAdapter(val context: ThemedActivity) : GroupManager.Interfac
             var status = context.resources.getQuantityString(R.plurals.group_updated, changed, group.name, changed) + "\n\n"
             if (added.isNotEmpty()) {
                 status += context.getString(
-                        R.string.group_added, added.joinToString("\n", postfix = "\n\n")
-                )
+                        R.string.group_added, names(added)
+                ) + "\n\n"
             }
             if (updated.isNotEmpty()) {
                 status += context.getString(R.string.group_changed,
-                        updated.map { it }.joinToString("\n", postfix = "\n\n") {
+                        names(updated.map {
                             if (it.key == it.value) it.key else "${it.key} => ${it.value}"
                         })
+                ) + "\n\n"
             }
             if (deleted.isNotEmpty()) {
                 status += context.getString(
-                        R.string.group_deleted, deleted.joinToString("\n", postfix = "\n\n")
-                )
+                        R.string.group_deleted, names(deleted)
+                ) + "\n\n"
             }
             if (duplicate.isNotEmpty()) {
                 status += context.getString(
-                        R.string.group_duplicate, duplicate.joinToString("\n", postfix = "\n\n")
-                )
+                        R.string.group_duplicate, names(duplicate)
+                ) + "\n\n"
+            }
+            if (filtered > 0) {
+                // NextClave: Throne's Surface.Diff — nodes dropped by the
+                // include/exclude name regexes are reported, not only logged
+                status += context.getString(R.string.group_filtered, filtered) + "\n\n"
             }
 
             onMainDispatcher {
@@ -95,6 +111,15 @@ class GroupInterfaceAdapter(val context: ThemedActivity) : GroupManager.Interfac
                 ).setMessage(status.trim()).setPositiveButton(android.R.string.ok, null).show()
             }
         }
+    }
+
+    // NextClave: a subscription can carry hundreds of nodes — collapse huge
+    // sections the way Throne does (count line instead of endless names).
+    private fun names(names: List<String>, limit: Int = 30): String {
+        val shown = names.take(limit).joinToString("\n")
+        return if (names.size > limit) {
+            shown + "\n" + context.getString(R.string.group_more, names.size - limit)
+        } else shown
     }
 
     override suspend fun onUpdateFailure(group: ProxyGroup, message: String) {

@@ -1,17 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
-<com.simplecityapps.recyclerview_fastscroll.views.FastScrollRecyclerView xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- NextClave: the list root is wrapped in a vertical LinearLayout so the
+     Throne-style subscription info card can sit above the profile list.
+     The RecyclerView keeps its id (configuration_list); all existing code
+     (layout manager, insets listener, fast scroll) is unaffected. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/configuration_list"
-    android:clipToPadding="false"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:paddingLeft="4dp"
-    android:paddingTop="4dp"
-    android:paddingRight="4dp"
-    android:paddingBottom="64dp"
-    android:scrollbarSize="0dp"
-    app:fastScrollAutoHide="true"
-    app:fastScrollThumbColor="?colorPrimary"
-    app:fastScrollThumbInactiveColor="?colorPrimary"
-    tools:listitem="@layout/layout_profile" />
+    android:orientation="vertical">
+
+    <include
+        layout="@layout/layout_subscription_info" />
+
+    <com.simplecityapps.recyclerview_fastscroll.views.FastScrollRecyclerView
+        android:id="@+id/configuration_list"
+        android:clipToPadding="false"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:paddingLeft="4dp"
+        android:paddingTop="4dp"
+        android:paddingRight="4dp"
+        android:paddingBottom="64dp"
+        android:scrollbarSize="0dp"
+        app:fastScrollAutoHide="true"
+        app:fastScrollThumbColor="?colorPrimary"
+        app:fastScrollThumbInactiveColor="?colorPrimary"
+        tools:listitem="@layout/layout_profile" />
+</LinearLayout>

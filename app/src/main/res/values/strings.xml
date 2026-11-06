@@ -42,6 +42,9 @@
     <string name="group_changed">Updated: \n%s</string>
     <string name="group_deleted">Deleted: \n%s</string>
     <string name="group_duplicate">Duplicate: \n%s</string>
+    <!-- NextClave: Throne Surface.Diff — filtered count + huge list collapse -->
+    <string name="group_filtered">Filtered by name: %d</string>
+    <string name="group_more">… and %d more</string>
     <!-- misc -->
     <string name="service_mode">Service mode</string>
     <string name="service_mode_proxy">Proxy only</string>
@@ -356,6 +359,10 @@
     <string name="subscription_update_message">Updating %s …</string>
     <string name="subscription_used">%s used</string>
     <string name="subscription_traffic">%s used / %s remaining</string>
+    <!-- NextClave: Throne SubscriptionInfoCard -->
+    <string name="subscription_info_updated">Updated %s</string>
+    <string name="subscription_info_quota">%1$s / %2$s (%3$d%%)</string>
+    <string name="subscription_announce">Announcement</string>
     <string name="subscription_import">Import subscription</string>
     <string name="subscription_import_message">Are you sure you want to import subscription %s? If the source is not trustworthy, your IP and behavior will be leaked.</string>
     <string name="profile_import">Import profile</string>
