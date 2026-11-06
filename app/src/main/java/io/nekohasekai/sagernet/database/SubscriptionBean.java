@@ -49,12 +49,18 @@ public class SubscriptionBean extends Serializable {
     public Integer spoofClient;
     public String spoofHwid;
 
+    // NextClave: panel metadata (Throne's SubscriptionMetadata) — Profile-Title,
+    // Announce and profile-update-interval (hours, 0 = none), see RawUpdater.
+    public String subTitle;
+    public String announce;
+    public Integer serverInterval;
+
     public SubscriptionBean() {
     }
 
     @Override
     public void serializeToBuffer(ByteBufferOutput output) {
-        output.writeInt(10);
+        output.writeInt(11);
         output.writeInt(type);
         output.writeString(link);
         output.writeBoolean(deduplication);
@@ -72,6 +78,9 @@ public class SubscriptionBean extends Serializable {
         output.writeString(agePrivateKey);
         output.writeInt(spoofClient);
         output.writeString(spoofHwid);
+        output.writeString(subTitle);
+        output.writeString(announce);
+        output.writeInt(serverInterval);
     }
 
     public void serializeForShare(ByteBufferOutput output) {
@@ -169,6 +178,12 @@ public class SubscriptionBean extends Serializable {
             spoofClient = input.readInt();
             spoofHwid = input.readString();
         }
+
+        if (version >= 11) {
+            subTitle = input.readString();
+            announce = input.readString();
+            serverInterval = input.readInt();
+        }
     }
 
     public void deserializeFromShare(ByteBufferInput input) {
@@ -257,6 +272,9 @@ public class SubscriptionBean extends Serializable {
         if (agePrivateKey == null) agePrivateKey = "";
         if (spoofClient == null) spoofClient = 0;
         if (spoofHwid == null) spoofHwid = "";
+        if (subTitle == null) subTitle = "";
+        if (announce == null) announce = "";
+        if (serverInterval == null) serverInterval = 0;
     }
 
     public static final Creator<SubscriptionBean> CREATOR = new CREATOR<>() {

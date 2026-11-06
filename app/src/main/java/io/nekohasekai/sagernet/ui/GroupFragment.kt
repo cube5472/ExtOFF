@@ -532,6 +532,12 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
             if (group.type == GroupType.SUBSCRIPTION) {
                 val subscription = group.subscription!!
                 val text = mutableListOf<String>()
+                // NextClave: panel metadata (Profile-Title / Announce, Throne's
+                // SubscriptionMetadata) — the title the panel gives this
+                // subscription and its announcement, when provided
+                if (!subscription.subTitle.isNullOrEmpty()) {
+                    text.add(subscription.subTitle)
+                }
                 if (subscription.bytesUsed > 0L || subscription.bytesRemaining > 0L) {
                     text.add(if (subscription.bytesRemaining > 0L) {
                         getString(
@@ -558,6 +564,11 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
                             .replace("^上午(([1-9]|1[0-2]):([0-5][0-9]))+".toRegex(), "上午 $1")
                             .replace("^下午(([1-9]|1[0-2]):([0-5][0-9]))+".toRegex(), "下午 $1")
                     ))
+                }
+                if (!subscription.announce.isNullOrEmpty()) {
+                    // keep the header compact — the full text goes to the log
+                    val announce = subscription.announce!!.trim()
+                    text.add(if (announce.length > 200) announce.take(200) + "…" else announce)
                 }
                 if (text.isNotEmpty()) {
                     groupTraffic.isVisible = true

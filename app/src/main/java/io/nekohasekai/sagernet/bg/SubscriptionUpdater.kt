@@ -40,6 +40,16 @@ object SubscriptionUpdater {
 
     private const val WORK_NAME = "SubscriptionUpdater"
 
+    // NextClave: a panel-provided profile-update-interval (hours, Throne's
+    // serverInterval) overrides the user's own delay for auto updates.
+    private fun effectiveDelayMinutes(subscription: io.nekohasekai.sagernet.database.SubscriptionBean): Long {
+        return if ((subscription.serverInterval ?: 0) > 0) {
+            (subscription.serverInterval ?: 0) * 60L
+        } else {
+            subscription.autoUpdateDelay.toLong()
+        }
+    }
+
     suspend fun reconfigureUpdater() {
         RemoteWorkManager.getInstance(app).cancelUniqueWork(WORK_NAME)
 
@@ -48,7 +58,8 @@ object SubscriptionUpdater {
         if (subscriptions.isEmpty()) return
 
         // PeriodicWorkRequest.MIN_PERIODIC_INTERVAL_MILLIS
-        var minDelay = subscriptions.minByOrNull { it.subscription!!.autoUpdateDelay }!!.subscription!!.autoUpdateDelay.toLong()
+        var minDelay = subscriptions.minByOrNull { effectiveDelayMinutes(it.subscription!!) }!!
+            .let { effectiveDelayMinutes(it.subscription!!) }
         val now = System.currentTimeMillis() / 1000L
         var minInitDelay = subscriptions.minOf { now - it.subscription!!.lastUpdated - (minDelay * 60) }
         if (minDelay < 15) minDelay = 15
@@ -88,7 +99,9 @@ object SubscriptionUpdater {
             if (subscriptions.isNotEmpty()) for (profile in subscriptions) {
                 val subscription = profile.subscription!!
 
-                if (((System.currentTimeMillis() / 1000).toInt() - subscription.lastUpdated) < subscription.autoUpdateDelay * 60) {
+                // NextClave: the panel's update interval wins over the user's
+                // delay when the panel provides profile-update-interval
+                if (((System.currentTimeMillis() / 1000).toInt() - subscription.lastUpdated) < effectiveDelayMinutes(subscription) * 60) {
                     continue
                 }
 

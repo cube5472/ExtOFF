@@ -513,6 +513,13 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     var subscriptionExpiryDate by profileCacheStore.long(Key.SUBSCRIPTION_EXPIRY_DATE)
     var subscriptionNameFilter by profileCacheStore.string(Key.SUBSCRIPTION_NAME_FILTER)
     var subscriptionNameFilter1 by profileCacheStore.string(Key.SUBSCRIPTION_NAME_FILTER1)
+
+    // NextClave: panel metadata round-trips through the editor via these
+    // (GroupSettingsActivity rebuilds the SubscriptionBean on save)
+    var subscriptionSubTitle by profileCacheStore.string(Key.SUBSCRIPTION_SUB_TITLE)
+    var subscriptionAnnounce by profileCacheStore.string(Key.SUBSCRIPTION_ANNOUNCE)
+    var subscriptionServerInterval by profileCacheStore.int(Key.SUBSCRIPTION_SERVER_INTERVAL)
+
     var subscriptionHTTPHeaders by profileCacheStore.string(Key.SUBSCRIPTION_HTTP_HEADERS)
     var subscriptionAgePrivateKey by profileCacheStore.string(Key.SUBSCRIPTION_AGE_PRIVATE_KEY)
     var subscriptionSpoofClient by profileCacheStore.stringToInt(Key.SUBSCRIPTION_SPOOF_CLIENT)

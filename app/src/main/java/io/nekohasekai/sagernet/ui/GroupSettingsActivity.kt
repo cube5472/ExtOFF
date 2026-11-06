@@ -97,6 +97,11 @@ class GroupSettingsActivity(
         DataStore.subscriptionExpiryDate = sub.expiryDate
         DataStore.subscriptionNameFilter = sub.nameFilter
         DataStore.subscriptionNameFilter1 = sub.nameFilter1
+        // NextClave: panel metadata round-trips through the editor (the bean is
+        // rebuilt on save, so anything not carried here would be wiped)
+        DataStore.subscriptionSubTitle = sub.subTitle
+        DataStore.subscriptionAnnounce = sub.announce
+        DataStore.subscriptionServerInterval = sub.serverInterval ?: 0
         DataStore.subscriptionHTTPHeaders = sub.httpHeaders
         DataStore.subscriptionAgePrivateKey = sub.agePrivateKey
         DataStore.subscriptionSpoofClient = sub.spoofClient ?: 0
@@ -133,6 +138,9 @@ class GroupSettingsActivity(
                 expiryDate = DataStore.subscriptionExpiryDate
                 nameFilter = DataStore.subscriptionNameFilter
                 nameFilter1 = DataStore.subscriptionNameFilter1
+                subTitle = DataStore.subscriptionSubTitle
+                announce = DataStore.subscriptionAnnounce
+                serverInterval = DataStore.subscriptionServerInterval
                 httpHeaders = DataStore.subscriptionHTTPHeaders
                 agePrivateKey = DataStore.subscriptionAgePrivateKey
                 spoofClient = DataStore.subscriptionSpoofClient
@@ -249,6 +257,12 @@ class GroupSettingsActivity(
         val subscriptionAutoUpdate = findPreference<SwitchPreference>(Key.SUBSCRIPTION_AUTO_UPDATE)!!
         val subscriptionAutoUpdateDelay = findPreference<EditTextPreference>(Key.SUBSCRIPTION_AUTO_UPDATE_DELAY)!!
         subscriptionAutoUpdateDelay.isEnabled = subscriptionAutoUpdate.isChecked
+        // NextClave: the panel itself requests an update interval
+        // (profile-update-interval) — it wins over the delay configured here
+        if (DataStore.subscriptionServerInterval > 0) {
+            subscriptionAutoUpdateDelay.summary =
+                getString(R.string.subscription_server_interval_tip, DataStore.subscriptionServerInterval)
+        }
         subscriptionAutoUpdateDelay.setOnPreferenceChangeListener { _, newValue ->
             newValue as String
             newValue.toIntOrNull() != null && newValue.toInt() >= 15

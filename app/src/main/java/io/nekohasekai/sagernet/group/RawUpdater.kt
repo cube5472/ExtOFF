@@ -72,6 +72,11 @@ object RawUpdater : GroupUpdater() {
             if (contentText != null) {
                 ClashRules.onSubscriptionContent(contentText)
             }
+            // NextClave: panel metadata from the body's `#key: value` comments
+            // (no response headers exist for a content:// link)
+            if (contentText != null) {
+                applyMetadata(SubscriptionMetadata.read({ "" }, contentText), subscription)
+            }
             proxies = contentText?.let { parseRaw(contentText) }
                 ?: error(app.getString(R.string.no_proxies_found_in_subscription))
         } else {
@@ -114,54 +119,41 @@ object RawUpdater : GroupUpdater() {
             proxies = parseRaw(response.contentString)
                 ?: error(app.getString(R.string.no_proxies_found))
 
-            val subscriptionUserinfo = response.getHeader("Subscription-Userinfo")
-            if (subscriptionUserinfo.isNotEmpty()) {
-                fun get(regex: String): String? {
-                    return regex.toRegex().findAll(subscriptionUserinfo).mapNotNull {
-                        if (it.groupValues.size > 1) it.groupValues[1] else null
-                    }.firstOrNull()
-                }
-                var used = 0L
-                try {
-                    val upload = get("upload=([0-9]+)")?.toLong() ?: -1L
-                    if (upload > 0L) {
-                        used += upload
-                    }
-                    val download = get("download=([0-9]+)")?.toLong() ?: -1L
-                    if (download > 0L) {
-                        used += download
-                    }
-                    val total = get("total=([0-9]+)")?.toLong() ?: -1L
-                    subscription.apply {
-                        if (upload > 0L || download > 0L) {
-                            bytesUsed = used
-                            bytesRemaining = if (total > 0L) total - used else -1L
-                        } else {
-                            bytesUsed = -1L
-                            bytesRemaining = -1L
-                        }
-                        expiryDate = get("expire=([0-9]+)")?.toLong() ?: -1L
-                    }
-                } catch (_: Exception) {
-                }
-            } else {
-                subscription.apply {
-                    bytesUsed = -1L
-                    bytesRemaining = -1L
-                    expiryDate = -1L
-                }
-            }
+            // NextClave: panel metadata (Throne's SubscriptionMetadata) —
+            // Subscription-UserInfo quota/expiry, Profile-Title, Announce and
+            // profile-update-interval headers, then the body's leading
+            // `#key: value` comment lines for whatever the headers left out
+            applyMetadata(SubscriptionMetadata.read(response::getHeader, response.contentString), subscription)
         }
 
         proxies.forEach { it.applyDefaultValues() }
 
+        // NextClave: Throne-style include/exclude name filters (subscription
+        // editor: "exclude name regex" / "include name regex"). Matching is
+        // case-insensitive like Throne's SubscriptionNameFilter; an invalid
+        // regex is logged and ignored instead of failing the whole update.
         if (subscription.nameFilter.isNotEmpty()) {
-            val pattern = Regex(subscription.nameFilter)
-            proxies = proxies.filter { !pattern.containsMatchIn(it.name) }
+            try {
+                val pattern = Regex(subscription.nameFilter, RegexOption.IGNORE_CASE)
+                val before = proxies.size
+                proxies = proxies.filter { !pattern.containsMatchIn(it.displayName()) }
+                val dropped = before - proxies.size
+                if (dropped > 0) {
+                    Logs.i("NextClave: exclude filter '${subscription.nameFilter}' dropped $dropped nodes")
+                }
+            } catch (e: Exception) {
+                Logs.w("NextClave: invalid exclude regex '${subscription.nameFilter}' ignored (${e.message})")
+            }
         }
         if (subscription.nameFilter1.isNotEmpty()) {
-            val pattern = Regex(subscription.nameFilter1)
-            proxies = proxies.filter { pattern.containsMatchIn(it.name) }
+            try {
+                val pattern = Regex(subscription.nameFilter1, RegexOption.IGNORE_CASE)
+                val before = proxies.size
+                proxies = proxies.filter { pattern.containsMatchIn(it.displayName()) }
+                Logs.i("NextClave: include filter '${subscription.nameFilter1}' kept ${proxies.size}/$before nodes")
+            } catch (e: Exception) {
+                Logs.w("NextClave: invalid include regex '${subscription.nameFilter1}' ignored (${e.message})")
+            }
         }
 
         val proxiesMap = LinkedHashMap<String, AbstractBean>()
@@ -275,6 +267,35 @@ object RawUpdater : GroupUpdater() {
 
         if (byUser && userInterface != null) {
             userInterface.onUpdateSuccess(proxyGroup, changed, added, updated, deleted, duplicate)
+        }
+    }
+
+    // NextClave: store what the panel said about itself into the subscription
+    // bean. The quota semantics match the previous inline parser: traffic is
+    // tracked when upload or download is present, remaining = total - used
+    // when the panel reports a total; -1 = unknown.
+    private fun applyMetadata(info: SubscriptionMetadata.Info, subscription: SubscriptionBean) {
+        subscription.apply {
+            if (info.upload > 0 || info.download > 0) {
+                val used = maxOf(info.upload, 0L) + maxOf(info.download, 0L)
+                bytesUsed = used
+                bytesRemaining = if (info.total > 0) info.total - used else -1L
+            } else {
+                bytesUsed = -1L
+                bytesRemaining = -1L
+            }
+            expiryDate = info.expire
+            subTitle = info.title
+            announce = info.announce
+            serverInterval = info.serverInterval
+        }
+        val parts = mutableListOf<String>()
+        if (info.title.isNotEmpty()) parts.add("title='${info.title}'")
+        if (info.announce.isNotEmpty()) parts.add("announce=${info.announce.length} chars")
+        if (info.serverInterval > 0) parts.add("update-interval=${info.serverInterval}h")
+        if (info.hasQuota) parts.add("quota present")
+        if (parts.isNotEmpty()) {
+            Logs.i("NextClave: subscription metadata: " + parts.joinToString(", "))
         }
     }
 

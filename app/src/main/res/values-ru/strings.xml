@@ -455,6 +455,7 @@
     <string name="stun_legacy_test_summary">Определение типа NAT клиента, определенный в RFC 3489, с помощью STUN.</string>
     <string name="nat_external_address">Внешний адрес</string>
     <string name="subscription_expire">Истекает: %s</string>
+    <string name="subscription_server_interval_tip">Панель запрашивает обновление каждые %1$d ч — это перекрывает интервал выше</string>
     <string name="show_group_name_in_notification">Имя группы в уведомлении</string>
     <string name="remote_dns_query_strategy">Стратегия удаленного DNS</string>
     <string name="direct_dns_query_strategy">Стратегия прямого DNS</string>
