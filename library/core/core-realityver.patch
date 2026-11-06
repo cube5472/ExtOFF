@@ -1,0 +1,43 @@
+--- a/transport/internet/reality/uclient.go
++++ b/transport/internet/reality/uclient.go
+@@ -28,6 +28,16 @@
+ 	"github.com/exclavenetwork/exclave-core/v5/common/net"
+ )
+ 
++// realityClientVersion is the REALITY protocol client version marker written
++// into the encrypted session_id (Version_x/y/z) and reported to the server.
++// It MUST track the current Xray core release: panel servers reject clients
++// whose version bytes are older than their configured minimum, which makes
++// every REALITY handshake fall back to the camouflage site ("REALITY:
++// processed invalid connection"). hotfix-14: the value was frozen at 25.5.16
++// (the May 2025 Xray release) and got rejected by up-to-date panels;
++// 26.10.31 matches the current Xray release.
++var realityClientVersion = [3]byte{26, 10, 31}
++
+ type UConn struct {
+ 	*utls.UConn
+ 	serverName          string
+@@ -148,9 +158,9 @@
+ 	hello := uConn.HandshakeState.Hello
+ 	hello.SessionId = make([]byte, 32)
+ 	copy(hello.Raw[39:], hello.SessionId) // the fixed location of `Session ID`
+-	hello.SessionId[0] = 25               // Version_x
+-	hello.SessionId[1] = 5                // Version_y
+-	hello.SessionId[2] = 16               // Version_z
++	hello.SessionId[0] = realityClientVersion[0] // Version_x
++	hello.SessionId[1] = realityClientVersion[1] // Version_y
++	hello.SessionId[2] = realityClientVersion[2] // Version_z
+ 	hello.SessionId[3] = 0                // reserved
+ 	binary.BigEndian.PutUint32(hello.SessionId[4:], uint32(time.Now().Unix()))
+ 	copy(hello.SessionId[8:], config.ShortId)
+--- a/transport/internet/reality/client.go
++++ b/transport/internet/reality/client.go
+@@ -52,7 +52,7 @@
+ 		RealityClientConfig: reality.RealityClientConfig{
+ 			PublicKey:     config.PublicKey,
+ 			ShortId:       [8]byte(config.ShortId),
+-			ClientVersion: [3]byte{25, 5, 16},
++			ClientVersion: realityClientVersion, // keep in sync with the current Xray release
+ 		},
+ 		VerifyConnection: func(state reality.ConnectionState) error {
+ 			if publicKey, ok := state.PeerCertificates[0].PublicKey.(ed25519.PublicKey); ok {

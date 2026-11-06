@@ -21,6 +21,17 @@ if [ ! -f "$PATCH_FILE2" ]; then
   echo "ERROR: $PATCH_FILE2 not found" >&2
   exit 1
 fi
+# hotfix-14: the REALITY client reported a frozen Xray version (25.5.16,
+# May 2025) in the encrypted session_id; up-to-date panel servers reject
+# such clients with a min-version check and every REALITY handshake fell
+# back to the camouflage site ("REALITY: processed invalid connection",
+# 100% dead nodes while NekoBox/Xray worked). This patch tracks the client
+# version marker to the current Xray release (26.10.31).
+PATCH_FILE3="core-realityver.patch"
+if [ ! -f "$PATCH_FILE3" ]; then
+  echo "ERROR: $PATCH_FILE3 not found" >&2
+  exit 1
+fi
 
 # 1. Temporarily strip the replace directive so `go mod download` fetches the
 #    pinned upstream module into the module cache.
@@ -51,6 +62,7 @@ chmod -R u+w core-patched
 # 4. Apply the patches. Any failure must abort the build.
 patch -d core-patched -p1 --forward < "$PATCH_FILE"
 patch -d core-patched -p1 --forward < "$PATCH_FILE2"
+patch -d core-patched -p1 --forward < "$PATCH_FILE3"
 
 # 5. Sanity check: the patched tree must contain the new features.
 #    -F (fixed strings) is REQUIRED here: the signature contains "[]int32",
@@ -62,9 +74,11 @@ grep -qF 'func NewTLSFragmentConn(ctx context.Context, conn net.Conn, splitRecor
 grep -qF 'instanceCache' core-patched/common/serial/typed_message.go
 grep -qF 'writeByLengths' core-patched/transport/internet/tlsfragment/tlsfragment.go
 grep -qF 'parseRangeSpecs' core-patched/infra/conf/cfgcommon/socketcfg/socket.go
+grep -qF 'var realityClientVersion = [3]byte{26, 10, 31}' core-patched/transport/internet/reality/uclient.go
+grep -qF 'ClientVersion: realityClientVersion' core-patched/transport/internet/reality/client.go
 
 # 6. Restore go.mod with the replace directive.
 mv -f go.mod.with-replace go.mod
 trap - EXIT
 
-echo ">> core-patched ready (disorder + byte-length finalmask enabled)"
+echo ">> core-patched ready (disorder + byte-length finalmask + reality client version fix)"
