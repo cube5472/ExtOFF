@@ -1,6 +1,6 @@
-diff -ruN a/... b/...
---- a/infra/conf/cfgcommon/socketcfg/socket.go	2026-11-05 19:03:54.286603511 +0000
-+++ b/infra/conf/cfgcommon/socketcfg/socket.go	2026-11-05 19:10:53.077395033 +0000
+diff -ruN a/infra/conf/cfgcommon/socketcfg/socket.go b/infra/conf/cfgcommon/socketcfg/socket.go
+--- a/infra/conf/cfgcommon/socketcfg/socket.go	2026-11-06 01:35:01.204803949 +0000
++++ b/infra/conf/cfgcommon/socketcfg/socket.go	2026-11-06 01:35:01.250804000 +0000
 @@ -1,6 +1,7 @@
  package socketcfg
  
@@ -84,9 +84,9 @@ diff -ruN a/... b/...
 +	}
 +	return out
 +}
-diff -ruN a/... b/...
---- a/transport/internet/config.pb.go	2026-11-05 19:03:54.286603511 +0000
-+++ b/transport/internet/config.pb.go	2026-11-05 19:10:53.077395033 +0000
+diff -ruN a/transport/internet/config.pb.go b/transport/internet/config.pb.go
+--- a/transport/internet/config.pb.go	2026-11-06 01:35:01.204803949 +0000
++++ b/transport/internet/config.pb.go	2026-11-06 01:35:01.250804000 +0000
 @@ -522,6 +522,12 @@
  	// instance cache and would be lost by a Marshal/Unmarshal round trip.
  	Disorder      bool  `protobuf:"varint,3,opt,name=disorder,json=disorder,proto3" json:"disorder,omitempty"`
@@ -121,9 +121,9 @@ diff -ruN a/... b/...
  var File_transport_internet_config_proto protoreflect.FileDescriptor
  
  const file_transport_internet_config_proto_rawDesc = "" +
-diff -ruN a/... b/...
---- a/transport/internet/dialer.go	2026-11-05 19:03:54.286603511 +0000
-+++ b/transport/internet/dialer.go	2026-11-05 19:10:53.077395033 +0000
+diff -ruN a/transport/internet/dialer.go b/transport/internet/dialer.go
+--- a/transport/internet/dialer.go	2026-11-06 01:35:01.204803949 +0000
++++ b/transport/internet/dialer.go	2026-11-06 01:35:01.250804000 +0000
 @@ -99,7 +99,7 @@
  		if err != nil {
  			return nil, err
@@ -160,9 +160,9 @@ diff -ruN a/... b/...
  		)
  		if connectionPool != nil {
  			return newTrackedConn(tlsfragmentConn, connectionPool), nil
-diff -ruN a/... b/...
---- a/transport/internet/tlsfragment/tlsfragment.go	2026-11-05 19:03:54.286603511 +0000
-+++ b/transport/internet/tlsfragment/tlsfragment.go	2026-11-05 19:10:53.078395040 +0000
+diff -ruN a/transport/internet/tlsfragment/tlsfragment.go b/transport/internet/tlsfragment/tlsfragment.go
+--- a/transport/internet/tlsfragment/tlsfragment.go	2026-11-06 01:35:01.204803949 +0000
++++ b/transport/internet/tlsfragment/tlsfragment.go	2026-11-06 01:36:33.098922364 +0000
 @@ -12,7 +12,7 @@
  	"golang.org/x/net/publicsuffix"
  )
@@ -208,7 +208,7 @@ diff -ruN a/... b/...
  	serverName := indexTLSServerName(b)
  	if serverName == nil {
  		return c.Conn.Write(b)
-@@ -283,3 +298,116 @@
+@@ -283,3 +298,133 @@
  	}
  	return nil
  }
@@ -218,8 +218,9 @@ diff -ruN a/... b/...
 +// paced by delays (milliseconds); the last entry of each list keeps applying
 +// to all subsequent fragments, mirroring the Xray finalmask "fragment" mask.
 +// Every fragment is re-encapsulated as its own TLS record (the fm "tlshello"
-+// behaviour) and written as a separate TCP segment; each non-final write
-+// waits for the ACK like the SNI-label mode does.
++// behaviour) and written as a separate TCP segment; non-final writes are
++// paced by the inter-fragment delay only - no per-fragment ACK wait
++// (hotfix-13, Xray fm semantics).
 +func (c *tlsFragmentConn) writeByLengths(b []byte) (int, error) {
 +	if c.tcpConn != nil {
 +		c.tcpConn.SetNoDelay(true)
@@ -260,7 +261,8 @@ diff -ruN a/... b/...
 +// the splitRecord path). With disorder enabled the very first fragment is
 +// sent with a tiny TTL instead, so it dies before reaching DPI and is
 +// retransmitted by the kernel with the restored TTL (see the SNI-label
-+// disorder mode). Final fragments are written without the ACK wait.
++// disorder mode). Writes are paced by the inter-fragment delay; there is
++// no per-fragment ACK wait (hotfix-13).
 +func (c *tlsFragmentConn) writeLengthFragment(b []byte, frag []byte, fragIdx int, isLast bool) error {
 +	var buffer bytes.Buffer
 +	buffer.Write(b[:3])
@@ -298,7 +300,22 @@ diff -ruN a/... b/...
 +	}
 +
 +	if !isLast && c.tcpConn != nil {
-+		return writeAndWaitAck(c.ctx, c.tcpConn, buffer.Bytes(), time.Millisecond*time.Duration(pauseMs))
++		// hotfix-13: Xray fm semantics - paced writes WITHOUT the ACK wait.
++		// writeAndWaitAck polls TCP_INFO until every byte of the fragment
++		// is ACKed; with 30-40 byte-sized fragments that adds roughly one
++		// RTT per fragment (2-4 s on high-latency RU links), blowing
++		// url-test budgets and marking healthy fm nodes dead. TCP_NODELAY
++		// is already set and the inter-fragment pause (10-20 ms) lets
++		// every fragment leave the host as its own TCP segment.
++		if _, err := c.Conn.Write(buffer.Bytes()); err != nil {
++			return err
++		}
++		select {
++		case <-c.ctx.Done():
++			return c.ctx.Err()
++		case <-time.After(time.Millisecond * time.Duration(pauseMs)):
++		}
++		return nil
 +	}
 +	if _, err := c.Conn.Write(buffer.Bytes()); err != nil {
 +		return err

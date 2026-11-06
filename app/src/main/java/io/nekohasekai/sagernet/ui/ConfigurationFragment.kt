@@ -800,8 +800,12 @@ class ConfigurationFragment @JvmOverloads constructor(
             // NextClave hotfix-12: a fragmented ClientHello (fm/tlshello
             // byte-length records or disorder) needs 1-3 s for the handshake
             // alone; the 1500 ms default predates fragmentation and marked
-            // healthy fm nodes dead. Floor the group test budget at 5000 ms.
-            val timeout = maxOf(DataStore.urlTestTimeout.coerceIn(100, 60000), 5000)
+            // healthy fm nodes dead.
+            // NextClave hotfix-13: 5000 ms proved tight on high-RTT links
+            // (RU -> EU: fragmented CH + TLS inside the tunnel + HTTP round
+            // trip fits in 5 s only on a good day) - floor the group test
+            // budget at 8000 ms.
+            val timeout = maxOf(DataStore.urlTestTimeout.coerceIn(100, 60000), 8000)
             // NextClave: worker count is adjustable in Settings (default 3);
             // every run logs its parameters and per-node results to logcat
             // (visible in the built-in log viewer) so latency issues can be
@@ -1595,9 +1599,10 @@ class ConfigurationFragment @JvmOverloads constructor(
 
             runOnDefaultDispatcher {
                 val link = DataStore.connectionTestURL
-                // NextClave hotfix-12: same 5000 ms floor as the group test —
-                // fragmented handshakes do not fit into 1500 ms.
-                val timeout = maxOf(DataStore.urlTestTimeout.coerceIn(100, 60000), 5000)
+                // NextClave hotfix-12/13: same 8000 ms floor as the group
+                // test — fragmented handshakes do not fit into 1500 ms and
+                // the full chain barely fits into 5000 ms on high-RTT links.
+                val timeout = maxOf(DataStore.urlTestTimeout.coerceIn(100, 60000), 8000)
                 Logs.i("NextClave urltest: single node \"${profile.displayName()}\" " +
                         "timeout=${timeout}ms url=$link vpn=${SagerNet.started && DataStore.startedProfile > 0}")
                 if (::adapter.isInitialized) {
