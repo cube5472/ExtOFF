@@ -1796,8 +1796,14 @@ fun buildV2RayConfig(
                                     // NextClave hotfix-12: per-node byte-length fragmentation
                                     // (fm/finalmask) — same as the main path above; the url-test
                                     // config must fragment exactly like the real one.
-                                    val nodeLengths = bean.fragmentLengths?.trim().orEmpty()
-                                    val nodeDelays = bean.fragmentDelays?.trim().orEmpty()
+                                    // hotfix-12a: fm is only ever parsed into StandardV2RayBean
+                                    // subclasses (V2RayFmt / V2RayJSONParser), but this block
+                                    // runs for every TLS bean where bean is the base AnyTLSBean
+                                    // (which has fragmentDisorder but not the fm fields) — narrow
+                                    // the receiver instead of moving fm fields onto the base.
+                                    val sV2Bean = bean as? StandardV2RayBean
+                                    val nodeLengths = sV2Bean?.fragmentLengths?.trim().orEmpty()
+                                    val nodeDelays = sV2Bean?.fragmentDelays?.trim().orEmpty()
                                     val nodeFragment = nodeLengths.isNotEmpty()
                                     if (DataStore.enableFragment || nodeDisorder || nodeFragment) {
                                         sockopt = StreamSettingsObject.SockoptObject().apply {
