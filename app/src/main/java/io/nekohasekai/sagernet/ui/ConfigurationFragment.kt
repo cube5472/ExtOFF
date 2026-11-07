@@ -797,17 +797,15 @@ class ConfigurationFragment @JvmOverloads constructor(
             var finishedProfileCount = 0
 
             val link = DataStore.connectionTestURL
-            // NextClave: timeout (ms) is adjustable in Settings, right below
-            // the worker count; sane range 100..60000, default 1500.
-            // NextClave hotfix-12: a fragmented ClientHello (fm/tlshello
-            // byte-length records or disorder) needs 1-3 s for the handshake
-            // alone; the 1500 ms default predates fragmentation and marked
-            // healthy fm nodes dead.
-            // NextClave hotfix-13: 5000 ms proved tight on high-RTT links
-            // (RU -> EU: fragmented CH + TLS inside the tunnel + HTTP round
-            // trip fits in 5 s only on a good day) - floor the group test
-            // budget at 8000 ms.
-            val timeout = maxOf(DataStore.urlTestTimeout.coerceIn(100, 60000), 8000)
+            // NextClave: timeout (ms) is fully user-controlled in Settings,
+            // right below the worker count: presets 500..10000 plus a custom
+            // value, sane range 100..60000, default 1500. There is
+            // deliberately NO hidden floor here: the previous hotfix-12/13
+            // floors (5000/8000) silently overrode every smaller preset, so
+            // picking 2000 in Settings had no effect at all. If fragmented
+            // ClientHellos need a bigger budget on your links, raise the
+            // value in Settings instead.
+            val timeout = DataStore.urlTestTimeout.coerceIn(100, 60000)
             // NextClave: worker count is adjustable in Settings (default 3);
             // every run logs its parameters and per-node results to logcat
             // (visible in the built-in log viewer) so latency issues can be
@@ -1774,10 +1772,11 @@ class ConfigurationFragment @JvmOverloads constructor(
 
             runOnDefaultDispatcher {
                 val link = DataStore.connectionTestURL
-                // NextClave hotfix-12/13: same 8000 ms floor as the group
-                // test — fragmented handshakes do not fit into 1500 ms and
-                // the full chain barely fits into 5000 ms on high-RTT links.
-                val timeout = maxOf(DataStore.urlTestTimeout.coerceIn(100, 60000), 8000)
+                // NextClave: same user-controlled timeout as the group test
+                // (see the comment in urlTest()): the previous 8000 ms floor
+                // silently overrode every smaller Settings value, making the
+                // timeout setting a no-op for single-node tests.
+                val timeout = DataStore.urlTestTimeout.coerceIn(100, 60000)
                 Logs.i("NextClave urltest: single node \"${profile.displayName()}\" " +
                         "timeout=${timeout}ms url=$link vpn=${SagerNet.started && DataStore.startedProfile > 0}")
                 if (::adapter.isInitialized) {

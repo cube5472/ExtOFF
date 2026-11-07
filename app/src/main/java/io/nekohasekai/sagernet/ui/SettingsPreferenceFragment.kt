@@ -82,10 +82,34 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
             .setPositiveButton(android.R.string.ok) { _, _ ->
                 val ms = input.text.toString().trim().toIntOrNull()?.coerceIn(100, 60000)
                     ?: return@setPositiveButton
+                // NextClave: the value is not one of the static presets, so
+                // inject it as an entry BEFORE setValue: otherwise the
+                // dropdown resolves it to Spinner.INVALID_POSITION (no
+                // selection, stale display) and the summary shows "not set".
+                injectUrlTestTimeoutEntry(preference, ms.toString())
                 preference.value = ms.toString()
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
+    }
+
+    // NextClave: a custom timeout value is not part of the static preset
+    // arrays, so it is injected as its own entry right before the
+    // "__custom__" service marker. DropDownPreference.setEntries() ->
+    // updateEntries() repopulates the spinner automatically; the label
+    // reuses the unit suffix of the last preset (e.g. "8000 ms"/"8000 мс").
+    private fun injectUrlTestTimeoutEntry(preference: ListPreference, value: String) {
+        if (value == "__custom__") return
+        val values = preference.entryValues?.map { it.toString() }?.toMutableList() ?: return
+        val entries = preference.entries?.map { it.toString() }?.toMutableList() ?: return
+        if (values.contains(value)) return
+        val at = values.indexOf("__custom__").let { if (it >= 0) it else values.size }
+        val suffix = entries.getOrNull((at - 1).coerceAtLeast(0))
+            ?.substringAfter(' ', missingDelimiterValue = "ms") ?: "ms"
+        entries.add(at, "$value $suffix")
+        values.add(at, value)
+        preference.entries = entries.toTypedArray()
+        preference.entryValues = values.toTypedArray()
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -130,12 +154,22 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         // entry opens an input dialog (ms) instead of being persisted. No
         // needReload(): the value only affects the manual URL test, not the
         // running core config.
-        findPreference<ListPreference>(Key.URL_TEST_TIMEOUT)!!.setOnPreferenceChangeListener { pref, newValue ->
-            if (newValue == "__custom__") {
-                showUrlTestTimeoutCustomDialog(pref as ListPreference)
-                false
-            } else {
-                true
+        findPreference<ListPreference>(Key.URL_TEST_TIMEOUT)!!.let { timeoutPref ->
+            // A custom value entered earlier is not part of the static preset
+            // arrays: inject it as an extra entry and point the preference at
+            // the effective value, otherwise the dropdown shows no selection
+            // and the summary degrades to "not set". Also gives a fresh
+            // install a visible selection matching the actual default.
+            val effective = DataStore.urlTestTimeout.coerceIn(100, 60000).toString()
+            injectUrlTestTimeoutEntry(timeoutPref, effective)
+            timeoutPref.value = effective
+            timeoutPref.setOnPreferenceChangeListener { pref, newValue ->
+                if (newValue == "__custom__") {
+                    showUrlTestTimeoutCustomDialog(pref as ListPreference)
+                    false
+                } else {
+                    true
+                }
             }
         }
 
