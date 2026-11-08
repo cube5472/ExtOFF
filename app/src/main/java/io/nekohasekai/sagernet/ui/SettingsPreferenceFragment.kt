@@ -712,7 +712,14 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
 
         findPreference<EditTextPreference>(Key.PPROF_SERVER)!!.apply {
             isVisible = DataStore.enableDebug
-            onPreferenceChangeListener = reloadListener
+        }
+
+        findPreference<EditTextPreference>(Key.GODEBUG)!!.apply {
+            isVisible = DataStore.enableDebug
+        }
+
+        findPreference<EditTextPreference>(Key.ENVIRONMENT_VARIABLES)!!.apply {
+            isVisible = DataStore.enableDebug
         }
 
         findPreference<EditTextPreference>(Key.EXPERIMENTAL_FLAGS)!!.isVisible = DataStore.enableDebug

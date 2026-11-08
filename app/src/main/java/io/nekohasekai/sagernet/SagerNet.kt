@@ -93,6 +93,20 @@ class SagerNet : Application(),
         updateNotificationChannels()
         Seq.setContext(this)
 
+        if (DataStore.goDebug.isNotEmpty()) {
+            // This is set after Go runtime initialization. Therefore, not all GODEBUG can take effect.
+            Libexclavecore.setenv("GODEBUG", DataStore.goDebug)
+        }
+        if (DataStore.environmentVariables.isNotEmpty()) {
+            for (variable in DataStore.environmentVariables.split("\n")) {
+                if (!variable.contains("=")) continue
+                Libexclavecore.setenv(
+                    variable.substringBefore("="),
+                    variable.substringAfter("=")
+                )
+            }
+        }
+
         if (DataStore.getInstalledPackagesInited) {
             runOnDefaultDispatcher {
                 PackageCache.register()
