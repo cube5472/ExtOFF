@@ -1,15 +1,17 @@
-name: Core 0.17.60 rebuild (reference toolchain)
+name: Core rebuild (reference toolchain)
 
-# One-off NextClave job: rebuilds the core from the 0.17.60 sources
-# (libexclavecore@20261010122125, pinned by library/core/go.mod) using the
-# EXACT toolchain of the known-good reference build (Go 1.27.1 + gomobile
-# 8b95e45f + NDK r30 - the recipe that produced the adequate url-test core).
+# NextClave job: rebuilds the core from whatever version library/core/go.mod
+# currently pins (libexclavecore + exclave-core/v5) using the EXACT toolchain
+# of the known-good reference build (Go 1.27.1 + gomobile 8b95e45f + NDK r30).
+# library/core/stage_core_patch.sh stages the pinned exclave-core and applies
+# the NoDPI disorder + byte-length finalmask + REALITY version patches before
+# the build; bin/lib/core/build.sh verifies all patch markers inside the
+# produced libgojni.so and fails otherwise.
 #
-# The prebuilt-AAR guard in bin/lib/core/build.sh is bypassed with
-# NEXTCLAVE_FORCE_CORE_BUILD=1; the fresh AAR replaces the committed one in
-# the WORKSPACE ONLY (git is not touched), so the APKs below are built with
-# the new core. The artifact LibExclaveCore-0.17.60 lets you make it
-# permanent later (upload it to app/libs/).
+# The fresh AAR replaces the committed one in the WORKSPACE ONLY (git is not
+# touched), so the APKs below are built with the new core. The artifact
+# LibExclaveCore-rebuild lets you make it permanent later (upload it to
+# app/libs/).
 #
 # Check the "Core Build" step log for:
 #   - md5 of the new AAR
@@ -36,6 +38,8 @@ jobs:
         run: |
           go install golang.org/x/mobile/cmd/gomobile@v0.0.0-20260908204917-8b95e45f8d3e
           go install golang.org/x/mobile/cmd/gobind@v0.0.0-20260908204917-8b95e45f8d3e
+      - name: Stage patched core (NoDPI disorder + finalmask + realityver)
+        run: bash library/core/stage_core_patch.sh
       - name: Setup Java
         uses: actions/setup-java@v6
         with:
@@ -47,10 +51,9 @@ jobs:
         uses: nttld/setup-ndk@v1
         with:
           ndk-version: r30
-      - name: Core Build (forced, reference toolchain)
+      - name: Core Build (reference toolchain)
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
-          NEXTCLAVE_FORCE_CORE_BUILD: "1"
         run: |
           ./run lib core
           echo "==================== Core verification ===================="
@@ -73,7 +76,7 @@ jobs:
       - name: Upload Core AAR
         uses: actions/upload-artifact@v7
         with:
-          name: "LibExclaveCore-0.17.60"
+          name: "LibExclaveCore-rebuild"
           path: /tmp/LibExclaveCore-arm64.aar
       - name: Gradle Cache
         uses: actions/cache@v6
@@ -89,7 +92,7 @@ jobs:
       - name: Upload APKs
         uses: actions/upload-artifact@v7
         with:
-          name: APKs-core-01760
+          name: APKs-core-rebuild
           path: |
             app/build/outputs/apk/oss/release/*.apk
             app/build/outputs/apk/legacy/release/*.apk
