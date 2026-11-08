@@ -1,8 +1,9 @@
 name: Core rebuild (reference toolchain)
 
 # NextClave job: rebuilds the core from whatever version library/core/go.mod
-# currently pins (libexclavecore + exclave-core/v5) using the EXACT toolchain
-# of the known-good reference build (Go 1.27.1 + gomobile 8b95e45f + NDK r30).
+# currently pins (libexclavecore + exclave-core/v5) using the same toolchain
+# as the regular CI builds (Go 1.27.3 + gomobile 19777044 + NDK r30),
+# aligned with upstream's toolchain wave (AGP 9.5.0, Java 25).
 # library/core/stage_core_patch.sh stages the pinned exclave-core and applies
 # the NoDPI disorder + byte-length finalmask + REALITY version patches before
 # the build; bin/lib/core/build.sh verifies all patch markers inside the
@@ -31,20 +32,20 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v7
         with:
-          go-version: 1.27.1
+          go-version: 1.27.3
           cache-dependency-path: "library/core/go.sum"
       - name: Setup Go Mobile
-        # Same pin as the reference build
+        # Same pin as debug.yml / release.yml
         run: |
-          go install golang.org/x/mobile/cmd/gomobile@v0.0.0-20260908204917-8b95e45f8d3e
-          go install golang.org/x/mobile/cmd/gobind@v0.0.0-20260908204917-8b95e45f8d3e
+          go install golang.org/x/mobile/cmd/gomobile@v0.0.0-20261011034528-197770444867
+          go install golang.org/x/mobile/cmd/gobind@v0.0.0-20261011034528-197770444867
       - name: Stage patched core (NoDPI disorder + finalmask + realityver)
         run: bash library/core/stage_core_patch.sh
       - name: Setup Java
         uses: actions/setup-java@v6
         with:
           distribution: 'temurin'
-          java-version: 21
+          java-version: 25
           cache: 'gradle'
       - name: Setup Android NDK
         id: setup-ndk
