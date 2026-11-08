@@ -232,7 +232,6 @@ fun Project.setupApp() {
         }
         productFlavors.create("legacy") {
             minSdk = 21
-            proguardFiles("proguard-rules-legacy.pro")
         }
         tasks.register("downloadAssets") {
             // NextClave: run network I/O at execution, not at realization —

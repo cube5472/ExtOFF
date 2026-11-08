@@ -106,7 +106,7 @@
         },
         {
             "uniqueId": "androidx.databinding:viewbinding",
-            "artifactVersion": "9.4.1"
+            "artifactVersion": "9.5.0"
         },
         {
             "uniqueId": "androidx.drawerlayout:drawerlayout",
