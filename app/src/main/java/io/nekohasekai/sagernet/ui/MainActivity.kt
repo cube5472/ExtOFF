@@ -203,6 +203,19 @@ class MainActivity : ThemedActivity(),
 
         setContentView(binding.root)
 
+        // NextClave: glass menu popups - toolbar menu popups (overflow,
+        // add-profile and every nested submenu level) are separate windows
+        // with a translucent glass background, so the activity content shows
+        // through them; blur that content with the same drawer recipe while
+        // a popup holds the window focus and restore it when the focus is
+        // back. Menu popups are modal (focusable), so window focus loss is
+        // the exact "a popup is up" signal; honoring glassEffects, power
+        // saving and pre-S fallbacks stays inside applyGlassBlur.
+        window.decorView.viewTreeObserver.addOnWindowFocusChangeListener { hasFocus ->
+            if (isFinishing || isDestroyed) return@addOnWindowFocusChangeListener
+            if (hasFocus) applyGlassBlur(false) else applyGlassBlur(true)
+        }
+
         changeState(BaseService.State.Idle)
         connection.connect(this, this)
         DataStore.configurationStore.registerChangeListener(this)

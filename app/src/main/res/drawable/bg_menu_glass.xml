@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- NextClave: glass background for toolbar menu popups (light theme) -
+     the overflow menu, the add-profile popup and every nested submenu level
+     are separate popup windows sharing this background, so the whole menu
+     cascade matches the glass navigation drawer (same gradient family and
+     hairline contour, smaller 18dp radius to fit a small floating surface).
+     The drawable carries the window padding itself: appcompat adds
+     background padding to the popup content (the menu list) and to the
+     measured popup width exactly like the stock 9-patch did
+     (16dp start, 8dp vertical; the 16dp end padding comes from the item). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:angle="270"
+        android:startColor="#D9F4F5F7"
+        android:endColor="#C8E9ECEF" />
+    <corners android:radius="18dp" />
+    <stroke
+        android:width="1dp"
+        android:color="#1F808080" />
+    <padding
+        android:left="16dp"
+        android:top="8dp"
+        android:right="0dp"
+        android:bottom="8dp" />
+</shape>

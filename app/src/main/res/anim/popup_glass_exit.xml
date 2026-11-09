@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- NextClave: glass menu popup exit transition - a quick fade with a
+     subtle shrink towards the top edge, mirroring popup_glass_enter. When a
+     nested submenu level opens, this plays on the closing parent popup while
+     the submenu fades in, producing the crossfade described in
+     popup_glass_enter.xml. -->
+<set xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shareInterpolator="true"
+    android:interpolator="@android:interpolator/accelerate_quad">
+    <alpha
+        android:fromAlpha="1.0"
+        android:toAlpha="0.0"
+        android:duration="120" />
+    <scale
+        android:fromXScale="1.0"
+        android:toXScale="0.96"
+        android:fromYScale="1.0"
+        android:toYScale="0.96"
+        android:pivotX="50%"
+        android:pivotY="0%"
+        android:duration="120" />
+</set>

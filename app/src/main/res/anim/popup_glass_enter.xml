@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- NextClave: glass menu popup enter transition - a short fade with a
+     subtle unfurl from the top edge (the anchor the menu drops from). It
+     also plays on every nested submenu level: appcompat swaps the parent
+     popup for the submenu popup at the same position, so the crossfade of
+     the exit/enter pair reads as one smooth glass transition. -->
+<set xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shareInterpolator="true"
+    android:interpolator="@android:interpolator/decelerate_quad">
+    <alpha
+        android:fromAlpha="0.0"
+        android:toAlpha="1.0"
+        android:duration="170" />
+    <scale
+        android:fromXScale="0.93"
+        android:toXScale="1.0"
+        android:fromYScale="0.93"
+        android:toYScale="1.0"
+        android:pivotX="50%"
+        android:pivotY="0%"
+        android:duration="170" />
+</set>

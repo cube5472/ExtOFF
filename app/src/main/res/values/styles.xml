@@ -3,4 +3,32 @@
     <style name="TabTextAppearance" parent="TextAppearance.Design.Tab">
         <item name="textAllCaps">false</item>
     </style>
+
+    <!-- NextClave: glass menu popups, unified with the glass navigation
+         drawer. Applied theme-wide via popupMenuStyle / actionOverflowMenuStyle
+         / listPopupWindowStyle in Theme.SagerNet, so the toolbar overflow
+         menu, the add-profile popup, every nested submenu level and the
+         plain ListPopupWindow dropdowns share one glass material
+         (@drawable/bg_menu_glass with its -night twin). The popups keep the
+         stock offsets and overlapAnchor from the appcompat parents; only the
+         background and the enter/exit transition are replaced. -->
+    <style name="Widget.NextClave.PopupMenu.Glass" parent="Widget.AppCompat.PopupMenu">
+        <item name="android:popupBackground">@drawable/bg_menu_glass</item>
+        <item name="android:popupAnimationStyle">@style/Animation.NextClave.MenuGlass</item>
+    </style>
+
+    <style name="Widget.NextClave.PopupMenu.Overflow.Glass" parent="Widget.AppCompat.PopupMenu.Overflow">
+        <item name="android:popupBackground">@drawable/bg_menu_glass</item>
+        <item name="android:popupAnimationStyle">@style/Animation.NextClave.MenuGlass</item>
+    </style>
+
+    <style name="Widget.NextClave.ListPopupWindow.Glass" parent="Widget.AppCompat.ListPopupWindow">
+        <item name="android:popupBackground">@drawable/bg_menu_glass</item>
+        <item name="android:popupAnimationStyle">@style/Animation.NextClave.MenuGlass</item>
+    </style>
+
+    <style name="Animation.NextClave.MenuGlass" parent="">
+        <item name="android:windowEnterAnimation">@anim/popup_glass_enter</item>
+        <item name="android:windowExitAnimation">@anim/popup_glass_exit</item>
+    </style>
 </resources>
