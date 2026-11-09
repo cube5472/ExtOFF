@@ -40,5 +40,22 @@
         </item>
         <item name="coalAppBarColor">?colorPrimary</item>
         <item name="coalBorderColor">@android:color/transparent</item>
+
+        <!-- NextClave: glass menu popups unified with the glass drawer.
+             v26 copy of Theme.SagerNet MUST repeat these: resource config
+             buckets do not merge styles, so on Android 8+ THIS file is the
+             applied base theme, and the default-bucket items never resolve.
+             actionOverflowMenuStyle covers the toolbar overflow menu AND the
+             add-profile action popup (appcompat routes both through it);
+             popupMenuStyle covers every nested submenu level and the
+             per-item PopupMenus; listPopupWindowStyle covers plain
+             ListPopupWindow dropdowns. The toolbar popupTheme overlay
+             (ThemeOverlay.AppCompat.DayNight) sets no popup attributes, so
+             these resolve through it unchanged. Dialog themes derive from
+             Theme.SagerNet.Dialog (defined in the default bucket only), so
+             they inherit these attributes from here too. -->
+        <item name="popupMenuStyle">@style/Widget.NextClave.PopupMenu.Glass</item>
+        <item name="actionOverflowMenuStyle">@style/Widget.NextClave.PopupMenu.Overflow.Glass</item>
+        <item name="listPopupWindowStyle">@style/Widget.NextClave.ListPopupWindow.Glass</item>
     </style>
 </resources>
