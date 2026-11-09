@@ -23,23 +23,84 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.gradle.api.Project
 import java.io.File
+import java.io.IOException
 import java.io.StringReader
 import java.security.MessageDigest
+import java.util.concurrent.TimeUnit
+
+// NextClave: the GitHub release CDN intermittently drops connections from
+// hosted runners. The stock task used the default 10 s OkHttp timeouts with
+// zero retries on the checksum/listing requests, so one transient
+// SocketTimeoutException aborted the whole CI build minutes after the native
+// build had already succeeded (seen 2026-11-09 on geoip.dat.sha256sum).
+// Every request now goes through fetchTextWithRetry / downloadFileWithRetry:
+// 4 attempts, linear backoff, IOException and HTTP 5xx are retried while 4xx
+// fails fast; the checksum-verify loop below stays as the second safety net.
+// The client gets explicit 30 s connect / 60 s read-write timeouts.
+
+private const val DOWNLOAD_ATTEMPTS = 4
+private const val DOWNLOAD_BACKOFF_MS = 3000L
+
+private fun OkHttpClient.fetchTextWithRetry(url: String): String {
+    var lastError: Exception? = null
+    for (attempt in 1..DOWNLOAD_ATTEMPTS) {
+        try {
+            newCall(Request.Builder().url(url).build()).execute().use { response ->
+                if (response.isSuccessful) return response.body!!.string().trim()
+                if (response.code < 500) error("HTTP ${response.code} for $url")
+                System.err.println("Attempt $attempt/$DOWNLOAD_ATTEMPTS: HTTP ${response.code} for $url")
+                lastError = IOException("HTTP ${response.code} for $url")
+            }
+        } catch (e: IOException) {
+            lastError = e
+            System.err.println("Attempt $attempt/$DOWNLOAD_ATTEMPTS failed for $url: $e")
+        }
+        if (attempt < DOWNLOAD_ATTEMPTS) Thread.sleep(DOWNLOAD_BACKOFF_MS * attempt)
+    }
+    throw IllegalStateException("Download failed after $DOWNLOAD_ATTEMPTS attempts: $url", lastError)
+}
+
+private fun OkHttpClient.downloadFileWithRetry(url: String, target: File) {
+    var lastError: Exception? = null
+    for (attempt in 1..DOWNLOAD_ATTEMPTS) {
+        try {
+            newCall(Request.Builder().url(url).build()).execute().use { response ->
+                if (!response.isSuccessful) {
+                    if (response.code < 500) error("HTTP ${response.code} for $url")
+                    System.err.println("Attempt $attempt/$DOWNLOAD_ATTEMPTS: HTTP ${response.code} for $url")
+                    throw IOException("HTTP ${response.code} for $url")
+                }
+                response.body!!.byteStream().use { input ->
+                    target.outputStream().use { output -> input.copyTo(output) }
+                }
+                return
+            }
+        } catch (e: IOException) {
+            lastError = e
+            System.err.println("Attempt $attempt/$DOWNLOAD_ATTEMPTS failed for $url: $e")
+        }
+        if (attempt < DOWNLOAD_ATTEMPTS) Thread.sleep(DOWNLOAD_BACKOFF_MS * attempt)
+    }
+    throw IllegalStateException("Download failed after $DOWNLOAD_ATTEMPTS attempts: $url", lastError)
+}
 
 fun Project.downloadAssets(update: Boolean = false) {
     val assetsDir = File(projectDir, "src/main/assets")
-    val downloader = OkHttpClient.Builder().followRedirects(true).followSslRedirects(true).build()
+    val downloader = OkHttpClient.Builder()
+        .followRedirects(true)
+        .followSslRedirects(true)
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .writeTimeout(60, TimeUnit.SECONDS)
+        .build()
 
     val geoipVersionFile = File(assetsDir, "exclave-core/geoip.version.txt")
     var geoipVersion: String
     var geoipDat: String
     var geoipDatSha256sum: String
     if (update) {
-        val body = downloader.newCall(
-            Request.Builder().url("https://api.github.com/repos/v2fly/geoip/releases/latest").build()
-        ).execute().body
-        val jsonObject = parseReader(JsonReader(StringReader(body.string())))?.asJsonObject
-        body.close()
+        val geoipReleaseJson = downloader.fetchTextWithRetry("https://api.github.com/repos/v2fly/geoip/releases/latest")
+        val jsonObject = parseReader(JsonReader(StringReader(geoipReleaseJson)))?.asJsonObject
         jsonObject ?: error("unable to list geoip release")
         geoipVersion = jsonObject.get("tag_name")?.asString
             ?: error("unable to list geoip release")
@@ -59,21 +120,14 @@ fun Project.downloadAssets(update: Boolean = false) {
     val geoipFile = File(assetsDir, "exclave-core/geoip.dat")
 
     println("Downloading $geoipDatSha256sum ...")
-
-    var body = downloader.newCall(Request.Builder().url(geoipDatSha256sum).build()).execute().body
-    val geoipChecksum = body.string().trim().substringBefore(" ")
-    body.close()
+    val geoipChecksum = downloader.fetchTextWithRetry(geoipDatSha256sum).substringBefore(" ")
 
     var count = 0
     while (true) {
         count++
 
         println("Downloading $geoipDat ...")
-
-        body = downloader.newCall(Request.Builder().url(geoipDat).build()).execute().body
-        body.byteStream().use {
-            geoipFile.outputStream().use { out -> it.copyTo(out) }
-        }
+        downloader.downloadFileWithRetry(geoipDat, geoipFile)
 
         val messageDigest = MessageDigest.getInstance("SHA-256")
         val buffer = ByteArray(1024)
@@ -83,7 +137,6 @@ fun Project.downloadAssets(update: Boolean = false) {
                 messageDigest.update(buffer, 0, bytesRead)
             }
         }
-        body.close()
 
         val fileSha256 = messageDigest.digest().toHexString()
         if (fileSha256 != geoipChecksum.lowercase()) {
@@ -107,11 +160,8 @@ fun Project.downloadAssets(update: Boolean = false) {
     var geositeDat: String
     var geositeDatSha256sum: String
     if (update) {
-        val body = downloader.newCall(
-            Request.Builder().url("https://api.github.com/repos/v2fly/domain-list-community/releases/latest").build()
-        ).execute().body
-        val jsonObject = parseReader(JsonReader(StringReader(body.string())))?.asJsonObject
-        body.close()
+        val geositeReleaseJson = downloader.fetchTextWithRetry("https://api.github.com/repos/v2fly/domain-list-community/releases/latest")
+        val jsonObject = parseReader(JsonReader(StringReader(geositeReleaseJson)))?.asJsonObject
         jsonObject ?: error("unable to list geosite release")
         geositeVersion = jsonObject.get("tag_name")?.asString
             ?: error("unable to list geosite release")
@@ -131,23 +181,14 @@ fun Project.downloadAssets(update: Boolean = false) {
     val geositeFile = File(assetsDir, "exclave-core/geosite.dat")
 
     println("Downloading $geositeDatSha256sum ...")
-
-    body = downloader.newCall(
-        Request.Builder().url(geositeDatSha256sum).build()
-    ).execute().body
-    val geositeChecksum = body.string().trim().substringBefore(" ")
-    body.close()
+    val geositeChecksum = downloader.fetchTextWithRetry(geositeDatSha256sum).substringBefore(" ")
 
     count = 0
     while (true) {
         count++
 
         println("Downloading $geositeDat ...")
-
-        body = downloader.newCall(Request.Builder().url(geositeDat).build()).execute().body
-        body.byteStream().use {
-            geositeFile.outputStream().use { out -> it.copyTo(out) }
-        }
+        downloader.downloadFileWithRetry(geositeDat, geositeFile)
 
         val messageDigest = MessageDigest.getInstance("SHA-256")
         val buffer = ByteArray(1024)
@@ -157,7 +198,6 @@ fun Project.downloadAssets(update: Boolean = false) {
                 messageDigest.update(buffer, 0, bytesRead)
             }
         }
-        body.close()
 
         val fileSha256 = messageDigest.digest().toHexString()
         if (fileSha256 != geositeChecksum.lowercase()) {
