@@ -14,7 +14,6 @@ source "bin/init/env.sh"
 # an AAR older than the patches silently ships a core without the UrlTest
 # fix or without NoDPI disorder. The guards below fail the build instead.
 
-rm -rf library/core/build
 cd library/core
 ./build.sh || exit 1
 
