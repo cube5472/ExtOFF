@@ -2,8 +2,8 @@ name: Core rebuild (reference toolchain)
 
 # NextClave job: rebuilds the core from whatever version library/core/go.mod
 # currently pins (libexclavecore + exclave-core/v5) using the same toolchain
-# as the regular CI builds (Go 1.27.3 + gomobile 19777044 + NDK r30),
-# aligned with upstream's toolchain wave (AGP 9.5.0, Java 25).
+# as the regular CI builds (Go 1.27.4 + gomobile 19777044 + NDK r30),
+# aligned with upstream's toolchain wave (AGP 9.5.1, Java 25).
 # library/core/stage_core_patch.sh stages the pinned exclave-core and applies
 # the NoDPI disorder + byte-length finalmask + REALITY version patches before
 # the build; bin/lib/core/build.sh verifies all patch markers inside the
@@ -32,7 +32,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v7
         with:
-          go-version: 1.27.3
+          go-version: 1.27.4
           cache-dependency-path: "library/core/go.sum"
       - name: Setup Go Mobile
         # Same pin as debug.yml / release.yml
