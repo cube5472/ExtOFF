@@ -1068,6 +1068,8 @@ public class V2RayConfig {
         public String uriTemplate;
         public Boolean http3;
         public Integer mtu;
+        // NextClave (NC_MASQUE): Cloudflare WARP registration tunnel addresses
+        public List<String> localAddress;
         public String serverName;
         public String domainStrategy;
 

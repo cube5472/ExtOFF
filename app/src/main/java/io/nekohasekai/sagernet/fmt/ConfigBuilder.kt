@@ -2102,6 +2102,10 @@ fun buildV2RayConfig(
                                         if (bean.uriTemplate.isNotEmpty()) uriTemplate = bean.uriTemplate
                                         if (bean.http3) http3 = true
                                         if (bean.mtu != 0) mtu = bean.mtu
+                                        // NextClave (NC_MASQUE): WARP registration tunnel addresses
+                                        if (bean.localAddress.isNotEmpty()) {
+                                            localAddress = bean.localAddress.listByLineOrComma()
+                                        }
                                     }
                                 )
                                 if (bean.security == "tls") {

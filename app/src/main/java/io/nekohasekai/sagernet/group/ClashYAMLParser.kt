@@ -1008,6 +1008,8 @@ fun parseClashProxy(proxy: Map<String, Any?>): List<AbstractBean> {
                 sni = proxy.getString("sni") ?: "consumer-masque.cloudflareclient.com"
                 http3 = proxy.getString("network")?.equals("h2", ignoreCase = true) != true
                 proxy.getInt("mtu")?.takeIf { it > 0 }?.also { mtu = it }
+                // NextClave (NC_MASQUE): WARP registration tunnel addresses
+                localAddress = listOfNotNull(proxy.getString("ip"), proxy.getString("ipv6")).joinToString("\n")
                 if (proxy.getBoolean("skip-cert-verify") == true) {
                     allowInsecure = true
                 }

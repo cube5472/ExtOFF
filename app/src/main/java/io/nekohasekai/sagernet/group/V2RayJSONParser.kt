@@ -2225,6 +2225,12 @@ fun parseV2RayOutbound(outbound: JsonObject): List<AbstractBean> {
                 settings.getInt("mtu")?.takeIf { it > 0 }?.also {
                     masqueBean.mtu = it
                 }
+                // NextClave (NC_MASQUE): WARP registration tunnel addresses
+                settings.getJsonArray("localAddress")?.also { arr ->
+                    masqueBean.localAddress = arr.mapNotNull { el ->
+                        (el as? com.google.gson.JsonPrimitive)?.takeIf { it.isString }?.asString
+                    }.filter { it.isNotBlank() }.joinToString("\n")
+                }
             }
             outbound.getObject("streamSettings")?.also { streamSettings ->
                 val tlsEnabled = streamSettings.getString("security") == "tls"

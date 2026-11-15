@@ -395,6 +395,8 @@
     <string name="app_statistics_disabled">Статистика трафика приложений отключена в настройках</string>
     <string name="tun_implementation">Стек TCP/IP</string>
     <string name="wireguard_local_address">Частный адрес</string>
+    <!-- NextClave (NC_MASQUE) -->
+    <string name="masque_local_address">Частный адрес (регистрация WARP)</string>
     <string name="enable_pcap">Включить PCAP</string>
     <string name="pcap_summary">Сохранять трафик в файл .pcap</string>
     <string name="destination_override">Переопределять адрес назначения</string>

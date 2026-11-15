@@ -52,6 +52,13 @@
             app:key="serverMASQUEMTU"
             app:title="@string/mtu"
             app:useSimpleSummaryProvider="true" />
+        <!-- NextClave (NC_MASQUE): WARP registration tunnel addresses -->
+        <EditTextPreference
+            app:icon="@drawable/ic_baseline_lan_24"
+            app:key="serverMASQUELocalAddress"
+            app:singleLineTitle="false"
+            app:title="@string/masque_local_address"
+            app:useSimpleSummaryProvider="true" />
     </PreferenceCategory>
 
     <PreferenceCategory

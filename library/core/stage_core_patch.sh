@@ -118,6 +118,7 @@ grep -qF 'parseAWGParams' core-patched/infra/conf/v4/wireguard.go
 grep -qF 'cf-connect-ip' core-patched/proxy/masque/internal/connectip/request.go
 grep -qF 'cloudflareaccess.com' core-patched/proxy/masque/internal/connectip/request.go
 grep -qF 'IsWarpRequestURL' core-patched/proxy/masque/client.go
+grep -qF 'SetWarpLocalAddresses' core-patched/proxy/masque/internal/connectip/conn.go
 
 # 6. Restore go.mod with the replace directive.
 mv -f go.mod.with-replace go.mod

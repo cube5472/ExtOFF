@@ -44,6 +44,7 @@ class MASQUESettingsActivity: ProfileSettingsActivity<MASQUEBean>() {
         DataStore.serverUsername = username
         DataStore.serverPassword = password
         DataStore.serverMASQUEURITemplate = uriTemplate
+        DataStore.serverMASQUELocalAddress = localAddress
         DataStore.serverMASQUEHTTP3 = http3
         DataStore.serverSecurity = security
         DataStore.serverMASQUEMTU = mtu
@@ -69,6 +70,7 @@ class MASQUESettingsActivity: ProfileSettingsActivity<MASQUEBean>() {
         username = DataStore.serverUsername
         password = DataStore.serverPassword
         uriTemplate = DataStore.serverMASQUEURITemplate
+        localAddress = DataStore.serverMASQUELocalAddress
         http3 = DataStore.serverMASQUEHTTP3
         security = DataStore.serverSecurity
         mtu = DataStore.serverMASQUEMTU
@@ -99,6 +101,8 @@ class MASQUESettingsActivity: ProfileSettingsActivity<MASQUEBean>() {
     lateinit var utlsFingerprint: ListPreference
     lateinit var mtlsCertificate: EditTextPreference
     lateinit var mtlsCertificatePrivateKey: EditTextPreference
+    // NextClave (NC_MASQUE): WARP registration tunnel addresses
+    lateinit var localAddress: EditTextPreference
     lateinit var serverNameToVerify: EditTextPreference
     lateinit var echEnabled: SwitchPreference
     lateinit var echConfigList: EditTextPreference
@@ -120,6 +124,7 @@ class MASQUESettingsActivity: ProfileSettingsActivity<MASQUEBean>() {
             setOnBindEditTextListener(EditTextPreferenceModifiers.Number)
         }
         http3 = findPreference(Key.SERVER_MASQUE_HTTP3)!!
+        localAddress = findPreference(Key.SERVER_MASQUE_LOCAL_ADDRESS)!!
         securityCategory = findPreference(Key.SERVER_SECURITY_CATEGORY)!!
         security = findPreference(Key.SERVER_SECURITY)!!
         sni = findPreference(Key.SERVER_SNI)!!

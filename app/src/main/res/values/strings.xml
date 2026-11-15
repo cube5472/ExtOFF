@@ -706,6 +706,8 @@
     <string name="naiveproxy_idle_timeout">Idle timeout (s)</string>
     <string name="uri_template">URI Template</string>
     <string name="action_masque" translatable="false">MASQUE</string>
+    <!-- NextClave (NC_MASQUE) -->
+    <string name="masque_local_address">Local address (WARP registration)</string>
 
     <!-- NextClave: glass navigation drawer -->
     <string name="drawer_brand_title">/ мод ext.point</string>

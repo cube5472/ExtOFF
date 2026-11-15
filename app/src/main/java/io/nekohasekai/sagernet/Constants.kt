@@ -296,6 +296,8 @@ object Key {
     const val SERVER_HTTP_CONNECT_UDP_URI_TEMPLATE = "serverHTTPConnectUDPURITemplate"
     const val SERVER_MASQUE_URI_TEMPLATE = "serverMASQUEURITemplate"
     const val SERVER_MASQUE_MTU = "serverMASQUEMTU"
+    // NextClave (NC_MASQUE): WARP registration tunnel addresses
+    const val SERVER_MASQUE_LOCAL_ADDRESS = "serverMASQUELocalAddress"
     const val SERVER_MASQUE_HTTP3 = "serverMASQUEHTTP3"
 
     const val SERVER_PORTS = "serverPorts"

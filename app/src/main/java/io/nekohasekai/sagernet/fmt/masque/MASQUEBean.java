@@ -36,6 +36,8 @@ public class MASQUEBean extends AbstractBean {
     public String username;
     public String password;
     public String uriTemplate;
+    // NextClave (NC_MASQUE): Cloudflare WARP registration tunnel addresses
+    public String localAddress;
     public Boolean http3;
     public String security;
     public Integer mtu;
@@ -59,6 +61,7 @@ public class MASQUEBean extends AbstractBean {
         if (username == null) username = "";
         if (password == null) password = "";
         if (uriTemplate == null) uriTemplate = "";
+        if (localAddress == null) localAddress = "";
         if (http3 == null) http3 = true;
         if (security == null) security = "tls";
         if (mtu == null) mtu = 0;
@@ -79,7 +82,7 @@ public class MASQUEBean extends AbstractBean {
 
     @Override
     public void serialize(ByteBufferOutput output) {
-        output.writeInt(2);
+        output.writeInt(3);
         super.serialize(output);
         output.writeString(username);
         output.writeString(password);
@@ -100,6 +103,7 @@ public class MASQUEBean extends AbstractBean {
         output.writeBoolean(echEnabled);
         output.writeString(serverNameToVerify);
         output.writeString(echQueryName);
+        output.writeString(localAddress);
     }
 
     @Override
@@ -133,6 +137,11 @@ public class MASQUEBean extends AbstractBean {
         echEnabled = input.readBoolean();
         serverNameToVerify = input.readString();
         echQueryName = input.readString();
+        if (version >= 3) {
+            localAddress = input.readString();
+        } else {
+            localAddress = "";
+        }
     }
 
     @Override
