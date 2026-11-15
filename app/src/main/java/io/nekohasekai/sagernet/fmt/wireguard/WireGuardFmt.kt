@@ -158,7 +158,12 @@ fun parseWireGuardConfig(conf: String): List<WireGuardBean> {
             if (!peerPreSharedKey.isNullOrEmpty()) {
                 require(Base64.decode(peerPreSharedKey).size == 32)
             }
-            keepaliveInterval = peer.getOr("PersistentKeepalive").getOrNull()?.toIntOrNull()?.takeIf { it > 0 }
+            // NextClave (NC_AWG): AmneziaWG 1.5 .conf files may spell this as
+            // an "a-b" range (amneziawg-go v3.1 stores it as UintRange over
+            // UAPI); the profile keeps a single int, so use the lower bound.
+            keepaliveInterval = peer.getOr("PersistentKeepalive").getOrNull()?.let {
+                it.toIntOrNull() ?: it.split("-").firstOrNull()?.trim()?.toIntOrNull()
+            }?.takeIf { it > 0 }
         })
     }
     return beans
