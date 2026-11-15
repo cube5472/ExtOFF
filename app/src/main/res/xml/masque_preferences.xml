@@ -53,8 +53,11 @@
             app:title="@string/mtu"
             app:useSimpleSummaryProvider="true" />
         <!-- NextClave (NC_MASQUE): WARP registration tunnel addresses -->
+        <!-- NC_MASQUE: icon is ic_hardware_router (an existing repo asset); the
+             Material "lan" baseline icon is not in this fork's drawables and
+             aapt2 link fails on a missing reference (CI, 2026-11-15). -->
         <EditTextPreference
-            app:icon="@drawable/ic_baseline_lan_24"
+            app:icon="@drawable/ic_hardware_router"
             app:key="serverMASQUELocalAddress"
             app:singleLineTitle="false"
             app:title="@string/masque_local_address"
