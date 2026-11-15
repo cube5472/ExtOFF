@@ -1,0 +1,345 @@
+diff -ruN core-patched.base/go.mod core-patched/go.mod
+--- core-patched.base/go.mod	2026-11-15 05:14:54.932481228 +0000
++++ core-patched/go.mod	2026-11-15 05:37:47.173257760 +0000
+@@ -5,6 +5,10 @@
+ require (
+ 	github.com/adrg/xdg v0.5.3
+ 	github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da
++	// NextClave (NC_AWG): AmneziaWG protocol implementation (replaces the
++	// golang.zx2c4.com/wireguard dependency in proxy/wireguard; zx2c4 stays
++	// for the masque package, which is unaffected).
++	github.com/amnezia-vpn/amneziawg-go/v3 v3.1.20260828
+ 	github.com/anytls/sing-anytls v0.0.13
+ 	github.com/apernet/quic-go v0.65.1-0.20261109005002-2895f039137a
+ 	github.com/dgryski/go-camellia v0.0.0-20191119043421-69a8a13fb23d
+diff -ruN core-patched.base/infra/conf/v4/wireguard.go core-patched/infra/conf/v4/wireguard.go
+--- core-patched.base/infra/conf/v4/wireguard.go	2026-11-15 05:14:54.937481245 +0000
++++ core-patched/infra/conf/v4/wireguard.go	2026-11-15 05:48:45.496327778 +0000
+@@ -3,6 +3,7 @@
+ import (
+ 	"encoding/base64"
+ 	"encoding/hex"
++	"strconv"
+ 	"strings"
+ 
+ 	"github.com/golang/protobuf/proto"
+@@ -50,6 +51,11 @@
+ 	NumWorkers     int32                 `json:"workers"`
+ 	Reserved       []byte                `json:"reserved"`
+ 	DomainStrategy string                `json:"domainStrategy"`
++	// NextClave (NC_AWG): AmneziaWG obfuscation parameters as a multi-line
++	// block ("JC = 3", "H1 = 123456", ...). Key matching is case-insensitive;
++	// values and separators follow the AmneziaWG .conf / mihomo amnezia-wg-option
++	// conventions. Empty/absent means plain WireGuard behavior (unchanged).
++	AWGParams string `json:"awgParams"`
+ }
+ 
+ func (c *WireGuardClientConfig) Build() (proto.Message, error) {
+@@ -96,6 +102,16 @@
+ 	default:
+ 		return nil, newError("unsupported domain strategy: ", c.DomainStrategy)
+ 	}
++	// NextClave (NC_AWG): validate and normalize AmneziaWG params here, the
++	// only place untrusted JSON reaches the wireguard client config, so the
++	// IPC stream cannot be polluted with non-AWG directives.
++	if c.AWGParams != "" {
++		params, err := parseAWGParams(c.AWGParams)
++		if err != nil {
++			return nil, err
++		}
++		config.AwgParams = params
++	}
+ 	return config, nil
+ }
+ 
+@@ -146,3 +162,107 @@
+ 	}
+ 	return hex.EncodeToString(str), nil
+ }
++
++// NextClave (NC_AWG): strict allowlist of AmneziaWG device-level parameters
++// (amneziawg-go device/uapi.go, protocol 3.1), normalized (lowercase, no
++// "_"/"-") to canonical UAPI keys, so AmneziaWG .conf spellings
++// ("HeaderProtectionKey"), UAPI spellings ("header_protection_key") and
++// mihomo yaml spellings are all accepted and emitted canonically. Unknown
++// keys are rejected so a hostile config cannot smuggle
++// private_key/endpoint/peer directives into the wireguard IPC stream through
++// the awgParams field.
++var awgCanonicalKeys = map[string]string{
++	"jc": "jc", "jmin": "jmin", "jmax": "jmax",
++	"s1": "s1", "s2": "s2", "s3": "s3", "s4": "s4",
++	"h1": "h1", "h2": "h2", "h3": "h3", "h4": "h4",
++	"i1": "i1", "i2": "i2", "i3": "i3", "i4": "i4", "i5": "i5",
++	"headerprotectionkey":    "header_protection_key",
++	"contentpaddingaddition": "content_padding_addition",
++	"rekeyaftertime":         "rekey_after_time",
++	"rekeytimeout":           "rekey_timeout",
++	"rejectaftertime":        "reject_after_time",
++	"keepalivetimeout":       "keepalive_timeout",
++	"maxhandshakeattempts":   "max_handshake_attempts",
++	"randomtrailers":         "random_trailers",
++	"disablecookies":         "disable_cookies",
++}
++
++func normalizeAWGKey(key string) string {
++	return strings.ReplaceAll(strings.ReplaceAll(strings.ToLower(key), "_", ""), "-", "")
++}
++
++// parseAWGParams normalizes the raw block into lowercase canonical
++// "key=value" UAPI lines for createIPCRequest (proxy/wireguard/wireguard.go).
++// Value formats mirror amneziawg-go's parsing: jc/jmin/jmax/s1-s4 take small
++// unsigned integers; h1-h4 and the timeout keys take an unsigned integer or
++// an "a-b" range (UintRange); header_protection_key takes 32 hex chars
++// (16 bytes); random_trailers/disable_cookies take a bool; i1-i5 take the
++// CPS description string verbatim.
++func parseAWGParams(raw string) ([]string, error) {
++	var params []string
++	for i, line := range strings.Split(raw, "\n") {
++		line = strings.TrimSpace(line)
++		if line == "" || strings.HasPrefix(line, "#") {
++			continue
++		}
++		idx := strings.IndexAny(line, "=:")
++		if idx < 0 {
++			return nil, newError("invalid AmneziaWG param at line ", i+1, ": ", line)
++		}
++		canonical, ok := awgCanonicalKeys[normalizeAWGKey(strings.TrimSpace(line[:idx]))]
++		if !ok {
++			return nil, newError("unknown AmneziaWG param: ", strings.TrimSpace(line[:idx]))
++		}
++		value := strings.TrimSpace(line[idx+1:])
++		if err := validateAWGValue(canonical, value); err != nil {
++			return nil, err
++		}
++		params = append(params, canonical+"="+value)
++	}
++	if len(params) > 64 {
++		return nil, newError("too many AmneziaWG params")
++	}
++	return params, nil
++}
++
++func validateAWGValue(key, value string) error {
++	if value == "" {
++		return newError("empty value for AmneziaWG param ", key)
++	}
++	switch key {
++	case "header_protection_key":
++		if len(value) != 32 {
++			return newError("header_protection_key must be 32 hex chars")
++		}
++		if _, err := hex.DecodeString(value); err != nil {
++			return newError("invalid header_protection_key hex value")
++		}
++	case "random_trailers", "disable_cookies":
++		if _, err := strconv.ParseBool(value); err != nil {
++			return newError("invalid bool value for AmneziaWG param ", key)
++		}
++	case "jc", "jmin", "jmax", "s1", "s2", "s3", "s4":
++		if _, err := strconv.ParseUint(value, 10, 16); err != nil {
++			return newError("invalid unsigned value for AmneziaWG param ", key)
++		}
++	case "i1", "i2", "i3", "i4", "i5":
++		if len(value) > 256 || strings.ContainsAny(value, "\n\r\x00") {
++			return newError("invalid CPS string for AmneziaWG param ", key)
++		}
++	default:
++		// h1-h4 and the timeout/range keys: "uint" or "uint-uint" (UintRange)
++		values := []string{value}
++		if strings.Contains(value, "-") {
++			values = strings.Split(value, "-")
++			if len(values) != 2 {
++				return newError("invalid range value for AmneziaWG param ", key)
++			}
++		}
++		for _, v := range values {
++			if _, err := strconv.ParseUint(strings.TrimSpace(v), 10, 32); err != nil {
++				return newError("invalid value for AmneziaWG param ", key)
++			}
++		}
++	}
++	return nil
++}
+diff -ruN core-patched.base/proxy/wireguard/bind.go core-patched/proxy/wireguard/bind.go
+--- core-patched.base/proxy/wireguard/bind.go	2026-11-15 05:14:54.953481301 +0000
++++ core-patched/proxy/wireguard/bind.go	2026-11-15 05:37:47.173257760 +0000
+@@ -7,8 +7,11 @@
+ 	"runtime"
+ 	"sync"
+ 
+-	"golang.zx2c4.com/wireguard/conn"
+-	"golang.zx2c4.com/wireguard/device"
++	// NextClave (NC_AWG): amneziawg-go instead of golang.zx2c4.com/wireguard
++	// (conn.Bind API is signature-compatible with the zx2c4 version used
++	// before; see device.go for the rationale).
++	"github.com/amnezia-vpn/amneziawg-go/v3/conn"
++	"github.com/amnezia-vpn/amneziawg-go/v3/device"
+ 
+ 	"github.com/exclavenetwork/exclave-core/v5/common/buf"
+ 	"github.com/exclavenetwork/exclave-core/v5/common/net"
+diff -ruN core-patched.base/proxy/wireguard/client.go core-patched/proxy/wireguard/client.go
+--- core-patched.base/proxy/wireguard/client.go	2026-11-15 05:14:54.953481301 +0000
++++ core-patched/proxy/wireguard/client.go	2026-11-15 05:37:47.174257758 +0000
+@@ -229,7 +229,7 @@
+ 		return nil, err
+ 	}
+ 
+-	if err = t.BuildDevice(createIPCRequest(c.conf.SecretKey, c.conf.Peers, false), c.bind); err != nil {
++	if err = t.BuildDevice(createIPCRequest(c.conf.SecretKey, c.conf.Peers, false, c.conf.AwgParams), c.bind); err != nil {
+ 		_ = t.Close()
+ 		return nil, err
+ 	}
+diff -ruN core-patched.base/proxy/wireguard/config.pb.go core-patched/proxy/wireguard/config.pb.go
+--- core-patched.base/proxy/wireguard/config.pb.go	2026-11-15 05:14:54.953481301 +0000
++++ core-patched/proxy/wireguard/config.pb.go	2026-11-15 05:37:47.174257758 +0000
+@@ -1,3 +1,9 @@
++// Code generated by protoc-gen-go. DO NOT EDIT.
++// versions:
++// 	protoc-gen-go v1.36.12
++// 	protoc        v6.33.1
++// source: proxy/wireguard/config.proto
++
+ package wireguard
+ 
+ import (
+@@ -156,8 +162,11 @@
+ 	NumWorkers     int32                       `protobuf:"varint,5,opt,name=num_workers,json=numWorkers,proto3" json:"num_workers,omitempty"`
+ 	Reserved       []byte                      `protobuf:"bytes,6,opt,name=reserved,proto3" json:"reserved,omitempty"`
+ 	DomainStrategy ClientConfig_DomainStrategy `protobuf:"varint,7,opt,name=domain_strategy,json=domainStrategy,proto3,enum=exclave.core.proxy.wireguard.ClientConfig_DomainStrategy" json:"domain_strategy,omitempty"`
+-	unknownFields  protoimpl.UnknownFields
+-	sizeCache      protoimpl.SizeCache
++	// NextClave (NC_AWG): AmneziaWG obfuscation parameters, pre-validated and
++	// normalized to lowercase "key=value" UAPI lines by infra/conf/v4/wireguard.go
++	AwgParams     []string `protobuf:"bytes,8,rep,name=awg_params,json=awgParams,proto3" json:"awg_params,omitempty"`
++	unknownFields protoimpl.UnknownFields
++	sizeCache     protoimpl.SizeCache
+ }
+ 
+ func (x *ClientConfig) Reset() {
+@@ -239,6 +248,13 @@
+ 	return ClientConfig_USE_IP
+ }
+ 
++func (x *ClientConfig) GetAwgParams() []string {
++	if x != nil {
++		return x.AwgParams
++	}
++	return nil
++}
++
+ type ServerConfig struct {
+ 	state         protoimpl.MessageState `protogen:"open.v1"`
+ 	SecretKey     string                 `protobuf:"bytes,1,opt,name=secret_key,json=secretKey,proto3" json:"secret_key,omitempty"`
+@@ -329,7 +345,7 @@
+ 	"\n" +
+ 	"keep_alive\x18\x04 \x01(\rR\tkeepAlive\x12\x1f\n" +
+ 	"\vallowed_ips\x18\x05 \x03(\tR\n" +
+-	"allowedIps\"\xad\x03\n" +
++	"allowedIps\"\xcc\x03\n" +
+ 	"\fClientConfig\x12\x1d\n" +
+ 	"\n" +
+ 	"secret_key\x18\x01 \x01(\tR\tsecretKey\x12\x18\n" +
+@@ -339,7 +355,9 @@
+ 	"\vnum_workers\x18\x05 \x01(\x05R\n" +
+ 	"numWorkers\x12\x1a\n" +
+ 	"\breserved\x18\x06 \x01(\fR\breserved\x12b\n" +
+-	"\x0fdomain_strategy\x18\a \x01(\x0e29.exclave.core.proxy.wireguard.ClientConfig.DomainStrategyR\x0edomainStrategy\"V\n" +
++	"\x0fdomain_strategy\x18\a \x01(\x0e29.exclave.core.proxy.wireguard.ClientConfig.DomainStrategyR\x0edomainStrategy\x12\x1d\n" +
++	"\n" +
++	"awg_params\x18\b \x03(\tR\tawgParams\"V\n" +
+ 	"\x0eDomainStrategy\x12\n" +
+ 	"\n" +
+ 	"\x06USE_IP\x10\x00\x12\v\n" +
+diff -ruN core-patched.base/proxy/wireguard/config.proto core-patched/proxy/wireguard/config.proto
+--- core-patched.base/proxy/wireguard/config.proto	2026-11-15 05:14:54.953481301 +0000
++++ core-patched/proxy/wireguard/config.proto	2026-11-15 05:37:47.174257758 +0000
+@@ -35,6 +35,9 @@
+   int32 num_workers = 5;
+   bytes reserved = 6;
+   DomainStrategy domain_strategy = 7;
++  // NextClave (NC_AWG): AmneziaWG obfuscation parameters, pre-validated and
++  // normalized to lowercase "key=value" UAPI lines by infra/conf/v4/wireguard.go
++  repeated string awg_params = 8;
+ }
+ 
+ message ServerConfig {
+diff -ruN core-patched.base/proxy/wireguard/device.go core-patched/proxy/wireguard/device.go
+--- core-patched.base/proxy/wireguard/device.go	2026-11-15 05:14:54.953481301 +0000
++++ core-patched/proxy/wireguard/device.go	2026-11-15 05:37:47.174257758 +0000
+@@ -8,9 +8,14 @@
+ 	"sync"
+ 	"time"
+ 
+-	"golang.zx2c4.com/wireguard/conn"
+-	"golang.zx2c4.com/wireguard/device"
+-	"golang.zx2c4.com/wireguard/tun"
++	// NextClave (NC_AWG): switched from golang.zx2c4.com/wireguard to
++	// amneziawg-go (the reference WireGuard fork implementing the AmneziaWG
++	// obfuscation protocol, v3.x API). The device/tun/conn APIs are
++	// signature-compatible with the previous zx2c4 version, so only imports
++	// change here; AWG params arrive via the IPC string (see wireguard.go).
++	"github.com/amnezia-vpn/amneziawg-go/v3/conn"
++	"github.com/amnezia-vpn/amneziawg-go/v3/device"
++	"github.com/amnezia-vpn/amneziawg-go/v3/tun"
+ 	"gvisor.dev/gvisor/pkg/buffer"
+ 	"gvisor.dev/gvisor/pkg/tcpip"
+ 	"gvisor.dev/gvisor/pkg/tcpip/adapters/gonet"
+diff -ruN core-patched.base/proxy/wireguard/netstack/tun.go core-patched/proxy/wireguard/netstack/tun.go
+--- core-patched.base/proxy/wireguard/netstack/tun.go	2026-11-15 05:14:54.953481301 +0000
++++ core-patched/proxy/wireguard/netstack/tun.go	2026-11-15 05:37:47.174257758 +0000
+@@ -30,7 +30,10 @@
+ 	"sync"
+ 	"syscall"
+ 
+-	"golang.zx2c4.com/wireguard/tun"
++	// NextClave (NC_AWG): amneziawg-go's tun package (tun.Device interface is
++	// signature-compatible with the zx2c4 version; netTun below implements it
++	// unchanged, including the batched Read/Write and BatchSize).
++	"github.com/amnezia-vpn/amneziawg-go/v3/tun"
+ 	"gvisor.dev/gvisor/pkg/buffer"
+ 	"gvisor.dev/gvisor/pkg/tcpip"
+ 	"gvisor.dev/gvisor/pkg/tcpip/adapters/gonet"
+diff -ruN core-patched.base/proxy/wireguard/server.go core-patched/proxy/wireguard/server.go
+--- core-patched.base/proxy/wireguard/server.go	2026-11-15 05:14:54.954481304 +0000
++++ core-patched/proxy/wireguard/server.go	2026-11-15 05:37:47.175257755 +0000
+@@ -45,7 +45,7 @@
+ 		return nil, err
+ 	}
+ 
+-	if err = tun.BuildDevice(createIPCRequest(conf.SecretKey, conf.Peers, true), server.bind); err != nil {
++	if err = tun.BuildDevice(createIPCRequest(conf.SecretKey, conf.Peers, true, nil), server.bind); err != nil {
+ 		_ = tun.Close()
+ 		return nil, err
+ 	}
+diff -ruN core-patched.base/proxy/wireguard/wireguard.go core-patched/proxy/wireguard/wireguard.go
+--- core-patched.base/proxy/wireguard/wireguard.go	2026-11-15 05:14:54.954481304 +0000
++++ core-patched/proxy/wireguard/wireguard.go	2026-11-15 05:37:47.175257755 +0000
+@@ -51,7 +51,15 @@
+ }
+ 
+ // serialize the config into an IPC request
+-func createIPCRequest(secretKey string, peers []*PeerConfig, isServer bool) string {
++//
++// NextClave (NC_AWG): awgParams carries AmneziaWG obfuscation parameters as
++// pre-validated lowercase "key=value" UAPI lines. Validation (strict key
++// allowlist + value formats mirroring amneziawg-go device/uapi.go) happens in
++// the JSON config layer (infra/conf/v4/wireguard.go), so nothing outside the
++// known AWG device-level keys can reach the IPC stream from here. The lines
++// are inserted into the device-level section, before any peer section, which
++// is where UAPI expects jc/jmin/jmax/s1-s4/h1-h4/i1-i5/...
++func createIPCRequest(secretKey string, peers []*PeerConfig, isServer bool, awgParams []string) string {
+ 	var request strings.Builder
+ 
+ 	fmt.Fprintf(&request, "private_key=%s\n", secretKey)
+@@ -61,6 +69,11 @@
+ 		request.WriteString("listen_port=1337\n")
+ 	}
+ 
++	for _, param := range awgParams {
++		request.WriteString(param)
++		request.WriteString("\n")
++	}
++
+ 	for _, peer := range peers {
+ 		if peer.PublicKey != "" {
+ 			fmt.Fprintf(&request, "public_key=%s\n", peer.PublicKey)

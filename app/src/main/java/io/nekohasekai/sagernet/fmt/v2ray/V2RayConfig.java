@@ -916,6 +916,10 @@ public class V2RayConfig {
         public List<WireGuardPeerObject> peers;
         public List<Integer> reserved;
         public String domainStrategy;
+        // NextClave (NC_AWG): AmneziaWG obfuscation parameters, a multi-line
+        // "Key = value" block passed through to the core's wireguard JSON
+        // layer (field awgParams; validated and normalized there).
+        public String awgParams;
 
         public static class WireGuardPeerObject {
 

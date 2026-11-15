@@ -490,6 +490,8 @@
     <string name="reality_short_id">REALITY Short ID</string>
     <string name="reality_fingerprint">REALITY uTLS fingerprint</string>
     <string name="wireguard_reserved">Reserved</string>
+    <!-- NextClave (NC_AWG): AmneziaWG obfuscation parameters -->
+    <string name="wireguard_awg_params">AmneziaWG params (Jc, Jmin, Jmax, S1-S4, H1-H4, I1-I5, … one \"Key = value\" per line)</string>
     <string name="bootstrap_dns">Bootstrap DNS</string>
     <string name="use_local_dns_as_bootstrap_dns">Use system DNS as Bootstrap DNS</string>
     <string name="brook_fragment">Fragment</string>

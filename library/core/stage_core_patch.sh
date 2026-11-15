@@ -32,6 +32,22 @@ if [ ! -f "$PATCH_FILE3" ]; then
   echo "ERROR: $PATCH_FILE3 not found" >&2
   exit 1
 fi
+# NextClave (NC_AWG): AmneziaWG outbound support. core-awg.patch switches
+# proxy/wireguard from golang.zx2c4.com/wireguard to amneziawg-go v3
+# (github.com/amnezia-vpn/amneziawg-go/v3) and plumbs obfuscation parameters
+# (jc/jmin/jmax/s1-s4/h1-h4/i1-i5, header_protection_key, ...  protocol 3.1)
+# from the JSON config ("awgParams") through the wireguard ClientConfig proto
+# into the device IPC string. The app side (WireGuardBean/WireGuardFmt, .conf
+# and mihomo amnezia-wg-option import) serializes the same keys; see the
+# NC_AWG markers in the app sources. All AWG edits carry NC_AWG comments so
+# they survive upstream core pin bumps (re-apply by regenerating this patch
+# against the new pristine tree; every hunk targets code upstream never
+# touches except config.pb.go, which is regenerated with protoc).
+PATCH_FILE4="core-awg.patch"
+if [ ! -f "$PATCH_FILE4" ]; then
+  echo "ERROR: $PATCH_FILE4 not found" >&2
+  exit 1
+fi
 
 # 1. Temporarily strip the replace directive so `go mod download` fetches the
 #    pinned upstream module into the module cache.
@@ -63,6 +79,7 @@ chmod -R u+w core-patched
 patch -d core-patched -p1 --forward < "$PATCH_FILE"
 patch -d core-patched -p1 --forward < "$PATCH_FILE2"
 patch -d core-patched -p1 --forward < "$PATCH_FILE3"
+patch -d core-patched -p1 --forward < "$PATCH_FILE4"
 
 # 5. Sanity check: the patched tree must contain the new features.
 #    -F (fixed strings) is REQUIRED here: the signature contains "[]int32",
@@ -76,9 +93,13 @@ grep -qF 'writeByLengths' core-patched/transport/internet/tlsfragment/tlsfragmen
 grep -qF 'parseRangeSpecs' core-patched/infra/conf/cfgcommon/socketcfg/socket.go
 grep -qF 'var realityClientVersion = [3]byte{26, 10, 31}' core-patched/transport/internet/reality/uclient.go
 grep -qF 'ClientVersion: realityClientVersion' core-patched/transport/internet/reality/client.go
+# NextClave (NC_AWG): the AmneziaWG swap must be present after patching.
+grep -qF 'github.com/amnezia-vpn/amneziawg-go/v3/conn' core-patched/proxy/wireguard/device.go
+grep -qF 'awg_params = 8' core-patched/proxy/wireguard/config.proto
+grep -qF 'parseAWGParams' core-patched/infra/conf/v4/wireguard.go
 
 # 6. Restore go.mod with the replace directive.
 mv -f go.mod.with-replace go.mod
 trap - EXIT
 
-echo ">> core-patched ready (disorder + byte-length finalmask + reality client version fix)"
+echo ">> core-patched ready (disorder + byte-length finalmask + reality client version fix + AmneziaWG)"

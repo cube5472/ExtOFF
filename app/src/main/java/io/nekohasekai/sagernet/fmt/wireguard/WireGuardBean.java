@@ -37,6 +37,12 @@ public class WireGuardBean extends AbstractBean {
     public Integer mtu;
     public String reserved;
     public Integer keepaliveInterval;
+    // NextClave (NC_AWG): AmneziaWG obfuscation parameters, stored as a
+    // multi-line block of "Key = value" lines exactly as they appear in the
+    // [Interface] section of an AmneziaWG .conf (Jc/Jmin/Jmax, S1-S4, H1-H4,
+    // I1-I5, header_protection_key, content_padding_addition, random_trailers,
+    // disable_cookies, ...). Empty string = plain WireGuard (unchanged).
+    public String awgParams;
 
     @Override
     public void initializeDefaultValues() {
@@ -49,11 +55,15 @@ public class WireGuardBean extends AbstractBean {
         if (mtu == null) mtu = 1420;
         if (reserved == null) reserved = "";
         if (keepaliveInterval == null) keepaliveInterval = 0;
+        if (awgParams == null) awgParams = ""; // NextClave (NC_AWG)
     }
 
     @Override
     public void serialize(ByteBufferOutput output) {
-        output.writeInt(4);
+        // NextClave (NC_AWG): version 5 appends awgParams after
+        // keepaliveInterval. Profiles without AWG params stay version 4, so
+        // they remain byte-identical to upstream NextClave/exclave exports.
+        output.writeInt(awgParams == null || awgParams.isEmpty() ? 4 : 5);
         super.serialize(output);
         output.writeString(localAddress);
         output.writeString(privateKey);
@@ -62,6 +72,9 @@ public class WireGuardBean extends AbstractBean {
         output.writeInt(mtu);
         output.writeString(reserved);
         output.writeInt(keepaliveInterval);
+        if (awgParams != null && !awgParams.isEmpty()) {
+            output.writeString(awgParams);
+        }
     }
 
     @Override
@@ -98,6 +111,11 @@ public class WireGuardBean extends AbstractBean {
         if (version >= 4) {
             keepaliveInterval = input.readInt();
         }
+        if (version >= 5) {
+            // NextClave (NC_AWG)
+            awgParams = input.readString();
+        }
+        if (awgParams == null) awgParams = ""; // NextClave (NC_AWG)
     }
 
     @Override

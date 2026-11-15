@@ -457,6 +457,8 @@
     <string name="tuic_zero_rtt_handshake">0-RTT квитирование</string>
     <string name="reality_fingerprint">REALITY uTLS fingerprint (отпечаток uTLS)</string>
     <string name="wireguard_reserved">Reserved (зарезервированное поле)</string>
+    <!-- NextClave (NC_AWG): параметры обфускации AmneziaWG -->
+    <string name="wireguard_awg_params">Параметры AmneziaWG (Jc, Jmin, Jmax, S1–S4, H1–H4, I1–I5, … по одному \"Ключ = значение\" в строке)</string>
     <string name="brook_udp_over_stream">UDP через поток</string>
     <string name="stun_legacy_test">Тест определения типа NAT</string>
     <string name="stun_legacy_test_summary">Определение типа NAT клиента, определенный в RFC 3489, с помощью STUN.</string>

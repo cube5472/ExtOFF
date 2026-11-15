@@ -282,6 +282,8 @@ object Key {
     const val SERVER_MIERU_TRAFFIC_PATTERN = "serverMieruTrafficPattern"
     const val SERVER_WIREGUARD_RESERVED = "serverWireGuardReserved"
     const val SERVER_WIREGUARD_KEEPALIVE_INTERVAL = "serverWireGuardKeepaliveInterval"
+    // NextClave (NC_AWG): AmneziaWG obfuscation parameters ("Jc = 5" lines)
+    const val SERVER_WIREGUARD_AWG_PARAMS = "serverWireGuardAWGParams"
     const val SERVER_ANYTLS_IDLE_SESSION_CHECK_INTERVAL = "serverAnyTLSIdleSessionCheckInterval"
     const val SERVER_ANYTLS_IDLE_SESSION_TIMEOUT = "serverAnyTLSIdleSessionTimeout"
     const val SERVER_ANYTLS_MIN_IDLE_SESSION = "serverAnyTLSMinIdleSession"

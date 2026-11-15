@@ -48,6 +48,7 @@ class WireGuardSettingsActivity : ProfileSettingsActivity<WireGuardBean>() {
         DataStore.serverMTU = mtu
         DataStore.serverWireGuardReserved = reserved
         DataStore.serverWireGuardKeepaliveInterval = keepaliveInterval
+        DataStore.serverWireGuardAWGParams = awgParams // NextClave (NC_AWG)
     }
 
     override fun WireGuardBean.serialize() {
@@ -65,6 +66,7 @@ class WireGuardSettingsActivity : ProfileSettingsActivity<WireGuardBean>() {
         mtu = DataStore.serverMTU
         reserved = DataStore.serverWireGuardReserved
         keepaliveInterval = DataStore.serverWireGuardKeepaliveInterval
+        awgParams = DataStore.serverWireGuardAWGParams // NextClave (NC_AWG)
     }
 
     override fun PreferenceFragmentCompat.createPreferences(
@@ -86,6 +88,10 @@ class WireGuardSettingsActivity : ProfileSettingsActivity<WireGuardBean>() {
         }
         findPreference<EditTextPreference>(Key.SERVER_WIREGUARD_KEEPALIVE_INTERVAL)!!.apply {
             setOnBindEditTextListener(EditTextPreferenceModifiers.Number)
+        }
+        // NextClave (NC_AWG): multi-line AmneziaWG params editor
+        findPreference<EditTextPreference>(Key.SERVER_WIREGUARD_AWG_PARAMS)!!.apply {
+            setOnBindEditTextListener(EditTextPreferenceModifiers.Monospace)
         }
     }
 

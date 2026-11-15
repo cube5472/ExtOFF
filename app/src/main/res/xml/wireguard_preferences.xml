@@ -54,6 +54,14 @@
             app:key="serverWireGuardReserved"
             app:title="@string/wireguard_reserved"
             app:useSimpleSummaryProvider="true" />
+        <!-- NextClave (NC_AWG): AmneziaWG obfuscation parameters (Jc/Jmin/Jmax,
+             S1-S4, H1-H4, I1-I5, header_protection_key, ...), one
+             "Key = value" per line, as in an AmneziaWG .conf [Interface]. -->
+        <EditTextPreference
+            app:icon="@drawable/baseline_construction_24"
+            app:key="serverWireGuardAWGParams"
+            app:title="@string/wireguard_awg_params"
+            app:useSimpleSummaryProvider="true" />
     </PreferenceCategory>
 
 </PreferenceScreen>

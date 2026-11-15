@@ -82,6 +82,48 @@ private fun parseXrayStupidKey(str: String): String {
     return Base64.encode(key)
 }
 
+// NextClave (NC_AWG): AmneziaWG obfuscation parameter keys (protocol 3.1),
+// stored normalized (lowercase, no "_"/"-") so .conf spellings
+// ("RandomTrailers"), UAPI spellings ("random_trailers") and yaml spellings
+// all match.
+private val awgConfKeys = setOf(
+    "jc", "jmin", "jmax",
+    "s1", "s2", "s3", "s4",
+    "h1", "h2", "h3", "h4",
+    "i1", "i2", "i3", "i4", "i5",
+    "headerprotectionkey", "contentpaddingaddition",
+    "rekeyaftertime", "rekeytimeout", "rejectaftertime",
+    "keepalivetimeout", "maxhandshakeattempts",
+    "randomtrailers", "disablecookies",
+)
+
+private fun normalizeAWGKey(key: String): String =
+    key.lowercase().replace("_", "").replace("-", "")
+
+// NextClave (NC_AWG): extract AmneziaWG parameters from the [Interface]
+// section of a raw .conf (AmneziaWG wg-quick format, same syntax as upstream
+// wg-quick). Lines are kept verbatim ("Key = value") and passed to the core,
+// which validates them against its own allowlist. A plain WireGuard .conf
+// simply yields an empty result and unchanged behavior.
+private fun extractAWGInterfaceParams(conf: String): String {
+    var inInterface = false
+    val lines = mutableListOf<String>()
+    for (raw in conf.lineSequence()) {
+        val line = raw.trim()
+        if (line.startsWith("[")) {
+            inInterface = line.equals("[Interface]", ignoreCase = true)
+            continue
+        }
+        if (!inInterface || line.isEmpty() || line.startsWith("#") || line.startsWith(";")) continue
+        val eq = line.indexOf('=')
+        if (eq <= 0) continue
+        if (normalizeAWGKey(line.substring(0, eq).trim()) in awgConfKeys) {
+            lines.add(line)
+        }
+    }
+    return lines.joinToString("\n")
+}
+
 fun parseWireGuardConfig(conf: String): List<WireGuardBean> {
     val beans = mutableListOf<WireGuardBean>()
     val ini = try {
@@ -97,6 +139,8 @@ fun parseWireGuardConfig(conf: String): List<WireGuardBean> {
         privateKey = iface.getOr("PrivateKey").get()
         require(Base64.decode(privateKey).size == 32)
         mtu = iface.getOr("MTU").getOrNull()?.toInt()?.takeIf { it > 0 } ?: 1420
+        // NextClave (NC_AWG)
+        awgParams = extractAWGInterfaceParams(conf)
     }
     val peers = ini.allSectionsOr("Peer").getOrNull() ?: return beans
     for (peer in peers) {
@@ -126,6 +170,18 @@ fun WireGuardBean.toConf(): String {
     iface.put("Address", localAddress.listByLineOrComma())
     if (mtu > 0) {
         iface.put("MTU", mtu)
+    }
+    // NextClave (NC_AWG): preserve AmneziaWG parameters on round-trip export
+    // (share/export writes them back into the [Interface] section).
+    for (line in awgParams.lineSequence()) {
+        val eq = line.indexOf('=')
+        if (eq > 0) {
+            val key = line.substring(0, eq).trim()
+            val value = line.substring(eq + 1).trim()
+            if (key.isNotEmpty() && value.isNotEmpty()) {
+                iface.put(key, value)
+            }
+        }
     }
     require(Base64.decode(privateKey).size == 32)
     iface.put("PrivateKey", privateKey)

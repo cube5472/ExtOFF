@@ -18,6 +18,9 @@ require (
 	filippo.io/hpke v0.4.0 // indirect
 	github.com/adrg/xdg v0.5.3 // indirect
 	github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da // indirect
+	// NextClave (NC_AWG): hoisted requirement of the patched core (core-patched/
+	// go.mod pulls amneziawg-go for the AmneziaWG outbound; see core-awg.patch).
+	github.com/amnezia-vpn/amneziawg-go/v3 v3.1.20260828 // indirect
 	github.com/andybalholm/brotli v1.3.0 // indirect
 	github.com/anytls/sing-anytls v0.0.13 // indirect
 	github.com/apernet/quic-go v0.65.1-0.20261109005002-2895f039137a // indirect

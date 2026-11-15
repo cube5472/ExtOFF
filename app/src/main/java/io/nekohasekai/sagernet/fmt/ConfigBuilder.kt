@@ -1375,6 +1375,9 @@ fun buildV2RayConfig(
                                         address = bean.localAddress.listByLineOrComma()
                                         secretKey = bean.privateKey
                                         mtu = bean.mtu
+                                        // NextClave (NC_AWG): pass AmneziaWG obfuscation params
+                                        // verbatim; validation/normalization happens in the core.
+                                        bean.awgParams?.takeIf { it.isNotEmpty() }?.also { awgParams = it }
                                         val values = bean.reserved.listByLineOrComma()
                                         if (values.size == 3) {
                                             val reserved0 = values[0].toUByteOrNull()

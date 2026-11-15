@@ -938,9 +938,26 @@ fun parseClashProxy(proxy: Map<String, Any?>): List<AbstractBean> {
             })
         }
         "wireguard" -> {
-            proxy.getObject("amnezia-wg-option")?.also {
-                // unsupported
-                return listOf()
+            // NextClave (NC_AWG): mihomo amnezia-wg-option (Jc/Jmin/Jmax/S1-S4/
+            // H1-H4/I1-I5 plus protocol-3.x keys) — previously unsupported.
+            // Serialized to the same "Key = value" block the .conf importer
+            // produces; the core lowercases keys and validates values.
+            val awgLines = mutableListOf<String>()
+            proxy.getObject("amnezia-wg-option")?.also { awg ->
+                for (key in listOf(
+                    "Jc", "Jmin", "Jmax", "S1", "S2", "S3", "S4",
+                    "H1", "H2", "H3", "H4",
+                    "I1", "I2", "I3", "I4", "I5",
+                    "HeaderProtectionKey", "ContentPaddingAddition",
+                    "RekeyAfterTime", "RekeyTimeout", "RejectAfterTime",
+                    "KeepaliveTimeout", "MaxHandshakeAttempts",
+                    "RandomTrailers", "DisableCookies",
+                )) {
+                    val value = awg.entries.firstOrNull { it.key.equals(key, ignoreCase = true) }?.value
+                    if (value != null && value.toString().isNotEmpty()) {
+                        awgLines.add("$key = $value")
+                    }
+                }
             }
             val beanList = mutableListOf<WireGuardBean>()
             val bean = WireGuardBean().apply {
@@ -953,6 +970,8 @@ fun parseClashProxy(proxy: Map<String, Any?>): List<AbstractBean> {
                 mtu = (proxy.getInt("mtu"))?.takeIf { it > 0 } ?: 1408
                 localAddress = listOfNotNull(proxy.getString("ip"), proxy.getString("ipv6")).joinToString("\n")
                 keepaliveInterval = proxy.getInt("persistent-keepalive")
+                // NextClave (NC_AWG)
+                if (awgLines.isNotEmpty()) awgParams = awgLines.joinToString("\n")
                 name = proxy.getString("name")
                 proxy.getIntArray("reserved")?.also {
                     if (it.size == 3) {
