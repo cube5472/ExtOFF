@@ -1,0 +1,161 @@
+diff -ruN core-patched.awgbase/proxy/masque/client.go core-patched/proxy/masque/client.go
+--- core-patched.awgbase/proxy/masque/client.go	2026-11-15 05:14:54.944481270 +0000
++++ core-patched/proxy/masque/client.go	2026-11-15 07:07:41.505188838 +0000
+@@ -51,6 +51,7 @@
+ 	h3Transport   *http3.Transport
+ 	mtu           int32
+ 	reqURL        *url.URL
++	warpMode      bool
+ 	ctxLock       sync.Mutex
+ 	ctx           context.Context
+ 	cancel        context.CancelFunc
+@@ -139,6 +140,15 @@
+ 		}
+ 		c.reqURL = u
+ 	}
++	// NextClave (NC_MASQUE): Cloudflare WARP MASQUE dialect — selected by the
++	// request URI host (usque/mihomo dial https://cloudflareaccess.com). WARP
++	// needs the legacy draft H3_DATAGRAM setting (0x276) and disabled
++	// compression; the default RFC 9298 dialect is left untouched.
++	c.warpMode = connectip.IsWarpRequestURL(c.reqURL)
++	if c.warpMode && c.h3Transport != nil {
++		c.h3Transport.AdditionalSettings = map[uint64]uint64{0x276: 1}
++		c.h3Transport.DisableCompression = true
++	}
+ 	c.ctx, c.cancel = context.WithCancel(context.Background())
+ 	return c, nil
+ }
+@@ -369,6 +379,11 @@
+ 	if err != nil {
+ 		return nil, nil, err
+ 	}
++	if c.warpMode {
++		// NextClave (NC_MASQUE): WARP expects an empty User-Agent
++		// (mihomo parity); explicit config headers still win below.
++		req.Header().Set("User-Agent", "")
++	}
+ 	if c.config.Username != nil || c.config.Password != nil {
+ 		req.Header().Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(c.config.GetUsername()+":"+c.config.GetPassword())))
+ 	}
+@@ -457,6 +472,11 @@
+ 	if err != nil {
+ 		return nil, nil, err
+ 	}
++	if c.warpMode {
++		// NextClave (NC_MASQUE): WARP expects an empty User-Agent
++		// (mihomo parity); explicit config headers still win below.
++		req.Header().Set("User-Agent", "")
++	}
+ 	if c.config.Username != nil || c.config.Password != nil {
+ 		req.Header().Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(c.config.GetUsername()+":"+c.config.GetPassword())))
+ 	}
+diff -ruN core-patched.awgbase/proxy/masque/http2_wrap.go core-patched/proxy/masque/http2_wrap.go
+--- core-patched.awgbase/proxy/masque/http2_wrap.go	2026-11-15 05:14:54.944481270 +0000
++++ core-patched/proxy/masque/http2_wrap.go	2026-11-15 07:07:13.286093109 +0000
+@@ -107,7 +107,9 @@
+ }
+ 
+ func (c *http2ClientConn) RoundTrip(req *http.Request) (*http.Response, error) {
+-	if req.Header.Get(":protocol") != "connect-ip" {
++	// NextClave (NC_MASQUE): also route the Cloudflare WARP dialect
++	// ("cf-connect-ip") through the pseudo-header bypass.
++	if proto := req.Header.Get(":protocol"); proto != "connect-ip" && proto != "cf-connect-ip" {
+ 		return c.ClientConn.RoundTrip(req)
+ 	}
+ 	c.initOffset()
+diff -ruN core-patched.awgbase/proxy/masque/internal/connectip/client.go core-patched/proxy/masque/internal/connectip/client.go
+--- core-patched.awgbase/proxy/masque/internal/connectip/client.go	2026-11-15 05:14:54.944481270 +0000
++++ core-patched/proxy/masque/internal/connectip/client.go	2026-11-15 07:07:06.464069960 +0000
+@@ -47,10 +47,26 @@
+ 	case <-c.clientConn.ReceivedSettings():
+ 	}
+ 
++	// NextClave (NC_MASQUE): Cloudflare WARP MASQUE skips the RFC
++	// extended-CONNECT settings handshake (mihomo passes
++	// ignoreExtendedConnect=true) but still requires datagrams.
++	warp := requestProtocolForURL(httpReq.URL) == cfRequestProtocol
++
++	select {
++	case <-httpReq.Context().Done():
++		return nil, nil, context.Cause(httpReq.Context())
++	case <-c.clientConn.Context().Done():
++		return nil, nil, context.Cause(c.clientConn.Context())
++	case <-c.clientConn.ReceivedSettings():
++	}
++
+ 	settings := c.clientConn.Settings()
+-	if !settings.EnableExtendedConnect {
++	if !warp && !settings.EnableExtendedConnect {
+ 		return nil, nil, errors.New("connect-ip: server didn't enable Extended CONNECT")
+ 	}
++	if warp && !settings.EnableDatagrams {
++		return nil, nil, errors.New("connect-ip: server didn't enable datagrams")
++	}
+ 
+ 	rstr, err := c.clientConn.OpenRequestStream(httpReq.Context())
+ 	if err != nil {
+diff -ruN core-patched.awgbase/proxy/masque/internal/connectip/request.go core-patched/proxy/masque/internal/connectip/request.go
+--- core-patched.awgbase/proxy/masque/internal/connectip/request.go	2026-11-15 05:14:54.945481273 +0000
++++ core-patched/proxy/masque/internal/connectip/request.go	2026-11-15 07:06:59.645046816 +0000
+@@ -16,12 +16,34 @@
+ 	"context"
+ 	"net/http"
+ 	"net/url"
++	"strings"
+ 
+ 	"github.com/quic-go/quic-go/http3"
+ )
+ 
+ const requestProtocol = "connect-ip"
+ 
++// NextClave (NC_MASQUE): Cloudflare WARP MASQUE dialect. The CF endpoint
++// expects :protocol "cf-connect-ip" and skips the RFC extended-CONNECT
++// settings handshake (mihomo/usque parity, which dial the WARP CONNECT-IP
++// tunnel at https://cloudflareaccess.com). The dialect is selected purely by
++// the request URI host, so the default RFC 9298 behavior is unchanged.
++const cfRequestProtocol = "cf-connect-ip"
++const cfWarpRequestHost = "cloudflareaccess.com"
++
++func requestProtocolForURL(u *url.URL) string {
++	if u != nil && strings.EqualFold(u.Host, cfWarpRequestHost) {
++		return cfRequestProtocol
++	}
++	return requestProtocol
++}
++
++// IsWarpRequestURL reports whether the CONNECT-IP request targets the
++// Cloudflare WARP MASQUE service.
++func IsWarpRequestURL(u *url.URL) bool {
++	return requestProtocolForURL(u) == cfRequestProtocol
++}
++
+ var capsuleProtocolHeaderValue = "?1"
+ 
+ type Request struct {
+@@ -34,7 +56,7 @@
+ 		URL:    u,
+ 		Host:   u.Host,
+ 		Header: make(http.Header),
+-		Proto:  requestProtocol,
++		Proto:  requestProtocolForURL(u),
+ 	}
+ 	req.Header.Set(http3.CapsuleProtocolHeader, capsuleProtocolHeaderValue)
+ 	return &Request{req: req.WithContext(ctx)}, nil
+@@ -47,7 +69,7 @@
+ 		Host:   u.Host,
+ 		Header: make(http.Header),
+ 	}
+-	req.Header.Set(":protocol", requestProtocol)
++	req.Header.Set(":protocol", requestProtocolForURL(u))
+ 	req.Header.Set(http3.CapsuleProtocolHeader, capsuleProtocolHeaderValue)
+ 	return &Request{req: req.WithContext(ctx)}, nil
+ }
+@@ -60,7 +82,7 @@
+ 		Header: make(http.Header),
+ 	}
+ 	req.Header.Set("Connection", "Upgrade")
+-	req.Header.Set("Upgrade", requestProtocol)
++	req.Header.Set("Upgrade", requestProtocolForURL(u))
+ 	req.Header.Set(http3.CapsuleProtocolHeader, capsuleProtocolHeaderValue)
+ 	return &Request{req: req.WithContext(ctx)}, nil
+ }

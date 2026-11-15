@@ -28,6 +28,8 @@ import io.nekohasekai.sagernet.fmt.anytls.AnyTLSBean
 import io.nekohasekai.sagernet.fmt.http.HttpBean
 import io.nekohasekai.sagernet.fmt.hysteria2.Hysteria2Bean
 import io.nekohasekai.sagernet.fmt.mieru.MieruBean
+// NextClave (NC_MASQUE): mihomo "type: masque" (Cloudflare WARP over MASQUE)
+import io.nekohasekai.sagernet.fmt.masque.MASQUEBean
 import io.nekohasekai.sagernet.fmt.shadowquic.ShadowQUICBean
 import io.nekohasekai.sagernet.fmt.shadowquic.supportedShadowQUICCongestionControl
 import io.nekohasekai.sagernet.fmt.shadowsocks.ShadowsocksBean
@@ -54,6 +56,34 @@ import io.nekohasekai.sagernet.ktx.*
 import kotlin.io.encoding.Base64
 import libexclavecore.Libexclavecore
 import kotlin.uuid.Uuid
+
+// NextClave (NC_MASQUE): mihomo "type: masque" (Cloudflare WARP over MASQUE)
+import org.bouncycastle.asn1.ASN1ObjectIdentifier
+import org.bouncycastle.asn1.ASN1Primitive
+import org.bouncycastle.asn1.pkcs.PrivateKeyInfo
+import org.bouncycastle.asn1.sec.ECPrivateKey
+import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo
+import org.bouncycastle.asn1.x500.X500Name
+import org.bouncycastle.asn1.x9.ECNamedCurveTable
+import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter
+import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder
+import org.bouncycastle.crypto.params.ECNamedDomainParameters
+import org.bouncycastle.crypto.params.ECPrivateKeyParameters
+import org.bouncycastle.crypto.params.ECPublicKeyParameters
+import org.bouncycastle.crypto.util.PrivateKeyInfoFactory
+import org.bouncycastle.crypto.util.SubjectPublicKeyInfoFactory
+import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder
+import org.bouncycastle.openssl.jcajce.JcaPEMWriter
+import org.bouncycastle.util.io.pem.PemObject
+import java.io.StringWriter
+import java.math.BigInteger
+import java.security.KeyFactory
+import java.security.MessageDigest
+import java.security.PrivateKey
+import java.security.PublicKey
+import java.security.spec.PKCS8EncodedKeySpec
+import java.security.spec.X509EncodedKeySpec
+import java.util.Date
 
 fun parseClashProxies(proxies: List<Map<String, Any?>>): List<AbstractBean> {
     val beans = mutableListOf<AbstractBean>()
@@ -937,6 +967,63 @@ fun parseClashProxy(proxy: Map<String, Any?>): List<AbstractBean> {
                 name = proxy.getString("name")
             })
         }
+        "masque" -> {
+            // NextClave (NC_MASQUE): mihomo "type: masque" proxies (Cloudflare
+            // WARP over MASQUE, usque-style). Mapped onto the MASQUEBean the
+            // exclave core already understands:
+            //  - private-key (RFC 5915 SEC1 EC key, what mihomo parses with
+            //    x509.ParseECPrivateKey) -> self-signed TLS client certificate
+            //    + PKCS8 PEM key (mtlsCertificate/mtlsCertificatePrivateKey),
+            //    mirroring mihomo's x509.CreateCertificate; Cloudflare checks
+            //    the certificate's public key against the enrollment, so the
+            //    DN and validity are cosmetic (10 years, CN=masque);
+            //  - public-key (server certificate SPKI, required by mihomo) ->
+            //    base64 sha256 pin pinnedPeerCertificatePublicKeySha256 +
+            //    allowInsecure (same pattern as the sing-box masque-client
+            //    parser; isInsecure() stays false while a pin is set);
+            //  - uri -> uriTemplate, default https://cloudflareaccess.com —
+            //    the core (NC_MASQUE in proxy/masque) selects the WARP dialect
+            //    (cf-connect-ip, no extended-CONNECT, H3 datagram 0x276) by
+            //    this host;
+            //  - sni -> sni, default consumer-masque.cloudflareclient.com
+            //    (mihomo ConnectSNI);
+            //  - network "h2" -> HTTP/2, otherwise HTTP/3 CONNECT-IP;
+            //    "h3-l4proxy" is per-flow proxying, closest transport is h3;
+            //  - mtu, skip-cert-verify -> allowInsecure.
+            // Dropped (no MASQUE outbound counterpart): ip/ipv6 (the tunnel
+            // addresses are assigned by the server), udp, remote-dns-resolve
+            // and dns (app routing), congestion-controller/cwnd/bbr-profile/
+            // handshake-timeout/dialer-proxy. Merge keys ("<<: *anchors") are
+            // resolved by the yaml loader before this branch runs.
+            val privateKeyB64 = proxy.getString("private-key")
+            val publicKeyB64 = proxy.getString("public-key")
+            if (privateKeyB64.isNullOrEmpty() || publicKeyB64.isNullOrEmpty()) {
+                return listOf()
+            }
+            val bean = MASQUEBean().apply {
+                serverAddress = proxy.getString("server") ?: return listOf()
+                serverPort = proxy.getInt("port")?.takeIf { it > 0 } ?: return listOf()
+                name = proxy.getString("name")
+                uriTemplate = proxy.getString("uri") ?: "https://cloudflareaccess.com"
+                sni = proxy.getString("sni") ?: "consumer-masque.cloudflareclient.com"
+                http3 = proxy.getString("network")?.equals("h2", ignoreCase = true) != true
+                proxy.getInt("mtu")?.takeIf { it > 0 }?.also { mtu = it }
+                if (proxy.getBoolean("skip-cert-verify") == true) {
+                    allowInsecure = true
+                }
+                try {
+                    val (key, spki) = parseMasquePrivateKey(privateKeyB64)
+                    mtlsCertificate = masqueClientCertificatePem(key, parseMasquePublicKey(spki))
+                    mtlsCertificatePrivateKey = masquePrivateKeyPem(key)
+                    pinnedPeerCertificatePublicKeySha256 = masqueServerPublicKeyPin(publicKeyB64)
+                    allowInsecure = true
+                } catch (e: Exception) {
+                    Logs.e("NextClave: failed to build the WARP MASQUE client certificate", e)
+                    return listOf()
+                }
+            }
+            return listOf(bean)
+        }
         "wireguard" -> {
             // NextClave (NC_AWG): mihomo amnezia-wg-option (Jc/Jmin/Jmax/S1-S4/
             // H1-H4/I1-I5 plus protocol-3.x keys) — previously unsupported.
@@ -1260,4 +1347,74 @@ private fun Map<String, Any?>.getXHTTPRange(key: String): String? {
     val from = parts[0].trim().toIntOrNull()
     val to = parts[0].trim().toIntOrNull()
     return if (from != null && to != null && from in 0..to) "$from-$to" else null
+}
+
+// NextClave (NC_MASQUE): WARP MASQUE key/certificate helpers. The yaml
+// private-key is the RFC 5915 SEC1 ECPrivateKey (usque/mihomo format — NOT
+// PKCS8); it is re-wrapped into a canonical PKCS8 key + a self-signed client
+// certificate the exclave MASQUE outbound can present as mTLS. All failures
+// throw and the masque branch skips the proxy.
+
+private fun parseMasquePrivateKey(base64Key: String): Pair<PrivateKey, SubjectPublicKeyInfo> {
+    val raw = Base64.decode(base64Key.trim())
+    try {
+        val key = KeyFactory.getInstance("EC").generatePrivate(PKCS8EncodedKeySpec(raw))
+        return key to SubjectPublicKeyInfo.getInstance(PrivateKeyInfo.getInstance(key.encoded).parsePublicKey())
+    } catch (_: Exception) {
+        // fall through to the SEC1 parser
+    }
+    // RFC 5915 SEC1: SEQUENCE { INTEGER 1, OCTET STRING d, [0] curve OID, [1] pubkey }
+    val sec1 = ECPrivateKey.getInstance(ASN1Primitive.fromByteArray(raw))
+    val oid = ASN1ObjectIdentifier.getInstance(sec1.parametersObject)
+    val spec = ECNamedCurveTable.getByOID(oid)
+    val domain = ECNamedDomainParameters(oid, spec.curve, spec.g, spec.n, spec.h)
+    val privParams = ECPrivateKeyParameters(sec1.key, domain)
+    val pubParams = ECPublicKeyParameters(domain.g.multiply(sec1.key).normalize(), domain)
+    val spki = SubjectPublicKeyInfoFactory.createSubjectPublicKeyInfo(pubParams)
+    val pki = PrivateKeyInfoFactory.createPrivateKeyInfo(privParams)
+    val key = KeyFactory.getInstance("EC").generatePrivate(PKCS8EncodedKeySpec(pki.encoded))
+    return key to spki
+}
+
+private fun parseMasquePublicKey(spki: SubjectPublicKeyInfo): PublicKey {
+    return KeyFactory.getInstance("EC").generatePublic(X509EncodedKeySpec(spki.encoded))
+}
+
+private fun masqueClientCertificatePem(privateKey: PrivateKey, publicKey: PublicKey): String {
+    // Go's x509.CreateCertificate (mihomo/usque) builds the client cert with
+    // an EMPTY subject/issuer; BouncyCastle requires a DN — Cloudflare's
+    // enrollment check only uses the certificate's public key, so a minimal
+    // DN and a long validity are equivalent here.
+    val dn = X500Name("CN=masque")
+    val now = System.currentTimeMillis()
+    val holder = JcaX509v3CertificateBuilder(
+        dn,
+        BigInteger.ZERO,
+        Date(now),
+        Date(now + 10L * 365 * 24 * 60 * 60 * 1000),
+        dn,
+        publicKey,
+    ).build(JcaContentSignerBuilder("SHA256withECDSA").build(privateKey))
+    val sw = StringWriter()
+    val pem = JcaPEMWriter(sw)
+    pem.writeObject(JcaX509CertificateConverter().getCertificate(holder))
+    pem.close()
+    return sw.toString()
+}
+
+private fun masquePrivateKeyPem(privateKey: PrivateKey): String {
+    val sw = StringWriter()
+    val pem = JcaPEMWriter(sw)
+    pem.writeObject(PemObject("PRIVATE KEY", PrivateKeyInfo.getInstance(privateKey.encoded).encoded))
+    pem.close()
+    return sw.toString()
+}
+
+// The yaml public-key is the server certificate's SubjectPublicKeyInfo in
+// base64 (mihomo compares the peer certificate's public key against it);
+// exclave-core pins base64(sha256(cert.RawSubjectPublicKeyInfo)) — for a
+// standard EC cert the SPKI DER is byte-identical to this value.
+private fun masqueServerPublicKeyPin(base64Spki: String): String {
+    val spki = Base64.decode(base64Spki.trim())
+    return Base64.encode(MessageDigest.getInstance("SHA-256").digest(spki))
 }

@@ -48,6 +48,22 @@ if [ ! -f "$PATCH_FILE4" ]; then
   echo "ERROR: $PATCH_FILE4 not found" >&2
   exit 1
 fi
+# NextClave (NC_MASQUE): Cloudflare WARP MASQUE dialect for the MASQUE
+# outbound. The core's masque client speaks only RFC 9298 ("connect-ip",
+# extended-CONNECT settings handshake), while Cloudflare WARP — the target of
+# the mihomo "type: masque" configs imported by the app (see the NC_MASQUE
+# markers in the app sources) — expects :protocol "cf-connect-ip", no
+# extended-CONNECT negotiation, the legacy draft H3_DATAGRAM setting (0x276),
+# disabled compression and an empty User-Agent. The dialect is selected by the
+# request URI host (usque/mihomo dial https://cloudflareaccess.com), which the
+# importer sets; every edit carries an NC_MASQUE comment so it survives core
+# pin bumps (regenerate core-masque.patch against the post-core-awg.patch
+# tree: it applies AFTER all other patches, in stage order 1..5).
+PATCH_FILE5="core-masque.patch"
+if [ ! -f "$PATCH_FILE5" ]; then
+  echo "ERROR: $PATCH_FILE5 not found" >&2
+  exit 1
+fi
 
 # 1. Temporarily strip the replace directive so `go mod download` fetches the
 #    pinned upstream module into the module cache.
@@ -80,6 +96,7 @@ patch -d core-patched -p1 --forward < "$PATCH_FILE"
 patch -d core-patched -p1 --forward < "$PATCH_FILE2"
 patch -d core-patched -p1 --forward < "$PATCH_FILE3"
 patch -d core-patched -p1 --forward < "$PATCH_FILE4"
+patch -d core-patched -p1 --forward < "$PATCH_FILE5"
 
 # 5. Sanity check: the patched tree must contain the new features.
 #    -F (fixed strings) is REQUIRED here: the signature contains "[]int32",
@@ -97,9 +114,13 @@ grep -qF 'ClientVersion: realityClientVersion' core-patched/transport/internet/r
 grep -qF 'github.com/amnezia-vpn/amneziawg-go/v3/conn' core-patched/proxy/wireguard/device.go
 grep -qF 'awg_params = 8' core-patched/proxy/wireguard/config.proto
 grep -qF 'parseAWGParams' core-patched/infra/conf/v4/wireguard.go
+# NextClave (NC_MASQUE): the WARP dialect must be present after patching.
+grep -qF 'cf-connect-ip' core-patched/proxy/masque/internal/connectip/request.go
+grep -qF 'cloudflareaccess.com' core-patched/proxy/masque/internal/connectip/request.go
+grep -qF 'IsWarpRequestURL' core-patched/proxy/masque/client.go
 
 # 6. Restore go.mod with the replace directive.
 mv -f go.mod.with-replace go.mod
 trap - EXIT
 
-echo ">> core-patched ready (disorder + byte-length finalmask + reality client version fix + AmneziaWG)"
+echo ">> core-patched ready (disorder + byte-length finalmask + reality client version fix + AmneziaWG + WARP MASQUE)"
