@@ -987,8 +987,13 @@ fun parseClashProxy(proxy: Map<String, Any?>): List<AbstractBean> {
             //    this host;
             //  - sni -> sni, default consumer-masque.cloudflareclient.com
             //    (mihomo ConnectSNI);
-            //  - network "h2" -> HTTP/2, otherwise HTTP/3 CONNECT-IP;
-            //    "h3-l4proxy" is per-flow proxying, closest transport is h3;
+            //  - NextClave (NC_MASQUE): HTTP/3 is always enabled for imported
+            //    masque profiles; yaml "network: h2" is ignored. The core's
+            //    WARP dialect (see NC_MASQUE in proxy/masque) runs CONNECT-IP
+            //    over H3 only — the generic RFC 9298 h2 extended-CONNECT
+            //    dialect does not interop with Cloudflare, and honoring
+            //    "network: h2" here would also flip a manually fixed profile
+            //    back off on every subscription update.
             //  - mtu, skip-cert-verify -> allowInsecure.
             // Dropped (no MASQUE outbound counterpart): ip/ipv6 (the tunnel
             // addresses are assigned by the server), udp, remote-dns-resolve
@@ -1006,7 +1011,11 @@ fun parseClashProxy(proxy: Map<String, Any?>): List<AbstractBean> {
                 name = proxy.getString("name")
                 uriTemplate = proxy.getString("uri") ?: "https://cloudflareaccess.com"
                 sni = proxy.getString("sni") ?: "consumer-masque.cloudflareclient.com"
-                http3 = proxy.getString("network")?.equals("h2", ignoreCase = true) != true
+                // NextClave (NC_MASQUE): HTTP/3 always — see the comment above;
+                // Cloudflare WARP is H3-only in the exclave core, and yaml
+                // "network: h2" would otherwise import a profile the core
+                // cannot connect.
+                http3 = true
                 proxy.getInt("mtu")?.takeIf { it > 0 }?.also { mtu = it }
                 // NextClave (NC_MASQUE): WARP registration tunnel addresses
                 localAddress = listOfNotNull(proxy.getString("ip"), proxy.getString("ipv6")).joinToString("\n")
