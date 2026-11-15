@@ -1,6 +1,6 @@
 diff -ruN core-patched.base/go.mod core-patched/go.mod
---- core-patched.base/go.mod	2026-11-15 14:25:45.273917224 +0000
-+++ core-patched/go.mod	2026-11-15 14:25:45.367917253 +0000
+--- core-patched.base/go.mod	2026-11-15 15:36:37.339741108 +0000
++++ core-patched/go.mod	2026-11-15 15:36:37.486741180 +0000
 @@ -5,6 +5,10 @@
  require (
  	github.com/adrg/xdg v0.5.3
@@ -13,8 +13,8 @@ diff -ruN core-patched.base/go.mod core-patched/go.mod
  	github.com/apernet/quic-go v0.65.1-0.20261109005002-2895f039137a
  	github.com/dgryski/go-camellia v0.0.0-20191119043421-69a8a13fb23d
 diff -ruN core-patched.base/infra/conf/v4/wireguard.go core-patched/infra/conf/v4/wireguard.go
---- core-patched.base/infra/conf/v4/wireguard.go	2026-11-15 14:25:45.276917224 +0000
-+++ core-patched/infra/conf/v4/wireguard.go	2026-11-15 14:25:45.368917253 +0000
+--- core-patched.base/infra/conf/v4/wireguard.go	2026-11-15 15:36:37.342741109 +0000
++++ core-patched/infra/conf/v4/wireguard.go	2026-11-15 15:36:37.498741186 +0000
 @@ -3,6 +3,7 @@
  import (
  	"encoding/base64"
@@ -52,7 +52,7 @@ diff -ruN core-patched.base/infra/conf/v4/wireguard.go core-patched/infra/conf/v
  	return config, nil
  }
  
-@@ -146,3 +162,122 @@
+@@ -146,3 +162,155 @@
  	}
  	return hex.EncodeToString(str), nil
  }
@@ -89,9 +89,11 @@ diff -ruN core-patched.base/infra/conf/v4/wireguard.go core-patched/infra/conf/v
 +// "key=value" UAPI lines for createIPCRequest (proxy/wireguard/wireguard.go).
 +// Value formats mirror amneziawg-go's parsing: jc/jmin/jmax/s1-s4 take small
 +// unsigned integers; h1-h4 and the timeout keys take an unsigned integer or
-+// an "a-b" range (UintRange); header_protection_key takes 64 hex chars
-+// (32 bytes); random_trailers/disable_cookies take a bool; i1-i5 take the
-+// CPS description string verbatim.
++// an "a-b" range (UintRange); header_protection_key takes 64 hex chars or
++// the 32-byte standard-base64 spelling used by AmneziaWG .conf files (the
++// value is normalized to hex); random_trailers/disable_cookies take a bool,
++// with the .conf "on"/"off" spelling normalized to "true"/"false"; i1-i5
++// take the CPS description string verbatim.
 +func parseAWGParams(raw string) ([]string, error) {
 +	var params []string
 +	for i, line := range strings.Split(raw, "\n") {
@@ -108,10 +110,11 @@ diff -ruN core-patched.base/infra/conf/v4/wireguard.go core-patched/infra/conf/v
 +			return nil, newError("unknown AmneziaWG param: ", strings.TrimSpace(line[:idx]))
 +		}
 +		value := strings.TrimSpace(line[idx+1:])
-+		if err := validateAWGValue(canonical, value); err != nil {
++		normalized, err := validateAWGValue(canonical, value)
++		if err != nil {
 +			return nil, err
 +		}
-+		params = append(params, canonical+"="+value)
++		params = append(params, canonical+"="+normalized)
 +	}
 +	if len(params) > 64 {
 +		return nil, newError("too many AmneziaWG params")
@@ -119,65 +122,95 @@ diff -ruN core-patched.base/infra/conf/v4/wireguard.go core-patched/infra/conf/v
 +	return params, nil
 +}
 +
-+func validateAWGValue(key, value string) error {
++func validateAWGValue(key, value string) (string, error) {
 +	if value == "" {
-+		return newError("empty value for AmneziaWG param ", key)
++		return "", newError("empty value for AmneziaWG param ", key)
 +	}
 +	switch key {
 +	case "header_protection_key":
 +		// NextClave (NC_AWG): amneziawg-go v3.1 parses this value with
-+		// HeaderCipherKey.FromHex (loadExactHex into a [32]byte key), so it
-+		// is exactly 64 hex chars; the previous 32-hex check rejected valid
-+		// provider configs at connect time ("must be 32 hex chars").
-+		if len(value) != 64 {
-+			return newError("header_protection_key must be 64 hex chars (32 bytes)")
++		// HeaderCipherKey.FromHex (loadExactHex into a [32]byte key), so the
++		// UAPI wire format is exactly 64 hex chars; the previous 32-hex check
++		// rejected valid provider configs at connect time. AmneziaWG .conf
++		// files spell the same key in standard base64 (44 chars, 32 bytes)
++		// like every other WireGuard key, and the app/yaml converters pass
++		// provider values verbatim, so accept both spellings and normalize
++		// to lowercase hex (the awg-quick role in our stack).
++		if len(value) == 64 {
++			if _, err := hex.DecodeString(value); err != nil {
++				return "", newError("invalid header_protection_key hex value")
++			}
++			return value, nil
 +		}
-+		if _, err := hex.DecodeString(value); err != nil {
-+			return newError("invalid header_protection_key hex value")
++		decoded, err := base64.StdEncoding.DecodeString(value)
++		if err != nil {
++			decoded, err = base64.RawStdEncoding.DecodeString(value)
 +		}
++		if err != nil || len(decoded) != 32 {
++			return "", newError("header_protection_key must be 64 hex chars or 32-byte base64")
++		}
++		return hex.EncodeToString(decoded), nil
 +	case "random_trailers", "disable_cookies":
-+		if _, err := strconv.ParseBool(value); err != nil {
-+			return newError("invalid bool value for AmneziaWG param ", key)
++		// NextClave (NC_AWG): amneziawg-go parses these with
++		// strconv.ParseBool, which rejects the "on"/"off" spelling AmneziaWG
++		// .conf files use — normalize like awg-quick.
++		switch strings.ToLower(value) {
++		case "on":
++			return "true", nil
++		case "off":
++			return "false", nil
 +		}
++		if _, err := strconv.ParseBool(value); err != nil {
++			return "", newError("invalid bool value for AmneziaWG param ", key)
++		}
++		return value, nil
 +	case "jc", "jmin", "jmax":
 +		// NextClave (NC_AWG): bit sizes mirror amneziawg-go device/uapi.go
 +		// exactly (32 for junk counts, 16 for s1-s4) so this pre-validation is
 +		// never stricter than the authoritative IpcSet parsing. Same for the
 +		// CPS strings below: no length cap, real provider chains are long.
 +		if _, err := strconv.ParseUint(value, 10, 32); err != nil {
-+			return newError("invalid unsigned value for AmneziaWG param ", key)
++			return "", newError("invalid unsigned value for AmneziaWG param ", key)
 +		}
 +	case "s1", "s2", "s3", "s4":
 +		if _, err := strconv.ParseUint(value, 10, 16); err != nil {
-+			return newError("invalid unsigned value for AmneziaWG param ", key)
++			return "", newError("invalid unsigned value for AmneziaWG param ", key)
 +		}
 +	case "i1", "i2", "i3", "i4", "i5":
 +		// The CPS syntax itself is validated by amneziawg-go's newObfChain at
 +		// IpcSet; locally only forbid breaking out of the single UAPI line.
 +		if strings.ContainsAny(value, "\n\r\x00") {
-+			return newError("invalid CPS string for AmneziaWG param ", key)
++			return "", newError("invalid CPS string for AmneziaWG param ", key)
 +		}
 +	default:
 +		// h1-h4 and the timeout/range keys: "uint" or "uint-uint"; UintRange
-+		// in amneziawg-go is uint64, so parse with bitSize 64.
++		// in amneziawg-go (device/noise-types.go) parses lo/hi with
++		// ParseUint(10, 32) and rejects hi < lo, so mirror exactly.
 +		values := []string{value}
 +		if strings.Contains(value, "-") {
 +			values = strings.Split(value, "-")
 +			if len(values) != 2 {
-+				return newError("invalid range value for AmneziaWG param ", key)
++				return "", newError("invalid range value for AmneziaWG param ", key)
 +			}
 +		}
-+		for _, v := range values {
-+			if _, err := strconv.ParseUint(strings.TrimSpace(v), 10, 64); err != nil {
-+				return newError("invalid value for AmneziaWG param ", key)
++		lo := uint64(0)
++		for i, v := range values {
++			n, err := strconv.ParseUint(strings.TrimSpace(v), 10, 32)
++			if err != nil {
++				return "", newError("invalid value for AmneziaWG param ", key)
++			}
++			if i == 0 {
++				lo = n
++			} else if n < lo {
++				return "", newError("invalid range value for AmneziaWG param ", key)
 +			}
 +		}
 +	}
-+	return nil
++	return value, nil
 +}
 diff -ruN core-patched.base/proxy/wireguard/bind.go core-patched/proxy/wireguard/bind.go
---- core-patched.base/proxy/wireguard/bind.go	2026-11-15 14:25:45.287917228 +0000
-+++ core-patched/proxy/wireguard/bind.go	2026-11-15 14:25:45.367917253 +0000
+--- core-patched.base/proxy/wireguard/bind.go	2026-11-15 15:36:37.349741113 +0000
++++ core-patched/proxy/wireguard/bind.go	2026-11-15 15:36:37.486741180 +0000
 @@ -7,8 +7,11 @@
  	"runtime"
  	"sync"
@@ -193,8 +226,8 @@ diff -ruN core-patched.base/proxy/wireguard/bind.go core-patched/proxy/wireguard
  	"github.com/exclavenetwork/exclave-core/v5/common/buf"
  	"github.com/exclavenetwork/exclave-core/v5/common/net"
 diff -ruN core-patched.base/proxy/wireguard/client.go core-patched/proxy/wireguard/client.go
---- core-patched.base/proxy/wireguard/client.go	2026-11-15 14:25:45.287917228 +0000
-+++ core-patched/proxy/wireguard/client.go	2026-11-15 14:25:45.367917253 +0000
+--- core-patched.base/proxy/wireguard/client.go	2026-11-15 15:36:37.349741113 +0000
++++ core-patched/proxy/wireguard/client.go	2026-11-15 15:36:37.486741180 +0000
 @@ -229,7 +229,7 @@
  		return nil, err
  	}
@@ -205,8 +238,8 @@ diff -ruN core-patched.base/proxy/wireguard/client.go core-patched/proxy/wiregua
  		return nil, err
  	}
 diff -ruN core-patched.base/proxy/wireguard/config.pb.go core-patched/proxy/wireguard/config.pb.go
---- core-patched.base/proxy/wireguard/config.pb.go	2026-11-15 14:25:45.287917228 +0000
-+++ core-patched/proxy/wireguard/config.pb.go	2026-11-15 14:25:45.368917253 +0000
+--- core-patched.base/proxy/wireguard/config.pb.go	2026-11-15 15:36:37.349741113 +0000
++++ core-patched/proxy/wireguard/config.pb.go	2026-11-15 15:36:37.487741181 +0000
 @@ -1,3 +1,9 @@
 +// Code generated by protoc-gen-go. DO NOT EDIT.
 +// versions:
@@ -266,8 +299,8 @@ diff -ruN core-patched.base/proxy/wireguard/config.pb.go core-patched/proxy/wire
  	"\n" +
  	"\x06USE_IP\x10\x00\x12\v\n" +
 diff -ruN core-patched.base/proxy/wireguard/config.proto core-patched/proxy/wireguard/config.proto
---- core-patched.base/proxy/wireguard/config.proto	2026-11-15 14:25:45.287917228 +0000
-+++ core-patched/proxy/wireguard/config.proto	2026-11-15 14:25:45.368917253 +0000
+--- core-patched.base/proxy/wireguard/config.proto	2026-11-15 15:36:37.349741113 +0000
++++ core-patched/proxy/wireguard/config.proto	2026-11-15 15:36:37.487741181 +0000
 @@ -35,6 +35,9 @@
    int32 num_workers = 5;
    bytes reserved = 6;
@@ -279,8 +312,8 @@ diff -ruN core-patched.base/proxy/wireguard/config.proto core-patched/proxy/wire
  
  message ServerConfig {
 diff -ruN core-patched.base/proxy/wireguard/device.go core-patched/proxy/wireguard/device.go
---- core-patched.base/proxy/wireguard/device.go	2026-11-15 14:25:45.287917228 +0000
-+++ core-patched/proxy/wireguard/device.go	2026-11-15 14:25:45.368917253 +0000
+--- core-patched.base/proxy/wireguard/device.go	2026-11-15 15:36:37.349741113 +0000
++++ core-patched/proxy/wireguard/device.go	2026-11-15 15:36:37.487741181 +0000
 @@ -8,9 +8,14 @@
  	"sync"
  	"time"
@@ -300,8 +333,8 @@ diff -ruN core-patched.base/proxy/wireguard/device.go core-patched/proxy/wiregua
  	"gvisor.dev/gvisor/pkg/tcpip"
  	"gvisor.dev/gvisor/pkg/tcpip/adapters/gonet"
 diff -ruN core-patched.base/proxy/wireguard/netstack/tun.go core-patched/proxy/wireguard/netstack/tun.go
---- core-patched.base/proxy/wireguard/netstack/tun.go	2026-11-15 14:25:45.287917228 +0000
-+++ core-patched/proxy/wireguard/netstack/tun.go	2026-11-15 14:25:45.368917253 +0000
+--- core-patched.base/proxy/wireguard/netstack/tun.go	2026-11-15 15:36:37.349741113 +0000
++++ core-patched/proxy/wireguard/netstack/tun.go	2026-11-15 15:36:37.487741181 +0000
 @@ -30,7 +30,10 @@
  	"sync"
  	"syscall"
@@ -315,8 +348,8 @@ diff -ruN core-patched.base/proxy/wireguard/netstack/tun.go core-patched/proxy/w
  	"gvisor.dev/gvisor/pkg/tcpip"
  	"gvisor.dev/gvisor/pkg/tcpip/adapters/gonet"
 diff -ruN core-patched.base/proxy/wireguard/server.go core-patched/proxy/wireguard/server.go
---- core-patched.base/proxy/wireguard/server.go	2026-11-15 14:25:45.287917228 +0000
-+++ core-patched/proxy/wireguard/server.go	2026-11-15 14:25:45.368917253 +0000
+--- core-patched.base/proxy/wireguard/server.go	2026-11-15 15:36:37.349741113 +0000
++++ core-patched/proxy/wireguard/server.go	2026-11-15 15:36:37.487741181 +0000
 @@ -45,7 +45,7 @@
  		return nil, err
  	}
@@ -327,8 +360,8 @@ diff -ruN core-patched.base/proxy/wireguard/server.go core-patched/proxy/wiregua
  		return nil, err
  	}
 diff -ruN core-patched.base/proxy/wireguard/wireguard.go core-patched/proxy/wireguard/wireguard.go
---- core-patched.base/proxy/wireguard/wireguard.go	2026-11-15 14:25:45.287917228 +0000
-+++ core-patched/proxy/wireguard/wireguard.go	2026-11-15 14:25:45.368917253 +0000
+--- core-patched.base/proxy/wireguard/wireguard.go	2026-11-15 15:36:37.349741113 +0000
++++ core-patched/proxy/wireguard/wireguard.go	2026-11-15 15:36:37.487741181 +0000
 @@ -51,7 +51,15 @@
  }
  
