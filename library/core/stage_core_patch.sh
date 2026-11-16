@@ -74,6 +74,24 @@ if [ ! -f "$PATCH_FILE6" ]; then
   echo "ERROR: $PATCH_FILE6 not found" >&2
   exit 1
 fi
+# NextClave (NC_AWG) dbg26e: TEMPORARY instrumentation of the vendored
+# amneziawg-go for the "import ok, connection dead" investigation (fix-26d
+# did NOT clear the bug: handshake initiation goes out and the server
+# answers, but every inbound datagram dies as "Received message with unknown
+# type" and no keypair is ever created). The patch logs, rate-limited to a
+# per-device budget, on both directions: RX ingress length/nonce/head hex,
+# every DeterminePacketTypeAndPadding scan attempt (offset, size gate,
+# deobfuscated type bytes, hit), the UNKNOWN verdict with the full s/h/rt
+# state, TX handshake/transport dumps (plain + obfuscated heads, HP nonce,
+# padding), plus one cfg dump line (s1-s4/h1-h4/jc/jmin/jmax/rt/hpKey).
+# Every line is prefixed "NC_AWG dbg26e". DIAGNOSTIC ONLY: it prints the
+# header_protection_key into the log (use a throwaway profile, do not
+# publish the log) and must be reverted after the root cause is fixed.
+PATCH_FILE7="core-awg-26e-debug.patch"
+if [ ! -f "$PATCH_FILE7" ]; then
+  echo "ERROR: $PATCH_FILE7 not found" >&2
+  exit 1
+fi
 
 # 1. Temporarily strip the replace directive so `go mod download` fetches the
 #    pinned upstream module into the module cache.
@@ -151,7 +169,11 @@ mkdir -p core-patched/third_party
 cp -a "${AWG_SRC}" "${AWG_DIR}"
 chmod -R u+w "${AWG_DIR}"
 patch -d "${AWG_DIR}" -p1 --forward < "$PATCH_FILE6"
+patch -d "${AWG_DIR}" -p1 --forward < "$PATCH_FILE7"
 grep -qF '(NC_AWG) fix' "${AWG_DIR}/device/send.go"
+# NextClave (NC_AWG) dbg26e: the debug instrumentation must be present.
+grep -qF 'NC_AWG dbg26e' "${AWG_DIR}/device/receive.go"
+grep -qF 'NC_AWG dbg26e' "${AWG_DIR}/device/send.go"
 grep -qF "replace ${AWG_MOD}" go.mod.with-replace ||
 	echo "replace ${AWG_MOD} => ./core-patched/third_party/amneziawg-go-v3" >> go.mod.with-replace
 
@@ -159,4 +181,4 @@ grep -qF "replace ${AWG_MOD}" go.mod.with-replace ||
 mv -f go.mod.with-replace go.mod
 trap - EXIT
 
-echo ">> core-patched ready (disorder + byte-length finalmask + reality client version fix + AmneziaWG + WARP MASQUE)"
+echo ">> core-patched ready (disorder + byte-length finalmask + reality client version fix + AmneziaWG + WARP MASQUE + AWG dbg26e instrumentation)"
