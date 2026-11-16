@@ -74,38 +74,18 @@ if [ ! -f "$PATCH_FILE6" ]; then
   echo "ERROR: $PATCH_FILE6 not found" >&2
   exit 1
 fi
-# NextClave (NC_AWG) dbg26e: TEMPORARY instrumentation of the vendored
-# amneziawg-go for the "import ok, connection dead" investigation (fix-26d
-# did NOT clear the bug: handshake initiation goes out and the server
-# answers, but every inbound datagram dies as "Received message with unknown
-# type" and no keypair is ever created). The patch logs, rate-limited to a
-# per-device budget, on both directions: RX ingress length/nonce/head hex,
-# every DeterminePacketTypeAndPadding scan attempt (offset, size gate,
-# deobfuscated type bytes, hit), the UNKNOWN verdict with the full s/h/rt
-# state, TX handshake/transport dumps (plain + obfuscated heads, HP nonce,
-# padding), plus one cfg dump line (s1-s4/h1-h4/jc/jmin/jmax/rt/hpKey).
-# Every line is prefixed "NC_AWG dbg26e". DIAGNOSTIC ONLY: it prints the
-# header_protection_key into the log (use a throwaway profile, do not
-# publish the log) and must be reverted after the root cause is fixed.
-PATCH_FILE7="core-awg-26e-debug.patch"
-if [ ! -f "$PATCH_FILE7" ]; then
-  echo "ERROR: $PATCH_FILE7 not found" >&2
-  exit 1
-fi
-# NextClave (NC_AWG) fix(26f): the log evidence (dbg26e) proved the client
-# parses inbound datagrams strictly by upstream v3.1 rules - the header type
-# word is read at the offset of the receiver's OWN s1-s4 padding, and the
-# keystream at offset 12 of the server's 383-byte answer deobfuscated to
-# garbage (d13a5c5d), i.e. the type word is NOT at the configured S2=12. The
-# provider drifted the server-side padding values while client profiles keep
-# the old ones, so every genuine handshake response dies as "Received message
-# with unknown type". core-awg-rxscan.patch adds a bounded padding sweep
-# fallback after the exact-offset checks (the HP keystream is
-# padding-independent: the word is always XORed with keystream bytes 0-3),
-# and adopts the padding found on verified packets for our own TX (the same
-# parameter governs the peer's RX), so the client interoperates with a
-# mismatched server config unilaterally. Upstream behavior on matching
-# configs is byte-identical (exact offset first); unit-tested.
+# NextClave (NC_AWG) fix(26f): bounded padding sweep fallback after the
+# exact-offset checks. AWG expects identical S1-S4 padding on both peers;
+# when the peer's config drifts, the type word sits at the sender's padding
+# offset instead of ours and every genuine inbound packet dies as "Received
+# message with unknown type". The HP keystream is padding-independent (the
+# word is always XORed with keystream bytes 0-3), so candidate offsets can
+# be scanned safely; the padding found on verified packets is adopted for
+# our own TX. Upstream behavior on matching configs is byte-identical
+# (exact offset first). This revision of the patch is debug-free: the 26e
+# instrumentation is retired (the weasel root cause was found in the core
+# bind and is fixed by fix(26h); the 26e log also printed the header
+# protection key, which must not ship).
 PATCH_FILE8="core-awg-rxscan.patch"
 if [ ! -f "$PATCH_FILE8" ]; then
   echo "ERROR: $PATCH_FILE8 not found" >&2
@@ -113,24 +93,46 @@ if [ ! -f "$PATCH_FILE8" ]; then
 fi
 # NextClave (NC_AWG) fix(26g): stop appending random trailers to HANDSHAKE
 # packets (initiation / response / cookie reply) in the vendored
-# amneziawg-go. Root cause of the "weasel" provider outage: RandomTrailers is
-# a TWO-SIDED parameter - a receiver without the flag classifies handshake
-# messages strictly by "Sx + fixed size" and silently drops every lengthened
-# datagram, so with the profile's RandomTrailers=on the client sent a
-# 12+148+152=312-byte initiation (dbg26e total=312 trailer=152), the server
-# dropped it and no keypair was ever created; the only inbound datagrams were
-# provider junk that never parses. Exact-size handshakes are accepted by BOTH
-# receiver kinds (rt=on receivers gate on size >= expected), so trailerLen=0
-# is universally interoperable and matches clients that do not implement
-# handshake trailers (wgtunnel, amneziawg-go v3.0 line). The UAPI flag itself
-# is kept: on RX it only widens our own size gates, and transport "trailers"
-# are applied inside the AEAD where the peer's length gate never sees them.
+# amneziawg-go. RandomTrailers is a TWO-SIDED parameter - a receiver without
+# the flag classifies handshake messages strictly by "Sx + fixed size" and
+# silently drops every lengthened datagram. Exact-size handshakes are
+# accepted by BOTH receiver kinds (rt=on receivers gate on size >= expected),
+# so trailerLen=0 is universally interoperable and matches clients that do
+# not implement handshake trailers (wgtunnel, amneziawg-go v3.0 line). NOTE:
+# 26g was NOT the actual weasel blocker - the server answered both the
+# trailer'd (312B) and the exact-size (160B) initiations - the real root
+# cause is fix(26h) below; 26g stays as interoperability hardening. The UAPI
+# flag itself is kept: on RX it only widens our own size gates, and
+# transport "trailers" are applied inside the AEAD where the peer's length
+# gate never sees them.
 PATCH_FILE9="core-awg-26g-notrailers.patch"
 if [ ! -f "$PATCH_FILE9" ]; then
   echo "ERROR: $PATCH_FILE9 not found" >&2
   exit 1
 fi
 
+# NextClave (NC_AWG) fix(26h): THE root cause of the weasel/AmneziaWG 3.1
+# outage. proxy/wireguard/bind.go (netBindClient receive goroutine) zeroed
+# bytes 1..3 of EVERY received datagram unconditionally. That strip is the
+# Cloudflare WARP reserved-field undo and is correct ONLY when the reserved
+# feature is configured; for AmneziaWG profiles the first 12 bytes of a
+# packet are the header protection nonce (the leading S1-S4 crypto padding),
+# so the strip destroyed the nonce of every inbound datagram: the device
+# decoded garbage type words and dropped each genuine handshake response as
+# "Received message with unknown type" (log signature: a nonce that looks
+# like XX 00 00 00 ... - the real first byte with bytes 1..3 wiped). The
+# server parsed our (send side already guarded) initiation and answered
+# every attempt; the answer never decoded; the same profile completes a
+# handshake through the pristine amneziawg-go v3.1 device against the same
+# server, and throneproj/sing-box guards the identical strip with a
+# "reserved in use" check on its ClientBind. The fix mirrors the send-side
+# guard on the receive path (and skips the all-zero reserved like
+# throneproj/sing-box does).
+PATCH_FILE10="core-awg-26h-bindfix.patch"
+if [ ! -f "$PATCH_FILE10" ]; then
+  echo "ERROR: $PATCH_FILE10 not found" >&2
+  exit 1
+fi
 # 1. Temporarily strip the replace directive so `go mod download` fetches the
 #    pinned upstream module into the module cache.
 cp go.mod go.mod.with-replace
@@ -163,6 +165,9 @@ patch -d core-patched -p1 --forward < "$PATCH_FILE2"
 patch -d core-patched -p1 --forward < "$PATCH_FILE3"
 patch -d core-patched -p1 --forward < "$PATCH_FILE4"
 patch -d core-patched -p1 --forward < "$PATCH_FILE5"
+# NextClave (NC_AWG) fix(26h): the wireguard client bind reserved-strip
+# guard - the root-cause fix for the AmneziaWG 3.1 handshake outage.
+patch -d core-patched -p1 --forward < "$PATCH_FILE10"
 
 # 5. Sanity check: the patched tree must contain the new features.
 #    -F (fixed strings) is REQUIRED here: the signature contains "[]int32",
@@ -185,6 +190,8 @@ grep -qF 'cf-connect-ip' core-patched/proxy/masque/internal/connectip/request.go
 grep -qF 'cloudflareaccess.com' core-patched/proxy/masque/internal/connectip/request.go
 grep -qF 'IsWarpRequestURL' core-patched/proxy/masque/client.go
 grep -qF 'SetWarpLocalAddresses' core-patched/proxy/masque/internal/connectip/conn.go
+# NextClave (NC_AWG) fix(26h): the bind reserved-strip guard must be present.
+grep -qF 'fix(26h)' core-patched/proxy/wireguard/bind.go
 
 # 7. NextClave (NC_AWG) hotfix: vendor a one-file fix for amneziawg-go
 #    v3.1.20260828. Upstream reuses pooled outbound elements whose transport
@@ -207,11 +214,7 @@ mkdir -p core-patched/third_party
 cp -a "${AWG_SRC}" "${AWG_DIR}"
 chmod -R u+w "${AWG_DIR}"
 patch -d "${AWG_DIR}" -p1 --forward < "$PATCH_FILE6"
-patch -d "${AWG_DIR}" -p1 --forward < "$PATCH_FILE7"
 grep -qF '(NC_AWG) fix' "${AWG_DIR}/device/send.go"
-# NextClave (NC_AWG) dbg26e: the debug instrumentation must be present.
-grep -qF 'NC_AWG dbg26e' "${AWG_DIR}/device/receive.go"
-grep -qF 'NC_AWG dbg26e' "${AWG_DIR}/device/send.go"
 # NextClave (NC_AWG) fix(26f): the RX padding sweep must be present.
 patch -d "${AWG_DIR}" -p1 --forward < "$PATCH_FILE8"
 grep -qF 'ncRxScanMaxPadding' "${AWG_DIR}/device/receive.go"
@@ -230,4 +233,4 @@ grep -qF "replace ${AWG_MOD}" go.mod.with-replace ||
 mv -f go.mod.with-replace go.mod
 trap - EXIT
 
-echo ">> core-patched ready (disorder + byte-length finalmask + reality client version fix + AmneziaWG + WARP MASQUE + AWG dbg26e instrumentation + AWG 26f rx padding scan + AWG 26g handshake trailers off)"
+echo ">> core-patched ready (disorder + byte-length finalmask + reality client version fix + AmneziaWG + WARP MASQUE + AWG 26f rx padding scan + AWG 26g handshake trailers off + AWG 26h bind reserved-strip guard)"

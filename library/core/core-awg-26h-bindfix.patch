@@ -1,0 +1,35 @@
+--- core-patched.base/proxy/wireguard/bind.go	2026-11-16 18:03:48.857094725 +0000
++++ core-patched/proxy/wireguard/bind.go	2026-11-16 18:03:48.857094725 +0000
+@@ -126,7 +126,19 @@
+ 				c.Close()
+ 				return
+ 			}
+-			if n > 3 {
++			// NextClave (NC_AWG) fix(26h): strip the WARP reserved bytes only
++			// when the reserved-bytes feature is actually in use. The previous
++			// code zeroed bytes 1..3 of EVERY received datagram unconditionally;
++			// that is correct for Cloudflare WARP (the peer echoes the reserved
++			// field there), but for AmneziaWG profiles the first 12 bytes of a
++			// packet are the header protection nonce (the leading S1-S4 crypto
++			// padding), so zeroing destroyed the nonce of every inbound
++			// datagram: the device decoded garbage type words and dropped each
++			// genuine handshake response as "Received message with unknown
++			// type". This aligns the receive side with the existing send-side
++			// reserved guard and with throneproj/sing-box, whose ClientBind
++			// strips the field only when the reserved feature is configured.
++			if n > 3 && len(bind.reserved) == 3 && (bind.reserved[0]|bind.reserved[1]|bind.reserved[2]) != 0 {
+ 				b := buff.Bytes()
+ 				b[1] = 0
+ 				b[2] = 0
+@@ -161,7 +173,10 @@
+ 		}
+ 	}
+ 	for _, buff := range buff {
+-		if len(buff) > 3 && len(bind.reserved) == 3 {
++		// NextClave (NC_AWG) fix(26h): skip the overwrite when no reserved
++		// value is configured - for AmneziaWG these bytes are part of the
++		// header protection nonce and must go out exactly as generated.
++		if len(buff) > 3 && len(bind.reserved) == 3 && (bind.reserved[0]|bind.reserved[1]|bind.reserved[2]) != 0 {
+ 			copy(buff[1:], bind.reserved)
+ 		}
+ 		if _, err = nend.conn.Write(buff); err != nil {
