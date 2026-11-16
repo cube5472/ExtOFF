@@ -92,6 +92,25 @@ if [ ! -f "$PATCH_FILE7" ]; then
   echo "ERROR: $PATCH_FILE7 not found" >&2
   exit 1
 fi
+# NextClave (NC_AWG) fix(26f): the log evidence (dbg26e) proved the client
+# parses inbound datagrams strictly by upstream v3.1 rules - the header type
+# word is read at the offset of the receiver's OWN s1-s4 padding, and the
+# keystream at offset 12 of the server's 383-byte answer deobfuscated to
+# garbage (d13a5c5d), i.e. the type word is NOT at the configured S2=12. The
+# provider drifted the server-side padding values while client profiles keep
+# the old ones, so every genuine handshake response dies as "Received message
+# with unknown type". core-awg-rxscan.patch adds a bounded padding sweep
+# fallback after the exact-offset checks (the HP keystream is
+# padding-independent: the word is always XORed with keystream bytes 0-3),
+# and adopts the padding found on verified packets for our own TX (the same
+# parameter governs the peer's RX), so the client interoperates with a
+# mismatched server config unilaterally. Upstream behavior on matching
+# configs is byte-identical (exact offset first); unit-tested.
+PATCH_FILE8="core-awg-rxscan.patch"
+if [ ! -f "$PATCH_FILE8" ]; then
+  echo "ERROR: $PATCH_FILE8 not found" >&2
+  exit 1
+fi
 
 # 1. Temporarily strip the replace directive so `go mod download` fetches the
 #    pinned upstream module into the module cache.
@@ -174,6 +193,10 @@ grep -qF '(NC_AWG) fix' "${AWG_DIR}/device/send.go"
 # NextClave (NC_AWG) dbg26e: the debug instrumentation must be present.
 grep -qF 'NC_AWG dbg26e' "${AWG_DIR}/device/receive.go"
 grep -qF 'NC_AWG dbg26e' "${AWG_DIR}/device/send.go"
+# NextClave (NC_AWG) fix(26f): the RX padding sweep must be present.
+patch -d "${AWG_DIR}" -p1 --forward < "$PATCH_FILE8"
+grep -qF 'ncRxScanMaxPadding' "${AWG_DIR}/device/receive.go"
+grep -qF 'fix(26f)' "${AWG_DIR}/device/receive.go"
 grep -qF "replace ${AWG_MOD}" go.mod.with-replace ||
 	echo "replace ${AWG_MOD} => ./core-patched/third_party/amneziawg-go-v3" >> go.mod.with-replace
 
@@ -181,4 +204,4 @@ grep -qF "replace ${AWG_MOD}" go.mod.with-replace ||
 mv -f go.mod.with-replace go.mod
 trap - EXIT
 
-echo ">> core-patched ready (disorder + byte-length finalmask + reality client version fix + AmneziaWG + WARP MASQUE + AWG dbg26e instrumentation)"
+echo ">> core-patched ready (disorder + byte-length finalmask + reality client version fix + AmneziaWG + WARP MASQUE + AWG dbg26e instrumentation + AWG 26f rx padding scan)"
