@@ -64,6 +64,16 @@ if [ ! -f "$PATCH_FILE5" ]; then
   echo "ERROR: $PATCH_FILE5 not found" >&2
   exit 1
 fi
+# NextClave (NC_AWG) hotfix for amneziawg-go v3.1.20260828: transport packets
+# are sent without the s4 junk prefix whenever a pooled outbound element
+# carries a stale padding (pre-IpcSet pool warm-up), so any AmneziaWG profile
+# with S1-S4 configured connects only intermittently and the core logs
+# "Received message with unknown type". Vendored fix, see step 7 below.
+PATCH_FILE6="core-awg-gopool.patch"
+if [ ! -f "$PATCH_FILE6" ]; then
+  echo "ERROR: $PATCH_FILE6 not found" >&2
+  exit 1
+fi
 
 # 1. Temporarily strip the replace directive so `go mod download` fetches the
 #    pinned upstream module into the module cache.
@@ -119,6 +129,31 @@ grep -qF 'cf-connect-ip' core-patched/proxy/masque/internal/connectip/request.go
 grep -qF 'cloudflareaccess.com' core-patched/proxy/masque/internal/connectip/request.go
 grep -qF 'IsWarpRequestURL' core-patched/proxy/masque/client.go
 grep -qF 'SetWarpLocalAddresses' core-patched/proxy/masque/internal/connectip/conn.go
+
+# 7. NextClave (NC_AWG) hotfix: vendor a one-file fix for amneziawg-go
+#    v3.1.20260828. Upstream reuses pooled outbound elements whose transport
+#    padding was captured BEFORE the UAPI set applied s1-s4 (the element pool
+#    is pre-warmed at device creation), so with any S1-S4 set the transport
+#    packets are sent without the s4 junk prefix and the remote drops them
+#    ("Received message with unknown type" in the core log) — provider
+#    profiles connect only intermittently. core-awg-gopool.patch re-aligns
+#    the padding in RoutineEncryption and relocates the packet to the correct
+#    buffer offset; the patched copy is vendored under third_party/ and wired
+#    through a go.mod replace directive (upstream has no release with the
+#    fix as of 2026-11-16).
+AWG_MOD="github.com/amnezia-vpn/amneziawg-go/v3"
+AWG_VER="v3.1.20260828"
+AWG_DIR="core-patched/third_party/amneziawg-go-v3"
+go mod download "${AWG_MOD}@${AWG_VER}"
+AWG_SRC="$(go env GOMODCACHE)/${AWG_MOD}@${AWG_VER}"
+rm -rf "${AWG_DIR}"
+mkdir -p core-patched/third_party
+cp -a "${AWG_SRC}" "${AWG_DIR}"
+chmod -R u+w "${AWG_DIR}"
+patch -d "${AWG_DIR}" -p1 --forward < "$PATCH_FILE6"
+grep -qF '(NC_AWG) fix' "${AWG_DIR}/device/send.go"
+grep -qF "replace ${AWG_MOD}" go.mod.with-replace ||
+	echo "replace ${AWG_MOD} => ./core-patched/third_party/amneziawg-go-v3" >> go.mod.with-replace
 
 # 6. Restore go.mod with the replace directive.
 mv -f go.mod.with-replace go.mod

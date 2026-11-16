@@ -1,0 +1,25 @@
+--- a/device/send.go
++++ b/device/send.go
+@@ -581,6 +581,22 @@
+ 
+ 	for elemsContainer := range device.queue.encryption.c {
+ 		for _, elem := range elemsContainer.elems {
++			// NextClave (NC_AWG) fix: pooled outbound elements may carry a
++			// stale transport padding captured before the UAPI set applied
++			// s1-s4 (the pool is pre-warmed at device creation). Re-align the
++			// element with the current padding and relocate the packet to the
++			// correct offset (MessageTransportHeaderSize + padding), otherwise
++			// the packet is sent without the s4 junk prefix and the remote
++			// drop it as "message with unknown type".
++			currentPadding := device.paddings.transport.Load()
++			if elem.padding != currentPadding {
++				newOff := MessageTransportHeaderSize + int(currentPadding)
++				if elem.packet != nil && elem.buffer != nil {
++					copy(elem.buffer[newOff:], elem.packet)
++					elem.packet = elem.buffer[newOff : newOff+len(elem.packet)]
++				}
++				elem.padding = currentPadding
++			}
+ 			udpWindow := elem.padding + MinMessageSize + uint32(len(elem.packet))
+ 			if elem.peer.udpWindow.Load() < udpWindow {
+ 				elem.peer.udpWindow.Store(udpWindow)
