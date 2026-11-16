@@ -1,0 +1,48 @@
+--- a/device/send.go
++++ b/device/send.go
+@@ -147,7 +147,22 @@
+ 	sendBuffer = append(sendBuffer, peer.device.JunkPackets()...)
+ 
+ 	padding := int(peer.device.paddings.init.Load())
+-	trailerLen := max(peer.randomTrailer(padding+MessageInitiationSize), 0)
++	// NextClave (NC_AWG) fix(26g): never append random trailers to handshake
++	// packets. Upstream marks RandomTrailers as a TWO-SIDED parameter: a
++	// receiver without the flag classifies handshake messages strictly by
++	// "Sx + fixed size" and silently drops every lengthened datagram, so a
++	// trailer'd initiation can never complete a handshake against such a
++	// server. Exact-size handshakes are accepted by BOTH receiver kinds
++	// (rt=on receivers use a >= size gate), so sending them is universally
++	// interoperable and matches clients that do not implement handshake
++	// trailers (wgtunnel, amneziawg-go v3.0 line). The flag itself is kept:
++	// on RX it only widens our own size gates, and transport "trailers" are
++	// applied inside the AEAD where the peer's length gate never sees them.
++	// Evidence: with the weasel profile (S1=12, H1=1, rt=on) the client sent
++	// a 12+148+152=312-byte initiation (dbg26e total=312 trailer=152); the
++	// server answered nothing and the handshake died. With trailerLen=0 the
++	// datagram is exactly S1+MessageInitiationSize=160 bytes.
++	trailerLen := 0
+ 
+ 	buf := make([]byte, padding+MessageInitiationSize+trailerLen)
+ 
+@@ -208,7 +223,9 @@
+ 	}
+ 
+ 	padding := int(peer.device.paddings.response.Load())
+-	trailerLen := max(peer.randomTrailer(padding+MessageResponseSize), 0)
++	// NextClave (NC_AWG) fix(26g): handshake trailers off - see the
++	// initiation comment in SendHandshakeInitiation.
++	trailerLen := 0
+ 
+ 	buf := make([]byte, padding+MessageResponseSize+trailerLen)
+ 
+@@ -276,7 +293,9 @@
+ 	}
+ 
+ 	padding := int(device.paddings.cookie.Load())
+-	trailerLen := max(device.randomTrailer(padding+MessageCookieReplySize), 0)
++	// NextClave (NC_AWG) fix(26g): handshake trailers off - see the
++	// initiation comment in SendHandshakeInitiation.
++	trailerLen := 0
+ 
+ 	buf := make([]byte, padding+MessageCookieReplySize+trailerLen)
+ 

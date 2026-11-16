@@ -111,6 +111,25 @@ if [ ! -f "$PATCH_FILE8" ]; then
   echo "ERROR: $PATCH_FILE8 not found" >&2
   exit 1
 fi
+# NextClave (NC_AWG) fix(26g): stop appending random trailers to HANDSHAKE
+# packets (initiation / response / cookie reply) in the vendored
+# amneziawg-go. Root cause of the "weasel" provider outage: RandomTrailers is
+# a TWO-SIDED parameter - a receiver without the flag classifies handshake
+# messages strictly by "Sx + fixed size" and silently drops every lengthened
+# datagram, so with the profile's RandomTrailers=on the client sent a
+# 12+148+152=312-byte initiation (dbg26e total=312 trailer=152), the server
+# dropped it and no keypair was ever created; the only inbound datagrams were
+# provider junk that never parses. Exact-size handshakes are accepted by BOTH
+# receiver kinds (rt=on receivers gate on size >= expected), so trailerLen=0
+# is universally interoperable and matches clients that do not implement
+# handshake trailers (wgtunnel, amneziawg-go v3.0 line). The UAPI flag itself
+# is kept: on RX it only widens our own size gates, and transport "trailers"
+# are applied inside the AEAD where the peer's length gate never sees them.
+PATCH_FILE9="core-awg-26g-notrailers.patch"
+if [ ! -f "$PATCH_FILE9" ]; then
+  echo "ERROR: $PATCH_FILE9 not found" >&2
+  exit 1
+fi
 
 # 1. Temporarily strip the replace directive so `go mod download` fetches the
 #    pinned upstream module into the module cache.
@@ -197,6 +216,13 @@ grep -qF 'NC_AWG dbg26e' "${AWG_DIR}/device/send.go"
 patch -d "${AWG_DIR}" -p1 --forward < "$PATCH_FILE8"
 grep -qF 'ncRxScanMaxPadding' "${AWG_DIR}/device/receive.go"
 grep -qF 'fix(26f)' "${AWG_DIR}/device/receive.go"
+# NextClave (NC_AWG) fix(26g): handshake trailers must be gone.
+patch -d "${AWG_DIR}" -p1 --forward < "$PATCH_FILE9"
+grep -qF 'fix(26g)' "${AWG_DIR}/device/send.go"
+if grep -qF 'trailerLen := max(peer.randomTrailer(padding+MessageInitiationSize)' "${AWG_DIR}/device/send.go"; then
+  echo "ERROR: handshake trailer still present after fix(26g)" >&2
+  exit 1
+fi
 grep -qF "replace ${AWG_MOD}" go.mod.with-replace ||
 	echo "replace ${AWG_MOD} => ./core-patched/third_party/amneziawg-go-v3" >> go.mod.with-replace
 
@@ -204,4 +230,4 @@ grep -qF "replace ${AWG_MOD}" go.mod.with-replace ||
 mv -f go.mod.with-replace go.mod
 trap - EXIT
 
-echo ">> core-patched ready (disorder + byte-length finalmask + reality client version fix + AmneziaWG + WARP MASQUE + AWG dbg26e instrumentation + AWG 26f rx padding scan)"
+echo ">> core-patched ready (disorder + byte-length finalmask + reality client version fix + AmneziaWG + WARP MASQUE + AWG dbg26e instrumentation + AWG 26f rx padding scan + AWG 26g handshake trailers off)"
