@@ -74,6 +74,7 @@ import io.nekohasekai.sagernet.databinding.LayoutMainBinding
 import io.nekohasekai.sagernet.fmt.AbstractBean
 import io.nekohasekai.sagernet.fmt.Alerts
 import io.nekohasekai.sagernet.fmt.PluginEntry
+import io.nekohasekai.sagernet.fmt.internal.BalancerBean
 import io.nekohasekai.sagernet.group.GroupInterfaceAdapter
 import io.nekohasekai.sagernet.ktx.*
 import io.nekohasekai.sagernet.plugin.PluginManager
@@ -792,15 +793,51 @@ class MainActivity : ThemedActivity(),
                 if (profileId <= 0 || !SagerNet.started) return@runOnDefaultDispatcher
                 val profile = SagerDatabase.proxyDao.getById(profileId)
                     ?: return@runOnDefaultDispatcher
+                // NextClave fix(ut1): for a balancer session the card must show
+                // the test value of the member the RUNNING session routes
+                // through. workingNodeInfo() pushes one real test connection
+                // through the live tunnel, identifies the member that carries
+                // it (its traffic counters grow) and returns the latency of
+                // that very connection. A separate V2RayTestInstance for the
+                // balancer profile would build a SECOND balancer whose member
+                // choice is unrelated to the live session — and its protected
+                // dial used to fail outright (wrong protect path), painting
+                // the freshly connected balancer with the dead 😵 emoji while
+                // the connection itself worked.
+                if (profile.requireBean() is BalancerBean) {
+                    val (memberId, elapsed) = workingNodeInfo()
+                    if (memberId > 0L && elapsed >= 0) {
+                        profile.status = 1
+                        profile.ping = elapsed
+                        ProfileManager.updateProfile(profile)
+                        Logs.i("NextClave urltest: [connected/balancer] ${profile.displayName()} member=$memberId -> $elapsed ms (status=1)")
+                    } else {
+                        // No working member yet (fresh session, the first test
+                        // connection still warming up): keep the previous card
+                        // value and never fake a corpse — the stats bar reports
+                        // the live state (flag + IP + ping) independently.
+                        Logs.w("NextClave urltest: [connected/balancer] ${profile.displayName()} no working member yet (id=$memberId elapsed=$elapsed); card left as-is")
+                    }
+                    return@runOnDefaultDispatcher
+                }
                 val vpnRunning = SagerNet.started && DataStore.startedProfile > 0
                         && DataStore.serviceMode == Key.MODE_VPN
                 val protectedDial = vpnRunning
                         && DataStore.tunImplementation == TunImplementation.SYSTEM
                 try {
                     val instance = if (protectedDial) {
+                        // NextClave fix(ut1): the protect socket is created by the
+                        // running tun at app.cacheDir/protect_path (VpnService:
+                        // config.protectPath). The previous noBackupFilesDir path
+                        // has NO listener, so the first test after connect poisoned
+                        // the core-wide cached protect dialer with a dead path
+                        // (libexclavecore caches systemDialerWithProtect for the
+                        // whole process lifetime) and every url test died with
+                        // "Get <url>: io: read/write on closed pipe" while the VPN
+                        // was up. Same path as the group test now.
                         V2RayTestInstance(
                             profile, DataStore.connectionTestURL, 1500,
-                            protectPath = SagerNet.deviceStorage.noBackupFilesDir.toString() + "/protect_path"
+                            protectPath = app.cacheDir.toString() + "/protect_path"
                         )
                     } else {
                         V2RayTestInstance(profile, DataStore.connectionTestURL, 1500)

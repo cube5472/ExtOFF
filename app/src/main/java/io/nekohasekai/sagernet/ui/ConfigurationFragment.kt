@@ -1782,9 +1782,46 @@ class ConfigurationFragment @JvmOverloads constructor(
                 if (::adapter.isInitialized) {
                     adapter.showNodeTesting(profile.id)
                 }
+                // NextClave fix(ut1): a balancer that is currently connected is
+                // re-tested THROUGH the live session: workingNodeInfo() pushes
+                // one real test connection through the running core, identifies
+                // the member that carries it and returns that very connection's
+                // latency — so the card keeps showing the test value of the node
+                // the balancer has actually selected. A fresh V2RayTestInstance
+                // would build a SECOND balancer whose member choice is unrelated
+                // to the live session.
+                if (profile.requireBean() is BalancerBean && SagerNet.started && DataStore.startedProfile == profile.id) {
+                    val (memberId, elapsed) = (activity as? MainActivity)?.workingNodeInfo()
+                        ?: (0L to -1)
+                    if (memberId > 0L && elapsed >= 0) {
+                        profile.status = 1
+                        profile.ping = elapsed
+                        Logs.i("NextClave urltest: single node [balancer] \"${profile.displayName()}\" member=$memberId -> $elapsed ms (status=1)")
+                    } else {
+                        // The live session did not answer (yet): keep the
+                        // previous card value and never fake a corpse — the
+                        // connection itself may be perfectly fine, and the
+                        // stats bar reports the live state independently.
+                        Logs.w("NextClave urltest: single node [balancer] \"${profile.displayName()}\" no working member (id=$memberId elapsed=$elapsed); card left as-is")
+                    }
+                    ProfileManager.updateProfile(profile)
+                    singleNodeTests.remove(profile.id)
+                    return@runOnDefaultDispatcher
+                }
                 try {
                     val instance = if (DataStore.tunImplementation == TunImplementation.SYSTEM && DataStore.serviceMode == Key.MODE_VPN && SagerNet.started && DataStore.startedProfile > 0) {
-                        V2RayTestInstance(profile, link, timeout, protectPath = SagerNet.deviceStorage.noBackupFilesDir.toString() + "/protect_path")
+                        // NextClave fix(ut1): the protect socket is created by the
+                        // running tun at app.cacheDir/protect_path (VpnService:
+                        // config.protectPath). The previous noBackupFilesDir path
+                        // has NO listener, so while the VPN was up every
+                        // single-node test failed to protect its dial and died
+                        // with "Get <url>: io: read/write on closed pipe"
+                        // (the dispatcher pipe is torn down when the outbound
+                        // dial fails). Same path as the group test, so the
+                        // core-wide cached protect dialer is always created with
+                        // the working path — the first non-empty path wins and
+                        // is reused for the whole process lifetime.
+                        V2RayTestInstance(profile, link, timeout, protectPath = app.cacheDir.toString() + "/protect_path")
                     } else {
                         V2RayTestInstance(profile, link, timeout)
                     }
@@ -1898,12 +1935,22 @@ class ConfigurationFragment @JvmOverloads constructor(
                 }
 
                 profileStatus.setOnClickListener {
-                    if (entity.status == 3) {
-                        alert(entity.error ?: "<?>").show()
-                    } else if (entity.status == 1) {
+                    // NextClave fix(ut2): tapping the url-test value re-tests
+                    // the node in BOTH states — a dead 😵 card re-runs the url
+                    // test too instead of only popping up the stored error
+                    // (that dialog moved to the long tap below).
+                    if (entity.status == 3 || entity.status == 1) {
                         // NextClave: tapping a node's url-test value re-tests
                         // just this one node
                         testSingleNode(entity)
+                    }
+                }
+                profileStatus.setOnLongClickListener {
+                    if (entity.status == 3) {
+                        alert(entity.error ?: "<?>").show()
+                        true
+                    } else {
+                        false
                     }
                 }
 
