@@ -34,13 +34,19 @@ import io.nekohasekai.sagernet.database.SagerDatabase
 // The value lives in the profile cache store like every other balancer
 // preference, so it survives rotation via KEY_TEMP_BEAN_BYTES round-trips the
 // same way (the activity writes it in init() before the fragment binds).
-class MultiGroupPreference @JvmOverloads constructor(
-    context: Context, attrs: AttributeSet? = null,
-) : Preference(context, attrs) {
+class MultiGroupPreference : Preference {
+
+    constructor(context: Context) : super(context)
+
+    constructor(context: Context, attrs: AttributeSet?) : super(context, attrs)
 
     constructor(context: Context, attrs: AttributeSet?, defStyleAttr: Int) : super(
         context, attrs, defStyleAttr
     )
+
+    constructor(
+        context: Context, attrs: AttributeSet?, defStyleAttr: Int, defStyleRes: Int
+    ) : super(context, attrs, defStyleAttr, defStyleRes)
 
     var checkedIds: Set<Long> = readChecked()
         private set
