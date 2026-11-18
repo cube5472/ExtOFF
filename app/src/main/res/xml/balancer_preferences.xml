@@ -25,12 +25,11 @@
         app:title="@string/balancer_strategy"
         app:useSimpleSummaryProvider="true" />
 
-    <io.nekohasekai.sagernet.widget.GroupPreference
+    <io.nekohasekai.sagernet.widget.MultiGroupPreference
         app:icon="@drawable/ic_baseline_view_list_24"
-        app:key="balancerGroup"
+        app:key="balancerGroups"
         app:title="@string/menu_group"
-        app:singleLineTitle="false"
-        app:useSimpleSummaryProvider="true" />
+        app:singleLineTitle="false" />
 
     <SwitchPreference
         app:defaultValue="false"

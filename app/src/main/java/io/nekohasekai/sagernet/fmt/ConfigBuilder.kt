@@ -213,12 +213,15 @@ fun buildV2RayConfig(
 
     fun ProxyEntity.resolveChain(): MutableList<ProxyEntity> {
         if (type == ProxyEntity.TYPE_BALANCER) {
+            // NextClave: TYPE_GROUP balancers aggregate any number of groups
+            // (subscriptions); members are resolved through the shared
+            // multi-group helper (group order, then each group's userOrder,
+            // both name filters applied). A single-group balancer resolves to
+            // exactly the same members as before.
             val beans = if (balancerBean!!.type == BalancerBean.TYPE_LIST) {
                 SagerDatabase.proxyDao.getEntities(balancerBean!!.proxies)
             } else {
-                SagerDatabase.proxyDao.getByGroup(balancerBean!!.groupId)
-                    .filter { if (balancerBean!!.nameFilter.isEmpty()) { true } else { !Regex(balancerBean!!.nameFilter).containsMatchIn(it.requireBean().name) } }
-                    .filter { if (balancerBean!!.nameFilter1.isEmpty()) { true } else { Regex(balancerBean!!.nameFilter1).containsMatchIn(it.requireBean().name) } }
+                balancerBean!!.resolveBalancerMembers()
             }
             val beansMap = beans.associateBy { it.id }
             val beanList = ArrayList<ProxyEntity>()
@@ -2320,110 +2323,120 @@ fun buildV2RayConfig(
             if (isBalancer) {
                 val balancerBean = balancer()!!
 
-                // Check if we need to apply landing proxy for TYPE_GROUP balancer
-                val shouldUseLandingProxy = balancerBean.type == BalancerBean.TYPE_GROUP &&
-                                            balancerBean.useLandingProxy == true
-
-                if (shouldUseLandingProxy) {
-                    // Get the group and landing proxy
-                    val group = SagerDatabase.groupDao.getById(balancerBean.groupId)
-                    val landingProxyEntity = if (group != null && group.landingProxy > 0L) {
-                        SagerDatabase.proxyDao.getById(group.landingProxy)
-                    } else null
-
-                    if (landingProxyEntity != null) {
-                        // Validate landing proxy
-                        when (landingProxyEntity.type) {
-                            ProxyEntity.TYPE_BALANCER -> error("balancer can not be the landing proxy")
-                            ProxyEntity.TYPE_CONFIG -> if (landingProxyEntity.configBean!!.type == "v2ray")
-                                error("custom config can not be the landing proxy")
+                // NextClave: front/landing proxies are applied PER GROUP now.
+                // A TYPE_GROUP balancer may aggregate several subscriptions;
+                // members of each group get that group's own landing/front
+                // proxy (when the corresponding switch is enabled), while
+                // members of groups without one stay plain outbounds. For a
+                // single-group balancer the behavior is exactly the same as
+                // before. Side fix: when both switches are enabled, the chain
+                // is [landing] + member + [front] — the old code rebuilt the
+                // front chains from the raw member list and silently dropped
+                // the landing hop in that case.
+                if (balancerBean.type == BalancerBean.TYPE_GROUP &&
+                    (balancerBean.useLandingProxy == true || balancerBean.useFrontProxy == true)
+                ) {
+                    val membersByGroup = balancerBean.resolveBalancerMembersByGroup()
+                        // NextClave: mirror resolveChain()'s `item.id == id`
+                        // exclusion — a balancer created inside one of its own
+                        // aggregated groups must not become a member of itself.
+                        .mapValues { (_, groupMembers) ->
+                            groupMembers.filter { it.id != proxy.id }
                         }
-                        if (!landingProxyEntity.requireBean().canMapping()) {
-                            error("${landingProxyEntity.displayName()} can be the front proxy only and can not be the landing proxy")
-                        }
-
-                        // Get landing proxy chain
-                        val landingProxyList = when (landingProxyEntity.type) {
-                            ProxyEntity.TYPE_CHAIN -> landingProxyEntity.resolveChainRecursively()
-                            else -> mutableListOf(landingProxyEntity)
-                        }
-
-                        // For each proxy in profileList, we need to create a chain with landing proxy
-                        // We'll rebuild chainOutbounds with chains
-                        val originalProxies = profileList.toList()
+                    val hasChains = membersByGroup.any { (groupId, _) ->
+                        val group = SagerDatabase.groupDao.getById(groupId)
+                        group != null && (
+                                (balancerBean.useLandingProxy == true && group.landingProxy > 0L) ||
+                                        (balancerBean.useFrontProxy == true && group.frontProxy > 0L)
+                                )
+                    }
+                    if (hasChains) {
+                        val handled = HashSet<Long>()
                         chainOutbounds.clear()
 
-                        for (mainProxy in originalProxies) {
-                            // Create a chain: landingProxyList + mainProxy
-                            // Landing proxy goes first to bypass whitelists, then mainProxy
-                            val chainList = landingProxyList.toMutableList()
-                            chainList.add(mainProxy)
+                        for ((groupId, members) in membersByGroup) {
+                            val group = SagerDatabase.groupDao.getById(groupId)
 
-                            // Build this chain as a sub-chain
-                            val chainTag = buildChain(
-                                "$tagOutbound-chain-${mainProxy.id}",
-                                chainList,
-                                false, // not a balancer
-                                { null }
-                            )
+                            // Landing proxy of THIS group (entry hop), validated like before
+                            val landingProxyList = if (balancerBean.useLandingProxy == true &&
+                                group != null && group.landingProxy > 0L
+                            ) {
+                                val landingProxyEntity = SagerDatabase.proxyDao.getById(group.landingProxy)
+                                if (landingProxyEntity != null) {
+                                    when (landingProxyEntity.type) {
+                                        ProxyEntity.TYPE_BALANCER -> error("balancer can not be the landing proxy")
+                                        ProxyEntity.TYPE_CONFIG -> if (landingProxyEntity.configBean!!.type == "v2ray")
+                                            error("custom config can not be the landing proxy")
+                                    }
+                                    if (!landingProxyEntity.requireBean().canMapping()) {
+                                        error("${landingProxyEntity.displayName()} can be the front proxy only and can not be the landing proxy")
+                                    }
+                                    when (landingProxyEntity.type) {
+                                        ProxyEntity.TYPE_CHAIN -> landingProxyEntity.resolveChainRecursively()
+                                        else -> mutableListOf(landingProxyEntity)
+                                    }
+                                } else null
+                            } else null
 
-                            // Find the first outbound of this chain and add it to chainOutbounds
-                            val chainFirstOutbound = outbounds.findLast { it.tag == chainTag }
-                            if (chainFirstOutbound != null) {
-                                chainOutbounds.add(chainFirstOutbound)
+                            // Front proxy of THIS group (exit hop), validated like before
+                            val frontProxyList = if (balancerBean.useFrontProxy == true &&
+                                group != null && group.frontProxy > 0L
+                            ) {
+                                val frontProxyEntity = SagerDatabase.proxyDao.getById(group.frontProxy)
+                                if (frontProxyEntity != null) {
+                                    when (frontProxyEntity.type) {
+                                        ProxyEntity.TYPE_BALANCER -> error("balancer can not be the front proxy")
+                                        ProxyEntity.TYPE_CONFIG -> if (frontProxyEntity.configBean!!.type == "v2ray")
+                                            error("custom config can not be the front proxy")
+                                    }
+                                    when (frontProxyEntity.type) {
+                                        ProxyEntity.TYPE_CHAIN -> frontProxyEntity.resolveChainRecursively()
+                                        else -> mutableListOf(frontProxyEntity)
+                                    }
+                                } else null
+                            } else null
+
+                            for (mainProxy in members) {
+                                handled.add(mainProxy.id)
+                                if (landingProxyList == null && frontProxyList == null) {
+                                    // this group has no front/landing proxy of
+                                    // its own — keep the plain outbound built
+                                    // in the main loop
+                                    outbounds.findLast { it.tag == "$TAG_AGENT-global-${mainProxy.id}" }?.let {
+                                        chainOutbounds.add(it)
+                                    }
+                                    continue
+                                }
+
+                                // Build chain: [landing] + member + [front]
+                                val chainList = mutableListOf<ProxyEntity>()
+                                landingProxyList?.let { chainList.addAll(it) }
+                                chainList.add(mainProxy)
+                                frontProxyList?.let { chainList.addAll(it) }
+
+                                val chainTag = buildChain(
+                                    "$tagOutbound-chain-${mainProxy.id}",
+                                    chainList,
+                                    false, // not a balancer
+                                    { null }
+                                )
+
+                                // Find the outbound of this chain and add it to chainOutbounds
+                                val chainFirstOutbound = outbounds.findLast { it.tag == chainTag }
+                                if (chainFirstOutbound != null) {
+                                    chainOutbounds.add(chainFirstOutbound)
+                                }
                             }
                         }
-                    }
-                }
 
-                // Check if we need to apply front proxy for TYPE_GROUP balancer
-                val shouldUseFrontProxy = balancerBean.type == BalancerBean.TYPE_GROUP &&
-                                            balancerBean.useFrontProxy == true
-
-                if (shouldUseFrontProxy) {
-                    // Get the group and front proxy
-                    val group = SagerDatabase.groupDao.getById(balancerBean.groupId)
-                    val frontProxyEntity = if (group != null && group.frontProxy > 0L) {
-                        SagerDatabase.proxyDao.getById(group.frontProxy)
-                    } else null
-
-                    if (frontProxyEntity != null) {
-                        // Validate front proxy
-                        when (frontProxyEntity.type) {
-                            ProxyEntity.TYPE_BALANCER -> error("balancer can not be the front proxy")
-                            ProxyEntity.TYPE_CONFIG -> if (frontProxyEntity.configBean!!.type == "v2ray")
-                                error("custom config can not be the front proxy")
-                        }
-
-                        // Get front proxy chain
-                        val frontProxyList = when (frontProxyEntity.type) {
-                            ProxyEntity.TYPE_CHAIN -> frontProxyEntity.resolveChainRecursively()
-                            else -> mutableListOf(frontProxyEntity)
-                        }
-
-                        // For each proxy in profileList, we need to create a chain with front proxy
-                        // We'll rebuild chainOutbounds with chains
-                        val originalProxies = profileList.toList()
-                        chainOutbounds.clear()
-
-                        for (mainProxy in originalProxies) {
-                            // Create a chain: mainProxy + frontProxyList
-                            // Main proxy goes first, then front proxy
-                            val chainList = mutableListOf(mainProxy)
-                            chainList.addAll(frontProxyList)
-
-                            // Build this chain as a sub-chain
-                            val chainTag = buildChain(
-                                "$tagOutbound-chain-${mainProxy.id}",
-                                chainList,
-                                false, // not a balancer
-                                { null }
-                            )
-
-                            // Find the first outbound of this chain and add it to chainOutbounds
-                            val chainFirstOutbound = outbounds.findLast { it.tag == chainTag }
-                            if (chainFirstOutbound != null) {
-                                chainOutbounds.add(chainFirstOutbound)
+                        // members that slipped through (e.g. their group was
+                        // deleted in between): keep their plain outbound so the
+                        // balancer selector never shrinks unexpectedly
+                        for (mainProxy in profileList) {
+                            if (mainProxy.id !in handled) {
+                                outbounds.findLast { it.tag == "$TAG_AGENT-global-${mainProxy.id}" }?.let {
+                                    chainOutbounds.add(it)
+                                }
                             }
                         }
                     }

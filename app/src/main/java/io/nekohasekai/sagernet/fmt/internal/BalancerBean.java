@@ -25,6 +25,7 @@ import com.esotericsoftware.kryo.io.ByteBufferInput;
 import com.esotericsoftware.kryo.io.ByteBufferOutput;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 
 import io.nekohasekai.sagernet.database.ProxyEntity;
@@ -40,6 +41,11 @@ public class BalancerBean extends InternalBean {
     public String strategy;
     public List<Long> proxies;
     public Long groupId;
+    // NextClave: several groups (subscriptions) aggregated by one balancer.
+    // Kept alongside the legacy single groupId for backward compatibility:
+    // blobs stored by version 5 and older have groupIds == null and the
+    // effective group list falls back to [groupId] (see effectiveGroupIds()).
+    public List<Long> groupIds;
 
     public String probeUrl;
     public Integer probeInterval;
@@ -56,6 +62,7 @@ public class BalancerBean extends InternalBean {
         if (type == null) type = TYPE_LIST;
         if (proxies == null) proxies = new ArrayList<>();
         if (groupId == null) groupId = 0L;
+        if (groupIds == null) groupIds = new ArrayList<>();
         if (probeUrl == null) probeUrl = "";
         if (probeInterval == null) probeInterval = 300;
         if (nameFilter == null) nameFilter = "";
@@ -73,9 +80,25 @@ public class BalancerBean extends InternalBean {
         }
     }
 
+    // NextClave: the ordered, de-duplicated list of groups aggregated by this
+    // balancer. Prefers groupIds; falls back to the legacy single groupId for
+    // beans stored before the multi-group update. Null/zero ids are dropped.
+    public List<Long> effectiveGroupIds() {
+        LinkedHashSet<Long> set = new LinkedHashSet<>();
+        if (groupIds != null) {
+            for (Long id : groupIds) {
+                if (id != null && id > 0L) set.add(id);
+            }
+        }
+        if (set.isEmpty() && groupId != null && groupId > 0L) {
+            set.add(groupId);
+        }
+        return new ArrayList<>(set);
+    }
+
     @Override
     public void serialize(ByteBufferOutput output) {
-        output.writeInt(5);
+        output.writeInt(6);
         output.writeInt(type);
         output.writeString(strategy);
         switch (type) {
@@ -99,6 +122,14 @@ public class BalancerBean extends InternalBean {
             output.writeString(nameFilter1);
             output.writeBoolean(useLandingProxy);
             output.writeBoolean(useFrontProxy);
+            // v6: the aggregated group list (subscriptions). Written from the
+            // effective list so even legacy beans re-save into a consistent
+            // blob.
+            List<Long> effectiveGroups = effectiveGroupIds();
+            output.writeInt(effectiveGroups.size());
+            for (Long id : effectiveGroups) {
+                output.writeLong(id);
+            }
         }
     }
 
@@ -136,6 +167,13 @@ public class BalancerBean extends InternalBean {
         }
         if (version >= 5 && type == TYPE_GROUP) {
             useFrontProxy = input.readBoolean();
+        }
+        if (version >= 6 && type == TYPE_GROUP) {
+            int length = input.readInt();
+            groupIds = new ArrayList<>();
+            for (int i = 0; i < length; i++) {
+                groupIds.add(input.readLong());
+            }
         }
     }
 

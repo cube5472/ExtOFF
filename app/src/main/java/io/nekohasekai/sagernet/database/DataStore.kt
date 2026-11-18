@@ -470,6 +470,8 @@ object DataStore : OnPreferenceDataStoreChangeListener {
 
     var balancerType by profileCacheStore.stringToInt(Key.BALANCER_TYPE)
     var balancerGroup by profileCacheStore.stringToLong(Key.BALANCER_GROUP)
+    // NextClave: comma-separated group id list for the multi-group balancer
+    var balancerGroups by profileCacheStore.string(Key.BALANCER_GROUPS)
     var balancerStrategy by profileCacheStore.string(Key.BALANCER_STRATEGY)
     var balancerProbeUrl by profileCacheStore.string(Key.PROBE_URL)
     var balancerProbeInterval by profileCacheStore.stringToInt(Key.PROBE_INTERVAL) { 300 }

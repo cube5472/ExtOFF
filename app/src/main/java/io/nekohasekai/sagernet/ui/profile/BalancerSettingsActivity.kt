@@ -54,7 +54,7 @@ import io.nekohasekai.sagernet.fmt.internal.BalancerBean
 import io.nekohasekai.sagernet.ktx.*
 import io.nekohasekai.sagernet.ui.ProfileSelectActivity
 import io.nekohasekai.sagernet.utils.FormatFileSizeCompat
-import io.nekohasekai.sagernet.widget.GroupPreference
+import io.nekohasekai.sagernet.widget.MultiGroupPreference
 
 class BalancerSettingsActivity : ProfileSettingsActivity<BalancerBean>(R.layout.layout_chain_settings) {
 
@@ -71,7 +71,11 @@ class BalancerSettingsActivity : ProfileSettingsActivity<BalancerBean>(R.layout.
         DataStore.profileName = name
         DataStore.balancerType = type
         DataStore.balancerStrategy = strategy
-        DataStore.balancerGroup = groupId
+        // NextClave: multi-group selection. Legacy beans (stored before the
+        // multi-group update, groupIds empty) fall back to the single groupId
+        // so the dialog shows the previously chosen group pre-checked.
+        DataStore.balancerGroups = groupIds.takeIf { it.isNotEmpty() }?.joinToString(",")
+            ?: groupId.takeIf { it > 0L }?.toString() ?: ""
         DataStore.serverProtocol = proxies.joinToString(",")
         DataStore.balancerProbeUrl = probeUrl
         DataStore.balancerProbeInterval = probeInterval
@@ -85,7 +89,15 @@ class BalancerSettingsActivity : ProfileSettingsActivity<BalancerBean>(R.layout.
         name = DataStore.profileName
         type = DataStore.balancerType
         strategy = DataStore.balancerStrategy
-        groupId = DataStore.balancerGroup
+        // NextClave: the aggregated group list; the legacy groupId keeps the
+        // first selection so older builds (and v5 blobs) still see a sane
+        // single group.
+        val selectedGroups = DataStore.balancerGroups.split(",")
+            .mapNotNull { it.trim().takeIf { t -> t.isNotBlank() }?.toLongOrNull() }
+            .filter { it > 0L }
+            .distinct()
+        groupIds = selectedGroups
+        groupId = selectedGroups.firstOrNull() ?: 0L
         proxies = proxyList.map { it.id }
         probeUrl = DataStore.balancerProbeUrl
         probeInterval = DataStore.balancerProbeInterval
@@ -96,7 +108,7 @@ class BalancerSettingsActivity : ProfileSettingsActivity<BalancerBean>(R.layout.
     }
 
     lateinit var balancerType: ListPreference
-    lateinit var balancerGroup: GroupPreference
+    lateinit var balancerGroupsPref: MultiGroupPreference
     lateinit var balancerNameFilter: EditTextPreference
     lateinit var balancerNameFilter1: EditTextPreference
     lateinit var balancerUseLandingProxy: SwitchPreference
@@ -110,7 +122,7 @@ class BalancerSettingsActivity : ProfileSettingsActivity<BalancerBean>(R.layout.
         addPreferencesFromResource(R.xml.balancer_preferences)
 
         balancerType = findPreference(Key.BALANCER_TYPE)!!
-        balancerGroup = findPreference(Key.BALANCER_GROUP)!!
+        balancerGroupsPref = findPreference(Key.BALANCER_GROUPS)!!
         balancerNameFilter = findPreference(Key.BALANCER_NAME_FILTER)!!
         balancerNameFilter1 = findPreference(Key.BALANCER_NAME_FILTER1)!!
         balancerUseLandingProxy = findPreference(Key.BALANCER_USE_LANDING_PROXY)!!
@@ -129,7 +141,7 @@ class BalancerSettingsActivity : ProfileSettingsActivity<BalancerBean>(R.layout.
     fun updateType(type: Int = DataStore.balancerType) {
         when (type) {
             BalancerBean.TYPE_LIST -> {
-                balancerGroup.isVisible = false
+                balancerGroupsPref.isVisible = false
                 balancerNameFilter.isVisible = false
                 balancerNameFilter1.isVisible = false
                 balancerUseLandingProxy.isVisible = false
@@ -138,7 +150,9 @@ class BalancerSettingsActivity : ProfileSettingsActivity<BalancerBean>(R.layout.
                 itemView.isVisible = true
             }
             BalancerBean.TYPE_GROUP -> {
-                balancerGroup.isVisible = true
+                // NextClave: the selection may have been changed in the dialog
+                balancerGroupsPref.reloadFromStore()
+                balancerGroupsPref.isVisible = true
                 balancerNameFilter.isVisible = true
                 balancerNameFilter1.isVisible = true
                 balancerUseLandingProxy.isVisible = true

@@ -29,6 +29,7 @@ import io.nekohasekai.sagernet.database.DataStore
 import io.nekohasekai.sagernet.database.ProxyEntity
 import io.nekohasekai.sagernet.database.SagerDatabase
 import io.nekohasekai.sagernet.fmt.TAG_SOCKS
+import io.nekohasekai.sagernet.fmt.resolveBalancerMembers
 import io.nekohasekai.sagernet.fmt.internal.BalancerBean
 import io.nekohasekai.sagernet.ktx.Logs
 import io.nekohasekai.sagernet.ktx.runOnDefaultDispatcher
@@ -326,13 +327,14 @@ class ProxyInstance(profile: ProxyEntity, val service: BaseService.Interface) : 
             if (balancer.type == BalancerBean.TYPE_LIST) {
                 memberIds.addAll(balancer.proxies)
             } else {
-                SagerDatabase.proxyDao.getByGroup(balancer.groupId).forEach { entity ->
-                    val name = entity.requireBean().name
-                    if (balancer.nameFilter.isEmpty() || !Regex(balancer.nameFilter).containsMatchIn(name)) {
-                        if (balancer.nameFilter1.isEmpty() || Regex(balancer.nameFilter1).containsMatchIn(name)) {
-                            memberIds.add(entity.id)
-                        }
-                    }
+                // NextClave: TYPE_GROUP balancers may aggregate several groups
+                // (subscriptions); resolution goes through the same shared
+                // helper ConfigBuilder uses (group order, both name filters,
+                // de-duplicated). A single-group balancer yields exactly the
+                // same member set as before — the url-test detection logic
+                // below is untouched.
+                balancer.resolveBalancerMembers().forEach { entity ->
+                    memberIds.add(entity.id)
                 }
             }
         } catch (e: Exception) {
