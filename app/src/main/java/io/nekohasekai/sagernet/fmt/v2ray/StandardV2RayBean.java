@@ -54,6 +54,16 @@ public abstract class StandardV2RayBean extends AbstractBean {
     public String splithttpExtra;
     public Boolean splithttpChromeParrot;
 
+    // NextClave (NC_XDRIVE): XDRIVE transport (Xray-core v26.11.9 port).
+    // service: google-drive | template | s3 | local
+    public String xdriveService;
+    // remote storage folder id
+    public String xdriveRemoteFolder;
+    // three lines: ClientID, ClientSecret, RefreshToken (google-drive)
+    public String xdriveSecrets;
+    // raw JSON merged into xdriveSettings (template/s3/xmux/segmentBytes/...)
+    public String xdriveExtra;
+
     public String certificates;
     public String pinnedPeerCertificateChainSha256;
     public String pinnedPeerCertificatePublicKeySha256;
@@ -142,6 +152,11 @@ public abstract class StandardV2RayBean extends AbstractBean {
         if (splithttpExtra == null) splithttpExtra = "";
         if (splithttpChromeParrot == null) splithttpChromeParrot = false;
 
+        if (xdriveService == null) xdriveService = "google-drive";
+        if (xdriveRemoteFolder == null) xdriveRemoteFolder = "";
+        if (xdriveSecrets == null) xdriveSecrets = "";
+        if (xdriveExtra == null) xdriveExtra = "";
+
         if (security == null) security = "none";
         if (sni == null) sni = "";
         if (alpn == null) alpn = "";
@@ -196,7 +211,7 @@ public abstract class StandardV2RayBean extends AbstractBean {
 
     @Override
     public void serialize(ByteBufferOutput output) {
-        output.writeInt(43);
+        output.writeInt(44);
         super.serialize(output);
 
         output.writeString(uuid);
@@ -269,6 +284,13 @@ public abstract class StandardV2RayBean extends AbstractBean {
                 output.writeString(mekyaKcpHeaderType);
                 output.writeString(mekyaKcpSeed);
                 output.writeString(mekyaUrl);
+                break;
+            }
+            case "xdrive": {
+                output.writeString(xdriveService);
+                output.writeString(xdriveRemoteFolder);
+                output.writeString(xdriveSecrets);
+                output.writeString(xdriveExtra);
                 break;
             }
         }
@@ -465,6 +487,15 @@ public abstract class StandardV2RayBean extends AbstractBean {
                     mekyaKcpHeaderType = input.readString();
                     mekyaKcpSeed = input.readString();
                     mekyaUrl = input.readString();
+                }
+                break;
+            }
+            case "xdrive": {
+                if (version >= 44) {
+                    xdriveService = input.readString();
+                    xdriveRemoteFolder = input.readString();
+                    xdriveSecrets = input.readString();
+                    xdriveExtra = input.readString();
                 }
                 break;
             }

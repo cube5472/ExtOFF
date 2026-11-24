@@ -226,6 +226,12 @@ object Key {
     const val SERVER_SPLITHTTP_MODE = "serverSplithttpMode"
     const val SERVER_SPLITHTTP_EXTRA = "serverSplithttpExtra"
     const val SERVER_SPLITHTTP_CHROME_PARROT = "serverSplithttpChromeParrot"
+    // NextClave (NC_XDRIVE): XDRIVE transport (Xray-core v26.11.9 port)
+    const val SERVER_XDRIVE_CATEGORY = "serverXdriveCategory"
+    const val SERVER_XDRIVE_SERVICE = "serverXdriveService"
+    const val SERVER_XDRIVE_REMOTE_FOLDER = "serverXdriveRemoteFolder"
+    const val SERVER_XDRIVE_SECRETS = "serverXdriveSecrets"
+    const val SERVER_XDRIVE_EXTRA = "serverXdriveExtra"
     const val SERVER_WS_BROWSER_FORWARDING = "serverWsBrowserForwarding"
     const val SERVER_SH_BROWSER_FORWARDING = "serverShBrowserForwarding"
     const val SERVER_EARLY_DATA_HEADER_NAME = "serverEarlyDataHeaderName"

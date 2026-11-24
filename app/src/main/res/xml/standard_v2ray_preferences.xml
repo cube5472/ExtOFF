@@ -334,6 +334,36 @@
             app:useSimpleSummaryProvider="true" />
     </PreferenceCategory>
 
+    <!-- NextClave (NC_XDRIVE): XDRIVE transport settings -->
+    <PreferenceCategory
+        app:key="serverXdriveCategory"
+        app:title="@string/cag_xdrive">
+        <io.nekohasekai.sagernet.widget.SimpleMenuPreference
+            app:defaultValue="google-drive"
+            app:entries="@array/xdrive_service_entry"
+            app:entryValues="@array/xdrive_service_value"
+            app:icon="@drawable/ic_baseline_stream_24"
+            app:key="serverXdriveService"
+            app:singleLineTitle="false"
+            app:title="@string/xdrive_service"
+            app:useSimpleSummaryProvider="true" />
+        <io.nekohasekai.sagernet.widget.NonBlackEditTextPreference
+            app:icon="@drawable/ic_action_settings"
+            app:key="serverXdriveRemoteFolder"
+            app:title="@string/xdrive_remote_folder"
+            app:useSimpleSummaryProvider="true" />
+        <io.nekohasekai.sagernet.widget.NonBlackEditTextPreference
+            app:icon="@drawable/ic_notification_enhanced_encryption"
+            app:key="serverXdriveSecrets"
+            app:summary="@string/xdrive_secrets_sum"
+            app:title="@string/xdrive_secrets" />
+        <io.nekohasekai.sagernet.widget.NonBlackEditTextPreference
+            app:icon="@drawable/ic_action_settings"
+            app:key="serverXdriveExtra"
+            app:title="@string/xdrive_extra"
+            app:useSimpleSummaryProvider="true" />
+    </PreferenceCategory>
+
     <PreferenceCategory
         app:key="serverGrpcCategory"
         app:title="@string/cag_grpc">

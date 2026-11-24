@@ -487,6 +487,13 @@
     <string name="edns_client_ip">IP-адрес клиента EDNS</string>
     <string name="allow_apps_bypass_vpn">Разрешить приложениям обходить VPN</string>
     <string name="update_all_subscriptions">Обновить все подписки</string>
+    <!-- NextClave (NC_XDRIVE): XDRIVE transport (Xray-core v26.11.9 port) -->
+    <string name="cag_xdrive">Настройки XDRIVE</string>
+    <string name="xdrive_service">Сервис хранения</string>
+    <string name="xdrive_remote_folder">ID удалённой папки</string>
+    <string name="xdrive_secrets">Секреты</string>
+    <string name="xdrive_secrets_sum">Три строки: ClientID, ClientSecret, RefreshToken (Google Drive). Также VLESS-узлу нужны VLESS Encryption и включённый Mux.</string>
+    <string name="xdrive_extra" translatable="false">Extra</string>
     <string name="cag_splithttp">Настройки XHTTP</string>
     <string name="ws_max_early_data">Максимальный объем ранних данных</string>
     <string name="hijack_dns">Перехват DNS</string>

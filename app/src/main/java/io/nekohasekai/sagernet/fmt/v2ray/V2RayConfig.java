@@ -1097,6 +1097,8 @@ public class V2RayConfig {
         public SplitHTTPObject xhttpSettings;
         public MekyaObject mekyaSettings;
         public TLSMirrorObject tlsmirrorSettings;
+        // NextClave (NC_XDRIVE): XDRIVE transport (Xray-core v26.11.9 port)
+        public XDriveObject xdriveSettings;
         public SockoptObject sockopt;
 
         public static class SockoptObject {
@@ -1323,6 +1325,27 @@ public class V2RayConfig {
         public Boolean parseXForwardedFor;
         public Boolean multiMode;
         public Boolean serviceNameCompat;
+
+    }
+
+    // NextClave (NC_XDRIVE): XDRIVE transport settings; template/s3 stay as
+    // raw JSON elements (advanced knobs come in through xdriveExtra).
+    public static class XDriveObject {
+
+        public String service;
+        public String remoteFolder;
+        public List<String> secrets;
+        public Object template;
+        public Object s3;
+        public XmuxObject xmux;
+        public Long segmentBytes;
+        public Long flushIntervalMs;
+        public Long pollIntervalMs;
+        public Long maxPollIntervalMs;
+        public Long sessionTtlSeconds;
+        public Long concurrency;
+        public Long eagerWindowMs;
+        public Long holeTimeoutMs;
 
     }
 

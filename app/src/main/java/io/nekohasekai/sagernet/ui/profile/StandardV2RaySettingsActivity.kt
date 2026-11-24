@@ -133,6 +133,11 @@ abstract class StandardV2RaySettingsActivity : ProfileSettingsActivity<StandardV
         DataStore.serverSplithttpMode = splithttpMode
         DataStore.serverSplithttpExtra = splithttpExtra
         DataStore.serverSplithttpChromeParrot = splithttpChromeParrot
+
+        DataStore.serverXdriveService = xdriveService
+        DataStore.serverXdriveRemoteFolder = xdriveRemoteFolder
+        DataStore.serverXdriveSecrets = xdriveSecrets
+        DataStore.serverXdriveExtra = xdriveExtra
         DataStore.serverUTLSFingerprint = utlsFingerprint
         DataStore.serverEchEnabled = echEnabled
         DataStore.serverEchConfigList = echConfigList
@@ -249,6 +254,11 @@ abstract class StandardV2RaySettingsActivity : ProfileSettingsActivity<StandardV
         splithttpMode = DataStore.serverSplithttpMode
         splithttpExtra = DataStore.serverSplithttpExtra
         splithttpChromeParrot = DataStore.serverSplithttpChromeParrot
+
+        xdriveService = DataStore.serverXdriveService
+        xdriveRemoteFolder = DataStore.serverXdriveRemoteFolder
+        xdriveSecrets = DataStore.serverXdriveSecrets
+        xdriveExtra = DataStore.serverXdriveExtra
         utlsFingerprint = DataStore.serverUTLSFingerprint
         mtlsCertificate = DataStore.serverMtlsCertificate
         mtlsCertificatePrivateKey = DataStore.serverMtlsCertificatePrivateKey
@@ -352,6 +362,13 @@ abstract class StandardV2RaySettingsActivity : ProfileSettingsActivity<StandardV
     lateinit var splithttpMode: ListPreference
     lateinit var splithttpExtra: EditTextPreference
     lateinit var splithttpChromeParrot: SwitchPreference
+
+    // NextClave (NC_XDRIVE): XDRIVE transport (Xray-core v26.11.9 port)
+    lateinit var xdriveCategory: PreferenceCategory
+    lateinit var xdriveService: ListPreference
+    lateinit var xdriveRemoteFolder: EditTextPreference
+    lateinit var xdriveSecrets: EditTextPreference
+    lateinit var xdriveExtra: EditTextPreference
     lateinit var grpcCategory: PreferenceCategory
     lateinit var ssExperimentsCategory: PreferenceCategory
     lateinit var httpConnectUDPCategory: PreferenceCategory
@@ -481,6 +498,15 @@ abstract class StandardV2RaySettingsActivity : ProfileSettingsActivity<StandardV
         splithttpExtra = findPreference(Key.SERVER_SPLITHTTP_EXTRA)!!
         splithttpChromeParrot = findPreference(Key.SERVER_SPLITHTTP_CHROME_PARROT)!!
 
+        // NextClave (NC_XDRIVE): XDRIVE transport (Xray-core v26.11.9 port)
+        xdriveCategory = findPreference(Key.SERVER_XDRIVE_CATEGORY)!!
+        xdriveService = findPreference(Key.SERVER_XDRIVE_SERVICE)!!
+        xdriveRemoteFolder = findPreference(Key.SERVER_XDRIVE_REMOTE_FOLDER)!!
+        xdriveSecrets = findPreference(Key.SERVER_XDRIVE_SECRETS)!!
+        xdriveExtra = findPreference(Key.SERVER_XDRIVE_EXTRA)!!
+        xdriveSecrets.setOnBindEditTextListener(EditTextPreferenceModifiers.Monospace)
+        xdriveExtra.setOnBindEditTextListener(EditTextPreferenceModifiers.Monospace)
+
         grpcCategory = findPreference(Key.SERVER_GRPC_CATAGORY)!!
 
         findPreference<SwitchPreference>(Key.SERVER_WS_BROWSER_FORWARDING)!!.setOnPreferenceChangeListener { _, newValue ->
@@ -553,6 +579,16 @@ abstract class StandardV2RaySettingsActivity : ProfileSettingsActivity<StandardV
 
         alterId.isVisible = bean is VMessBean
         alterId.setOnBindEditTextListener(EditTextPreferenceModifiers.Port)
+
+        // NextClave (NC_XDRIVE): the XDRIVE transport is VLESS-only in the
+        // core, keep it out of the picker for the other protocols.
+        if (bean !is VLESSBean) {
+            val nEntries = resources.getStringArray(R.array.networks_entry)
+            val nValues = resources.getStringArray(R.array.networks_value)
+            val keep = nValues.withIndex().filter { it.value != "xdrive" }
+            network.entries = keep.map { nEntries[it.index] }.toTypedArray()
+            network.entryValues = keep.map { it.value }.toTypedArray()
+        }
 
         updateView(network.value)
         network.setOnPreferenceChangeListener { _, newValue ->
@@ -711,6 +747,8 @@ abstract class StandardV2RaySettingsActivity : ProfileSettingsActivity<StandardV
         if (splithttpMode.value !in resources.getStringArray(R.array.splithttp_mode_value)) {
             splithttpMode.value = resources.getStringArray(R.array.splithttp_mode_value)[0]
         }
+
+        xdriveCategory.isVisible = network == "xdrive"
         // Do not translate this as it is not a stable string.
         splithttpExtra.dialogMessage = "`downloadSettings` is not supported. Use custom config for `downloadSettings`."
 
@@ -822,6 +860,13 @@ abstract class StandardV2RaySettingsActivity : ProfileSettingsActivity<StandardV
                 header.isVisible = false
                 requestHost.isVisible = false
             }
+            "xdrive" -> {
+                // NC_XDRIVE: the storage backends use their own addressing;
+                // host/path/headerType do not apply
+                header.isVisible = false
+                requestHost.isVisible = false
+                path.isVisible = false
+            }
             "mekya" -> {
                 path.isVisible = false
                 header.isVisible = false
@@ -859,7 +904,7 @@ abstract class StandardV2RaySettingsActivity : ProfileSettingsActivity<StandardV
         } else {
             utlsFingerprint.isVisible = security == "tls" && (network == "tcp" || network == "ws"
                     || network == "http" || network == "meek" || network == "httpupgrade"
-                    || network == "grpc" || network == "mekya")
+                    || network == "grpc" || network == "mekya" || network == "xdrive")
         }
         mtlsCertificate.isVisible = security == "tls"
         mtlsCertificatePrivateKey.isVisible = security == "tls"

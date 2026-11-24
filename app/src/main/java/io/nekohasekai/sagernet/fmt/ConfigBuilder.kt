@@ -1260,6 +1260,49 @@ fun buildV2RayConfig(
                                                 }
                                             }
                                         }
+                                        "xdrive" -> {
+                                            // NextClave (NC_XDRIVE): XDRIVE transport
+                                            xdriveSettings = XDriveObject().apply {
+                                                if (bean.xdriveService.isNotEmpty()) {
+                                                    service = bean.xdriveService
+                                                }
+                                                if (bean.xdriveRemoteFolder.isNotEmpty()) {
+                                                    remoteFolder = bean.xdriveRemoteFolder
+                                                }
+                                                val secrets = bean.xdriveSecrets.listByLineOrComma()
+                                                    .map { it.trim() }.filter { it.isNotEmpty() }
+                                                if (secrets.isNotEmpty()) {
+                                                    this.secrets = secrets
+                                                }
+                                                if (bean.xdriveExtra.isNotEmpty()) {
+                                                    try {
+                                                        parseJson(bean.xdriveExtra).asJsonObject?.also { extra ->
+                                                            extra.get("template")?.also { template = it }
+                                                            extra.get("s3")?.also { s3 = it }
+                                                            extra.getObject("xmux", ignoreCase = true)?.also { xmuxSettings ->
+                                                                xmux = SplitHTTPObject.XmuxObject().apply {
+                                                                    xmuxSettings.getString("maxConcurrency", ignoreCase = true)?.also { maxConcurrency = it }
+                                                                    xmuxSettings.getString("maxConnections", ignoreCase = true)?.also { maxConnections = it }
+                                                                    xmuxSettings.getString("cMaxReuseTimes", ignoreCase = true)?.also { cMaxReuseTimes = it }
+                                                                    xmuxSettings.getString("hMaxRequestTimes", ignoreCase = true)?.also { hMaxRequestTimes = it }
+                                                                    xmuxSettings.getString("hMaxReusableSecs", ignoreCase = true)?.also { hMaxReusableSecs = it }
+                                                                }
+                                                            }
+                                                            extra.getLong("segmentBytes", ignoreCase = true)?.also { segmentBytes = it }
+                                                            extra.getLong("flushIntervalMs", ignoreCase = true)?.also { flushIntervalMs = it }
+                                                            extra.getLong("pollIntervalMs", ignoreCase = true)?.also { pollIntervalMs = it }
+                                                            extra.getLong("maxPollIntervalMs", ignoreCase = true)?.also { maxPollIntervalMs = it }
+                                                            extra.getLong("sessionTtlSeconds", ignoreCase = true)?.also { sessionTtlSeconds = it }
+                                                            extra.getLong("concurrency", ignoreCase = true)?.also { concurrency = it }
+                                                            extra.getLong("eagerWindowMs", ignoreCase = true)?.also { eagerWindowMs = it }
+                                                            extra.getLong("holeTimeoutMs", ignoreCase = true)?.also { holeTimeoutMs = it }
+                                                        }
+                                                    } catch (e: Exception) {
+                                                        error(e)
+                                                    }
+                                                }
+                                            }
+                                        }
                                         "hysteria2" -> {
                                             hy2Settings = Hysteria2Object().apply {
                                                 if (bean.hy2ChromeParrot) {
@@ -1330,6 +1373,9 @@ fun buildV2RayConfig(
                                         && !(network == "ws" && bean.wsUseBrowserForwarder)
                                         && !(network == "splithttp" && bean.shUseBrowserForwarder)
                                         && !(network == "splithttp" && security == "tls" && bean.alpn.listByLineOrComma().size == 1 && bean.alpn.listByLineOrComma()[0] == "h3")
+                                        // NC_XDRIVE: the XDRIVE storage dials bypass the
+                                        // fragmented dialer, the sockopt would be a no-op
+                                        && network != "xdrive"
                                     ) {
                                         sockopt = StreamSettingsObject.SockoptObject().apply {
                                             tlsFragmentation = StreamSettingsObject.SockoptObject.TLSFragmentationObject().apply {
@@ -2215,7 +2261,9 @@ fun buildV2RayConfig(
                                     }
                                 }
                             }
-                            if (bean is StandardV2RayBean && bean.mux) {
+                            // NextClave (NC_XDRIVE): the XDRIVE transport runs
+                            // VLESS Encryption over Mux only, so mux is forced on.
+                            if (bean is StandardV2RayBean && (bean.mux || bean.type == "xdrive")) {
                                 mux = OutboundObject.MuxObject().apply {
                                     enabled = true
                                     concurrency = bean.muxConcurrency

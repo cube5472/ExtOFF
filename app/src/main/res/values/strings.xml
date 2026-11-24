@@ -536,6 +536,13 @@
     <string name="allow_apps_bypass_vpn">Allow apps to bypass VPN</string>
     <string name="allow_apps_bypass_vpn_sum">Allow apps to bypass VPN using system-provided methods on their own</string>
     <string name="update_all_subscriptions">Update all subscriptions</string>
+    <!-- NextClave (NC_XDRIVE): XDRIVE transport (Xray-core v26.11.9 port) -->
+    <string name="cag_xdrive">XDRIVE settings</string>
+    <string name="xdrive_service">Storage service</string>
+    <string name="xdrive_remote_folder">Remote folder ID</string>
+    <string name="xdrive_secrets">Secrets</string>
+    <string name="xdrive_secrets_sum">Three lines: ClientID, ClientSecret, RefreshToken (Google Drive). The VLESS node also needs VLESS Encryption and Mux enabled.</string>
+    <string name="xdrive_extra" translatable="false">Extra</string>
     <string name="cag_splithttp">XHTTP settings</string>
     <string name="ech_config_list" translatable="false">ECHConfigList</string>
     <string name="splithttp_mode">Mode</string>

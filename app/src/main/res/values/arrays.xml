@@ -240,6 +240,7 @@
         <item>xhttp</item>
         <item>hysteria2</item>
         <item>mekya</item>
+        <item>xdrive</item>
     </string-array>
 
     <string-array name="networks_value">
@@ -254,6 +255,7 @@
         <item>splithttp</item>
         <item>hysteria2</item>
         <item>mekya</item>
+        <item>xdrive</item>
     </string-array>
 
     <string-array name="tcp_headers_entry">
@@ -300,6 +302,20 @@
 
     <string-array name="vless_encryption_value">
         <item>none</item>
+    </string-array>
+
+    <!-- NextClave (NC_XDRIVE): XDRIVE storage backends -->
+    <string-array name="xdrive_service_entry">
+        <item>Google Drive</item>
+        <item>template</item>
+        <item>s3</item>
+        <item>local</item>
+    </string-array>
+    <string-array name="xdrive_service_value">
+        <item>google-drive</item>
+        <item>template</item>
+        <item>s3</item>
+        <item>local</item>
     </string-array>
 
     <string-array name="transport_layer_encryption_entry">

@@ -61,7 +61,9 @@ val supportedXhttpMode = arrayOf(
 val nonRawTransportName = arrayOf(
     "kcp", "mkcp", "ws", "websocket", "h2", "http", "quic",
     "grpc", "gun", "meek", "httpupgrade", "splithttp", "xhttp",
-    "hysteria2", "hy2", "mekya"
+    "hysteria2", "hy2", "mekya",
+    // NextClave (NC_XDRIVE): XDRIVE transport (Xray-core v26.11.9 port)
+    "xdrive"
 )
 
 fun parseV2Ray(link: String): StandardV2RayBean {
@@ -456,6 +458,26 @@ fun parseV2Ray(link: String): StandardV2RayBean {
                 bean.mekyaUrl = it
             }
         }
+        "xdrive" -> {
+            // NextClave (NC_XDRIVE): there is no standard share link for
+            // XDRIVE yet; these query names match the UI fields so links can
+            // be hand-crafted. Secrets are three params: clientId,
+            // clientSecret, refreshToken (google-drive).
+            url.queryParameter("service")?.takeIf { it.isNotEmpty() }?.let {
+                bean.xdriveService = it
+            }
+            url.queryParameter("folder")?.takeIf { it.isNotEmpty() }?.let {
+                bean.xdriveRemoteFolder = it
+            }
+            val xdriveSecrets = listOf(
+                url.queryParameter("clientId").orEmpty(),
+                url.queryParameter("clientSecret").orEmpty(),
+                url.queryParameter("refreshToken").orEmpty(),
+            ).filter { it.isNotEmpty() }
+            if (xdriveSecrets.isNotEmpty()) {
+                bean.xdriveSecrets = xdriveSecrets.joinToString("\n")
+            }
+        }
         "hysteria2", "hysteria" -> error("unsupported")
         else -> bean.type = "tcp"
     }
@@ -592,7 +614,8 @@ private fun parseV2RayN(json: JsonObject): VMessBean {
     bean.type = when (net) {
         "h2" -> "http"
         "xhttp" -> "splithttp"
-        "tcp", "kcp", "ws", "http", "quic", "grpc", "httpupgrade", "splithttp" -> net
+        // NextClave (NC_XDRIVE): XDRIVE transport (Xray-core v26.11.9 port)
+        "tcp", "kcp", "ws", "http", "quic", "grpc", "httpupgrade", "splithttp", "xdrive" -> net
         else -> "tcp"
     }
     val type = json.getString("type")?.takeIf { it.isNotEmpty() }
@@ -949,6 +972,22 @@ fun StandardV2RayBean.toUri(): String? {
             }
             if (mekyaUrl.isNotEmpty()) {
                 builder.addQueryParameter("url", mekyaUrl)
+            }
+        }
+        "xdrive" -> {
+            // NextClave (NC_XDRIVE): no standard share link yet; mirrors the
+            // parser above
+            if (xdriveService.isNotEmpty()) {
+                builder.addQueryParameter("service", xdriveService)
+            }
+            if (xdriveRemoteFolder.isNotEmpty()) {
+                builder.addQueryParameter("folder", xdriveRemoteFolder)
+            }
+            val secrets = xdriveSecrets.listByLineOrComma().map { it.trim() }.filter { it.isNotEmpty() }
+            if (secrets.isNotEmpty()) {
+                builder.addQueryParameter("clientId", secrets.getOrElse(0) { "" })
+                if (secrets.size > 1) builder.addQueryParameter("clientSecret", secrets[1])
+                if (secrets.size > 2) builder.addQueryParameter("refreshToken", secrets[2])
             }
         }
     }
