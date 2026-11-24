@@ -49,6 +49,8 @@ import io.nekohasekai.sagernet.database.DataStore
 import io.nekohasekai.sagernet.database.preference.EditTextPreferenceModifiers
 import io.nekohasekai.sagernet.fmt.clashr.ClashRules
 import io.nekohasekai.sagernet.ktx.*
+import io.nekohasekai.sagernet.tasker.TaskerActivity
+import io.nekohasekai.sagernet.tasker.TaskerReceiver
 import io.nekohasekai.sagernet.ui.profile.ProfileSettingsActivity
 import io.nekohasekai.sagernet.utils.PackageCache
 import io.nekohasekai.sagernet.utils.Theme
@@ -136,6 +138,11 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         true
     }
 
+    val restartListener = Preference.OnPreferenceChangeListener { _, _ ->
+        needRestart()
+        true
+    }
+
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         preferenceManager.preferenceDataStore = DataStore.configurationStore
         DataStore.initGlobal()
@@ -174,6 +181,8 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         }
 
         // app settings
+        findPreference<SwitchPreference>(Key.PERSIST_ACROSS_REBOOT)!!.onPreferenceChangeListener = restartListener
+
         findPreference<ColorPickerPreference>(Key.APP_THEME)!!.setOnPreferenceChangeListener { _, newTheme ->
             val theme = Theme.getTheme(newTheme as Int)
             // NextClave: persist early so Theme.getNightMode() sees the NEW
@@ -399,6 +408,7 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
                         .show()
                 }
             }
+            needRestart()
             true
         }
 
@@ -460,6 +470,9 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         }
 
         // protocol settings
+        findPreference<SwitchPreference>(Key.REALITY_DISABLE_X25519MLKEM768)!!.onPreferenceChangeListener = reloadListener
+        findPreference<SwitchPreference>(Key.HYSTERIA2_OMIT_MAX_DATAGRAM_FRAME_SIZE)!!.onPreferenceChangeListener = reloadListener
+        findPreference<SwitchPreference>(Key.GRPC_SERVICE_NAME_COMPAT)!!.onPreferenceChangeListener = reloadListener
         val enableFragment = findPreference<SwitchPreference>(Key.ENABLE_FRAGMENT)!!
         val enableFragmentForDirect = findPreference<SwitchPreference>(Key.ENABLE_FRAGMENT_FOR_DIRECT)!!
         val fragmentMethod = findPreference<ListPreference>(Key.FRAGMENT_METHOD)!!
@@ -469,18 +482,28 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
             newValue as Boolean
             enableFragmentForDirect.isVisible = newValue
             fragmentMethod.isVisible = newValue
+<<<<<<< HEAD
             fragmentDisorder.isVisible = newValue
             fragmentTtl.isVisible = newValue && fragmentDisorder.isChecked
             true
         }
         fragmentDisorder.setOnPreferenceChangeListener { _, newValue ->
             fragmentTtl.isVisible = enableFragment.isChecked && (newValue as Boolean)
+=======
+            needReload()
+>>>>>>> ba684df3
             true
         }
         enableFragmentForDirect.isVisible = enableFragment.isChecked
+        enableFragmentForDirect.onPreferenceChangeListener = reloadListener
         fragmentMethod.isVisible = enableFragment.isChecked
+<<<<<<< HEAD
         fragmentDisorder.isVisible = enableFragment.isChecked
         fragmentTtl.isVisible = enableFragment.isChecked && fragmentDisorder.isChecked
+=======
+        fragmentMethod.onPreferenceChangeListener = reloadListener
+        findPreference<SwitchPreference>(Key.INTERRUPT_REUSED_CONNECTIONS)!!.onPreferenceChangeListener = restartListener
+>>>>>>> ba684df3
 
         // DNS settings
         findPreference<EditTextPreference>(Key.REMOTE_DNS)!!.onPreferenceChangeListener = reloadListener
@@ -710,20 +733,6 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         portLocalDns.isVisible = requireDns.isChecked
         portLocalDns.onPreferenceChangeListener = reloadListener
 
-        findPreference<EditTextPreference>(Key.PPROF_SERVER)!!.apply {
-            isVisible = DataStore.enableDebug
-        }
-
-        findPreference<EditTextPreference>(Key.GODEBUG)!!.apply {
-            isVisible = DataStore.enableDebug
-        }
-
-        findPreference<EditTextPreference>(Key.ENVIRONMENT_VARIABLES)!!.apply {
-            isVisible = DataStore.enableDebug
-        }
-
-        findPreference<EditTextPreference>(Key.EXPERIMENTAL_FLAGS)!!.isVisible = DataStore.enableDebug
-
         // misc settings
         findPreference<SwitchPreference>(Key.SHOW_GROUP_NAME)!!.onPreferenceChangeListener = reloadListener
         findPreference<SwitchPreference>(Key.ACQUIRE_WAKE_LOCK)!!.onPreferenceChangeListener = reloadListener
@@ -733,6 +742,67 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
                 startActivity(intent)
             }
             true
+        }
+
+        findPreference<SwitchPreference>(Key.DISABLE_TOGGLE_SHORTCUT)!!.apply {
+            if (isChecked) {
+                runOnDefaultDispatcher {
+                    if (QuickToggleShortcut.enabled) {
+                        QuickToggleShortcut.enabled = false
+                        SagerNet.setDynamicShortcuts(requireContext())
+                    }
+                }
+            }
+            setOnPreferenceChangeListener { _, newValue ->
+                newValue as Boolean
+                runOnDefaultDispatcher {
+                    QuickToggleShortcut.enabled = !newValue
+                }
+                true
+            }
+        }
+
+        findPreference<SwitchPreference>(Key.DISABLE_TASKER_INTEGRATION)!!.apply {
+            if (isChecked) {
+                runOnDefaultDispatcher {
+                    if (TaskerReceiver.enabled) {
+                        TaskerReceiver.enabled = false
+                    }
+                    if (TaskerActivity.enabled) {
+                        TaskerActivity.enabled = false
+                    }
+                }
+            }
+            setOnPreferenceChangeListener { _, newValue ->
+                newValue as Boolean
+                runOnDefaultDispatcher {
+                    TaskerReceiver.enabled = !newValue
+                    TaskerActivity.enabled = !newValue
+                }
+                true
+            }
+        }
+
+        findPreference<SwitchPreference>(Key.QUERY_ALL_PACKAGES_ALTERNATIVE_METHOD)!!.onPreferenceChangeListener = restartListener
+
+        findPreference<EditTextPreference>(Key.PPROF_SERVER)!!.apply {
+            isVisible = DataStore.enableDebug
+            onPreferenceChangeListener = restartListener
+        }
+
+        findPreference<EditTextPreference>(Key.GODEBUG)!!.apply {
+            isVisible = DataStore.enableDebug
+            onPreferenceChangeListener = restartListener
+        }
+
+        findPreference<EditTextPreference>(Key.ENVIRONMENT_VARIABLES)!!.apply {
+            isVisible = DataStore.enableDebug
+            onPreferenceChangeListener = restartListener
+        }
+
+        findPreference<EditTextPreference>(Key.EXPERIMENTAL_FLAGS)!!.apply {
+            isVisible = DataStore.enableDebug
+            onPreferenceChangeListener = restartListener
         }
     }
 

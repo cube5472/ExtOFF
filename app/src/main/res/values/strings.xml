@@ -707,6 +707,7 @@
     <string name="naiveproxy_idle_timeout">Idle timeout (s)</string>
     <string name="uri_template">URI Template</string>
     <string name="action_masque" translatable="false">MASQUE</string>
+<<<<<<< HEAD
     <!-- NextClave (NC_MASQUE) -->
     <string name="masque_local_address">Local address (WARP registration)</string>
 
@@ -722,4 +723,9 @@
     <string name="drawer_connections">Requests</string>
     <string name="glass_effects">Glass effects</string>
     <string name="glass_effects_sum">Blur the content behind the navigation drawer. Turned off automatically in power saving mode</string>
+=======
+    <string name="disable_toggle_shortcut">Disable toggle shortcut</string>
+    <string name="disable_tasker_integration">Disable Tasker integration</string>
+    <string name="kill_and_restart">Kill and restart the app to take effect</string>
+>>>>>>> ba684df3
 </resources>

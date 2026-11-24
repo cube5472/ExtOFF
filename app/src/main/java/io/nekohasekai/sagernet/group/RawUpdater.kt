@@ -64,7 +64,7 @@ object RawUpdater : GroupUpdater() {
         if (link.startsWith("content://", ignoreCase = true)) {
             val contentText = app.contentResolver.openInputStream(link.toUri())
                 ?.bufferedReader()
-                ?.readText()
+                ?.use { it.readText() }
 
             // NextClave: clash-r — cache Clash rules BEFORE node parsing so that
             // routing-only Clash configs (rules without proxies:) are still
@@ -82,7 +82,7 @@ object RawUpdater : GroupUpdater() {
         } else {
             val response = Libexclavecore.newHttpClient().apply {
                 if (SagerNet.started && DataStore.startedProfile > 0) {
-                    useUDS(app.cacheDir.toString() + "/ipc.sock")
+                    useUDS(SagerNet.deviceStorage.noBackupFilesDir.toString() + "/ipc.sock")
                 }
             }.newRequest().apply {
                 setURL(subscription.link)

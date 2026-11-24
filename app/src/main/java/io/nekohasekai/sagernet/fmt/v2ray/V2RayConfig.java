@@ -1389,6 +1389,7 @@ public class V2RayConfig {
         public String path;
         public Map<String, String> headers;
         public String mode;
+        public Boolean chromeParrot;
         public String scMaxConcurrentPosts;
         public String scMaxEachPostBytes;
         public String scMinPostsIntervalMs;

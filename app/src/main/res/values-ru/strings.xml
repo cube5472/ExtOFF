@@ -676,6 +676,7 @@
     <string name="naiveproxy_tunnel_timeout">Тайм-аут туннеля (с)</string>
     <string name="naiveproxy_idle_timeout">Тайм-аут бездействия (с)</string>
     <string name="uri_template">Шаблон URI</string>
+<<<<<<< HEAD
 
     <!-- NextClave: стеклянная панель навигации -->
     <string name="drawer_brand_subtitle">для RKN OFF LINE · NextClave</string>
@@ -688,4 +689,9 @@
     <string name="drawer_connections">Запросы</string>
     <string name="glass_effects">Эффекты стекла</string>
     <string name="glass_effects_sum">Размытие контента за панелью навигации. Автоматически отключается в режиме энергосбережения</string>
+=======
+    <string name="disable_toggle_shortcut">Отключить ярлык переключения</string>
+    <string name="disable_tasker_integration">Отключить интеграцию Tasker</string>
+    <string name="kill_and_restart">Принудительно закройте и перезапустите приложение, чтобы изменения вступили в силу</string>
+>>>>>>> ba684df3
 </resources>

@@ -95,9 +95,6 @@
         android:enableOnBackInvokedCallback="true"
         tools:targetApi="33"
         tools:ignore="Deprecated">
-        <meta-data
-            android:name="android.app.shortcuts"
-            android:resource="@xml/shortcuts" />
 
         <activity
             android:name="io.nekohasekai.sagernet.ui.MainActivity"
@@ -151,10 +148,6 @@
                 <data android:scheme="sq" />
                 <data android:scheme="shadowquic" />
             </intent-filter>
-
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
         </activity>
         <activity
             android:name="io.nekohasekai.sagernet.ui.VpnRequestActivity"
@@ -304,7 +297,7 @@
             android:name="io.nekohasekai.sagernet.bg.TileService"
             android:exported="true"
             android:icon="@drawable/ic_service_active"
-            android:label="@string/quick_toggle"
+            android:label="@string/app_name"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:process=":bg"
             tools:targetApi="n">

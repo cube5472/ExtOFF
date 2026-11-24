@@ -137,7 +137,7 @@ class StatsBar @JvmOverloads constructor(
         return behavior
     }
 
-    private val setNavigationBarColor = DataStore.experimentalFlagsProperties.getBooleanProperty("setNavigationBarColor")
+    private val setNavigationBarColor = DataStore.setNavigationBarColor
 
     override fun performShow() {
         super.performShow()
@@ -173,7 +173,7 @@ class StatsBar @JvmOverloads constructor(
             return navigationBar.bottom > 0 && navigationBar.left == 0 && navigationBar.right == 0
         }
 
-        private val setNavigationBarColor = DataStore.experimentalFlagsProperties.getBooleanProperty("setNavigationBarColor")
+        private val setNavigationBarColor = DataStore.setNavigationBarColor
 
         override fun onNestedScroll(
             coordinatorLayout: CoordinatorLayout, child: BottomAppBar, target: View,

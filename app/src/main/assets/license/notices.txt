@@ -959,6 +959,10 @@ github.com/pires/go-proxyproto
       See the License for the specific language governing permissions and
       limitations under the License.
 
+github.com/puzpuzpuz/xsync/v4
+
+      Apache License, Version 2.0
+
 github.com/quic-go/qpack
 
       Copyright 2019 Marten Seemann
@@ -1709,6 +1713,7 @@ androidx.camera.featurecombinationquery:featurecombinationquery
 androidx.camera.viewfinder:viewfinder-core
 androidx.camera:camera-camera2
 androidx.camera:camera-camera2-pipe
+androidx.camera:camera-common
 androidx.camera:camera-core
 androidx.camera:camera-lifecycle
 androidx.camera:camera-video
