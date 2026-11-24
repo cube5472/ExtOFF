@@ -26,7 +26,7 @@ fi
 # such clients with a min-version check and every REALITY handshake fell
 # back to the camouflage site ("REALITY: processed invalid connection",
 # 100% dead nodes while NekoBox/Xray worked). This patch tracks the client
-# version marker to the current Xray release (26.10.31).
+# version marker to the current Xray release (26.11.9).
 PATCH_FILE3="core-realityver.patch"
 if [ ! -f "$PATCH_FILE3" ]; then
   echo "ERROR: $PATCH_FILE3 not found" >&2
@@ -179,7 +179,7 @@ grep -qF 'func NewTLSFragmentConn(ctx context.Context, conn net.Conn, splitRecor
 grep -qF 'instanceCache' core-patched/common/serial/typed_message.go
 grep -qF 'writeByLengths' core-patched/transport/internet/tlsfragment/tlsfragment.go
 grep -qF 'parseRangeSpecs' core-patched/infra/conf/cfgcommon/socketcfg/socket.go
-grep -qF 'var realityClientVersion = [3]byte{26, 10, 31}' core-patched/transport/internet/reality/uclient.go
+grep -qF 'var realityClientVersion = [3]byte{26, 11, 9}' core-patched/transport/internet/reality/uclient.go
 grep -qF 'ClientVersion: realityClientVersion' core-patched/transport/internet/reality/client.go
 # NextClave (NC_AWG): the AmneziaWG swap must be present after patching.
 grep -qF 'github.com/amnezia-vpn/amneziawg-go/v3/conn' core-patched/proxy/wireguard/device.go
@@ -227,7 +227,7 @@ if grep -qF 'trailerLen := max(peer.randomTrailer(padding+MessageInitiationSize)
   exit 1
 fi
 grep -qF "replace ${AWG_MOD}" go.mod.with-replace ||
-	echo "replace ${AWG_MOD} => ./core-patched/third_party/amneziawg-go-v3" >> go.mod.with-replace
+        echo "replace ${AWG_MOD} => ./core-patched/third_party/amneziawg-go-v3" >> go.mod.with-replace
 
 # 6. Restore go.mod with the replace directive.
 mv -f go.mod.with-replace go.mod

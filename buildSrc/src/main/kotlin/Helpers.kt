@@ -79,6 +79,14 @@ fun Project.setupCommon(projectName: String = "") {
         lint.checkAllWarnings = true
         lint.checkReleaseBuilds = false
         lint.warningsAsErrors = true
+        androidResources.apply {
+            ignoreAssetsPatterns.addAll(listOf(
+                "<file>geosite.version.txt",
+                "<file>geosite.sha256sum.txt",
+                "<file>geoip.version.txt",
+                "<file>geoip.sha256sum.txt",
+            ))
+        }
         packaging.jniLibs.useLegacyPackaging = true
         // Let AGP strip native libraries (llvm-strip). With keepDebugSymbols set
         // to "**/*.so" an unstripped core build (lib core debug) shipped ~25 MB of

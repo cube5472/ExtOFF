@@ -11,8 +11,8 @@
 +// every REALITY handshake fall back to the camouflage site ("REALITY:
 +// processed invalid connection"). hotfix-14: the value was frozen at 25.5.16
 +// (the May 2025 Xray release) and got rejected by up-to-date panels;
-+// 26.10.31 matches the current Xray release.
-+var realityClientVersion = [3]byte{26, 10, 31}
++// 26.11.9 matches the current Xray release (v26.10.31 -> v26.11.9 sync, 2026-11-24).
++var realityClientVersion = [3]byte{26, 11, 9}
 +
  type UConn struct {
  	*utls.UConn
