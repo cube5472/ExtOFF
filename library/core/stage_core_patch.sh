@@ -133,6 +133,25 @@ if [ ! -f "$PATCH_FILE10" ]; then
   echo "ERROR: $PATCH_FILE10 not found" >&2
   exit 1
 fi
+# NextClave (NC_XDRIVE): the XDRIVE transport, ported from Xray-core
+# v26.11.9 (transport/internet/xdrive, PRs XTLS/Xray-core#5645 + #6748) into
+# the Exclave fork's tree. ExclaveNetwork/exclave-core has not merged XDRIVE
+# as of the v5.50.1 pin (the transport/internet dir has no xdrive even on
+# latest main), so the whole transport is vendored here: the package itself
+# (plus the hysteria/congestion bbr+brutal helpers its h3 path needs and a
+# common/utils browser-header helper), the v4 config plumbing
+# (XDriveConfig/validateXDrive in infra/conf/v4), the distro blank import
+# and a regenerated config.pb.go under the fork's exclave.* proto namespace.
+# Every NC_XDRIVE adaptation of the upstream code carries an NC_XDRIVE
+# comment; the port is additive (new files plus three small hunks in files
+# upstream never touches), so it survives core pin bumps by re-applying
+# against the new pristine tree. This patch applies LAST (after fix(26h)):
+# it touches none of the files the other patches modify.
+PATCH_FILE11="core-xdrive.patch"
+if [ ! -f "$PATCH_FILE11" ]; then
+  echo "ERROR: $PATCH_FILE11 not found" >&2
+  exit 1
+fi
 # 1. Temporarily strip the replace directive so `go mod download` fetches the
 #    pinned upstream module into the module cache.
 cp go.mod go.mod.with-replace
@@ -168,6 +187,9 @@ patch -d core-patched -p1 --forward < "$PATCH_FILE5"
 # NextClave (NC_AWG) fix(26h): the wireguard client bind reserved-strip
 # guard - the root-cause fix for the AmneziaWG 3.1 handshake outage.
 patch -d core-patched -p1 --forward < "$PATCH_FILE10"
+# NextClave (NC_XDRIVE): the XDRIVE transport (last: additive, no overlap
+# with the patches above).
+patch -d core-patched -p1 --forward < "$PATCH_FILE11"
 
 # 5. Sanity check: the patched tree must contain the new features.
 #    -F (fixed strings) is REQUIRED here: the signature contains "[]int32",
@@ -192,6 +214,13 @@ grep -qF 'IsWarpRequestURL' core-patched/proxy/masque/client.go
 grep -qF 'SetWarpLocalAddresses' core-patched/proxy/masque/internal/connectip/conn.go
 # NextClave (NC_AWG) fix(26h): the bind reserved-strip guard must be present.
 grep -qF 'fix(26h)' core-patched/proxy/wireguard/bind.go
+# NextClave (NC_XDRIVE): the XDRIVE transport must be staged and registered.
+grep -qF 'RegisterTransportDialer(protocolName, Dial)' core-patched/transport/internet/xdrive/xdrive.go
+grep -qF 'exclave.core.transport.internet.xdrive' core-patched/transport/internet/xdrive/config.pb.go
+grep -qF 'func (c *XDriveConfig) Build()' core-patched/infra/conf/v4/xdrive.go
+grep -qF 'ProtocolName: "xdrive"' core-patched/infra/conf/v4/transport_internet.go
+grep -qF 'func UseBBR' core-patched/transport/internet/hysteria/congestion/utils.go
+grep -qF 'func TryDefaultHeadersWith' core-patched/common/utils/browser.go
 
 # 7. NextClave (NC_AWG) hotfix: vendor a one-file fix for amneziawg-go
 #    v3.1.20260828. Upstream reuses pooled outbound elements whose transport
@@ -233,4 +262,4 @@ grep -qF "replace ${AWG_MOD}" go.mod.with-replace ||
 mv -f go.mod.with-replace go.mod
 trap - EXIT
 
-echo ">> core-patched ready (disorder + byte-length finalmask + reality client version fix + AmneziaWG + WARP MASQUE + AWG 26f rx padding scan + AWG 26g handshake trailers off + AWG 26h bind reserved-strip guard)"
+echo ">> core-patched ready (disorder + byte-length finalmask + reality client version fix + AmneziaWG + WARP MASQUE + AWG 26f rx padding scan + AWG 26g handshake trailers off + AWG 26h bind reserved-strip guard + XDRIVE transport)"
