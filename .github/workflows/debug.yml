@@ -24,15 +24,10 @@ jobs:
       - name: Setup Go Mobile
         # https://github.com/golang/mobile/blob/c31d5b91ecc32c0d598b8fe8457d244ca0b4e815/cmd/gomobile/init.go#L83
         run: |
-<<<<<<< HEAD
-          go install golang.org/x/mobile/cmd/gomobile@v0.0.0-20261011034528-197770444867
-          go install golang.org/x/mobile/cmd/gobind@v0.0.0-20261011034528-197770444867
-      - name: Stage patched core (NoDPI disorder)
-        run: bash library/core/stage_core_patch.sh
-=======
           go install golang.org/x/mobile/cmd/gomobile@v0.0.0-20261117202452-47699113848a
           go install golang.org/x/mobile/cmd/gobind@v0.0.0-20261117202452-47699113848a
->>>>>>> ba684df3
+      - name: Stage patched core (NoDPI disorder)
+        run: bash library/core/stage_core_patch.sh
       - name: Setup Java
         uses: actions/setup-java@v6
         with:
