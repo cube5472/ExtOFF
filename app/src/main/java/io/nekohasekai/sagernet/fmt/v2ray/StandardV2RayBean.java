@@ -196,11 +196,7 @@ public abstract class StandardV2RayBean extends AbstractBean {
 
     @Override
     public void serialize(ByteBufferOutput output) {
-<<<<<<< HEAD
-        output.writeInt(42);
-=======
-        output.writeInt(41);
->>>>>>> ba684df3
+        output.writeInt(43);
         super.serialize(output);
 
         output.writeString(uuid);
@@ -338,16 +334,13 @@ public abstract class StandardV2RayBean extends AbstractBean {
         output.writeString(serverNameToVerify);
         output.writeBoolean(hy2ChromeParrot);
         output.writeString(echQueryName);
-<<<<<<< HEAD
 
         output.writeBoolean(fragmentDisorder);
         output.writeInt(fragmentTtl);
 
         output.writeString(fragmentLengths);
         output.writeString(fragmentDelays);
-=======
         output.writeBoolean(splithttpChromeParrot);
->>>>>>> ba684df3
     }
 
     @Override
@@ -615,7 +608,6 @@ public abstract class StandardV2RayBean extends AbstractBean {
             echQueryName = input.readString();
         }
         if (version >= 41) {
-<<<<<<< HEAD
             fragmentDisorder = input.readBoolean();
             fragmentTtl = input.readInt();
             if (fragmentTtl <= 0) {
@@ -631,9 +623,9 @@ public abstract class StandardV2RayBean extends AbstractBean {
             if (fragmentDelays == null) {
                 fragmentDelays = "";
             }
-=======
+        }
+        if (version >= 43) {
             splithttpChromeParrot = input.readBoolean();
->>>>>>> ba684df3
         }
     }
 

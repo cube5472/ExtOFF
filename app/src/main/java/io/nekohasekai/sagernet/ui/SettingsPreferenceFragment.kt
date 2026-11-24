@@ -482,28 +482,23 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
             newValue as Boolean
             enableFragmentForDirect.isVisible = newValue
             fragmentMethod.isVisible = newValue
-<<<<<<< HEAD
             fragmentDisorder.isVisible = newValue
             fragmentTtl.isVisible = newValue && fragmentDisorder.isChecked
+            needReload()
             true
         }
         fragmentDisorder.setOnPreferenceChangeListener { _, newValue ->
             fragmentTtl.isVisible = enableFragment.isChecked && (newValue as Boolean)
-=======
             needReload()
->>>>>>> ba684df3
             true
         }
         enableFragmentForDirect.isVisible = enableFragment.isChecked
         enableFragmentForDirect.onPreferenceChangeListener = reloadListener
         fragmentMethod.isVisible = enableFragment.isChecked
-<<<<<<< HEAD
         fragmentDisorder.isVisible = enableFragment.isChecked
         fragmentTtl.isVisible = enableFragment.isChecked && fragmentDisorder.isChecked
-=======
         fragmentMethod.onPreferenceChangeListener = reloadListener
         findPreference<SwitchPreference>(Key.INTERRUPT_REUSED_CONNECTIONS)!!.onPreferenceChangeListener = restartListener
->>>>>>> ba684df3
 
         // DNS settings
         findPreference<EditTextPreference>(Key.REMOTE_DNS)!!.onPreferenceChangeListener = reloadListener
