@@ -37,8 +37,8 @@ jobs:
       - name: Setup Go Mobile
         # Same pin as debug.yml / release.yml
         run: |
-          go install golang.org/x/mobile/cmd/gomobile@v0.0.0-20261011034528-197770444867
-          go install golang.org/x/mobile/cmd/gobind@v0.0.0-20261011034528-197770444867
+          go install golang.org/x/mobile/cmd/gomobile@v0.0.0-20261117202452-47699113848a
+          go install golang.org/x/mobile/cmd/gobind@v0.0.0-20261117202452-47699113848a
       - name: Stage patched core (NoDPI disorder + finalmask + realityver)
         run: bash library/core/stage_core_patch.sh
       - name: Setup Java
