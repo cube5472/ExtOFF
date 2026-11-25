@@ -105,6 +105,7 @@ import io.nekohasekai.sagernet.fmt.v2ray.V2RayConfig.VLESSOutboundConfigurationO
 import io.nekohasekai.sagernet.fmt.v2ray.V2RayConfig.VMessOutboundConfigurationObject
 import io.nekohasekai.sagernet.fmt.v2ray.V2RayConfig.WebSocketObject
 import io.nekohasekai.sagernet.fmt.v2ray.V2RayConfig.WireGuardOutboundConfigurationObject
+import io.nekohasekai.sagernet.fmt.v2ray.V2RayConfig.XDriveObject
 import io.nekohasekai.sagernet.fmt.v2ray.VLESSBean
 import io.nekohasekai.sagernet.fmt.v2ray.VMessBean
 import io.nekohasekai.sagernet.fmt.v2ray.getXrayRange
@@ -113,6 +114,7 @@ import io.nekohasekai.sagernet.ktx.app
 import io.nekohasekai.sagernet.ktx.Logs
 import io.nekohasekai.sagernet.ktx.getArray
 import io.nekohasekai.sagernet.ktx.getBoolean
+import io.nekohasekai.sagernet.ktx.getLong
 import io.nekohasekai.sagernet.ktx.getObject
 import io.nekohasekai.sagernet.ktx.getString
 import io.nekohasekai.sagernet.ktx.getStringArray
