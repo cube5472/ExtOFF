@@ -1337,7 +1337,10 @@ public class V2RayConfig {
         public List<String> secrets;
         public Object template;
         public Object s3;
-        public XmuxObject xmux;
+        // NextClave (NC_XDRIVE): fully qualified — the nested XmuxObject of a
+        // sibling class is not in scope by simple name here, and the bare name
+        // resolves to an inaccessible symbol on the Kotlin side.
+        public SplitHTTPObject.XmuxObject xmux;
         public Long segmentBytes;
         public Long flushIntervalMs;
         public Long pollIntervalMs;
