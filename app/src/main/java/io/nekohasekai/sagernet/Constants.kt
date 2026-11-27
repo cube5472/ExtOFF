@@ -108,6 +108,12 @@ object Key {
     // NextClave: clash-r — use Clash rules from the last updated subscription
     const val CLASH_RULES = "clashRules"
 
+    // NextClave: clash-r — subscription rules are an explicit opt-in. With
+    // the default (off) adding or updating ANY subscription never touches
+    // the stored clash-r rule block; when on, the last updated Clash
+    // subscription replaces the block (previous behavior).
+    const val CLASH_RULES_FROM_SUBSCRIPTION = "clashRulesFromSubscription"
+
     // NextClave: globally disable TLS certificate verification for all nodes
     const val DISABLE_CERT_VERIFICATION = "disableCertVerification"
 

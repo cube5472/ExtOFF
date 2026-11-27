@@ -239,6 +239,15 @@
             app:singleLineTitle="false"
             app:summary="@string/clash_rules_sum"
             app:title="@string/clash_rules" />
+        <!-- NextClave: explicit opt-in — with the default (off) adding or
+             updating any subscription never touches the clash-r rule block -->
+        <SwitchPreference
+            android:dependency="clashRules"
+            app:defaultValue="false"
+            app:key="clashRulesFromSubscription"
+            app:singleLineTitle="false"
+            app:summary="@string/clash_rules_from_sub_sum"
+            app:title="@string/clash_rules_from_sub" />
     </PreferenceCategory>
 
     <PreferenceCategory app:title="@string/protocol_settings">

@@ -619,7 +619,9 @@
     <string name="route_mode_direct">direct</string>
     <!-- NextClave: clash-r and global certificate verification -->
     <string name="clash_rules">clash-r: use Clash rules</string>
-    <string name="clash_rules_sum">Apply rules and rule providers from the last updated Clash subscription (clash-r). Works for any selected node in rule routing mode. Missing rule sets are listed in the log (tag: clash-r).</string>
+    <string name="clash_rules_sum">Inject the clash-r rule block above the app route rules (works for any selected node in rule routing mode). The block comes from the bundled ruleset or, when &quot;rules from subscription&quot; is enabled, from the last updated Clash subscription. Missing rule sets are listed in the log (tag: clash-r).</string>
+    <string name="clash_rules_from_sub">clash-r: rules from subscription</string>
+    <string name="clash_rules_from_sub_sum">Let the last updated Clash subscription replace the clash-r rule block (rules and rule providers). Off by default: adding or updating any subscription never touches the clash-r rules. Turning this off again restores the bundled rule block.</string>
     <string name="disable_cert_verification">Disable TLS certificate verification</string>
     <!-- NextClave: live connections viewer -->
     <string name="connections">Requests</string>

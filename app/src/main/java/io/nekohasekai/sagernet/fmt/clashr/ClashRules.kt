@@ -91,6 +91,17 @@ object ClashRules {
     // ------------------------------------------------------------------ //
 
     fun onSubscriptionContent(content: String) {
+        // NextClave: subscription rules never touch the stored clash-r rule
+        // block unless the user explicitly opted in ("clash-r: rules from
+        // subscription" in route settings). With the opt-in off — the
+        // default — adding or updating ANY subscription leaves rules.json
+        // and the provider cache alone (the bundled seed stays in force).
+        if (!DataStore.clashRulesFromSubscription) {
+            if (content.contains("rules:")) {
+                Log.d(TAG, "clash-r: subscription rules ignored (rules-from-subscription is off)")
+            }
+            return
+        }
         // NextClave: only "rules:" is required — routing-only Clash configs
         // (rules + rule-providers, no top-level proxies:) must register too.
         // parseAndStore bails out safely when there is no usable rule list.
@@ -181,6 +192,25 @@ object ClashRules {
         }
     }
 
+    /**
+     * NextClave: wipe the stored clash-r rule block (rules.json + cached
+     * provider fragments). The bundled seed from assets is re-applied by
+     * ensureSeeded() on the next config build. Called when the user turns
+     * the subscription-rules opt-in off, so switching it off restores the
+     * bundled rule block without clearing app data.
+     */
+    fun clearStoredRules() {
+        runCatching {
+            if (rulesFile.exists()) rulesFile.delete()
+            dir.listFiles()?.forEach { if (it.name.startsWith("provider_")) it.delete() }
+            memoRules = null
+            memoFrags.clear()
+            Log.i(TAG, "clash-r: stored rule block cleared, bundled seed will be re-applied")
+        }.onFailure {
+            Log.w(TAG, "clash-r: clearStoredRules failed: ${it.message}")
+        }
+    }
+
     private fun JsonObject.size(): Int = entrySet().size
 
     private fun JsonArray.hasString(s: String): Boolean =
@@ -196,6 +226,12 @@ object ClashRules {
     // ------------------------------------------------------------------ //
     // Rule conversion                                                     //
     // ------------------------------------------------------------------ //
+
+    // NextClave: Clash port args accept "80", "80-90" (range) and slash
+    // lists "80/443" (mihomo ParsePort). Xray's ParsePortRange wants "-"
+    // for ranges and "|" for lists; a raw slash would make the core fail
+    // to parse the routing rule and refuse to start the whole config.
+    private fun portField(v: String): String = v.replace(":", "-").replace("/", "|")
 
     // target kinds: PROXY (active node), DIRECT (bypass), REJECT (block)
     private fun convertRule(line0: String): JsonObject? {
@@ -259,8 +295,8 @@ object ClashRules {
             "GEOSITE" -> domains(listOf("geosite:$arg"))
             "IP-CIDR", "IP-CIDR6", "IP-CIDR6L" -> ips(listOf(arg))
             "GEOIP" -> ips(listOf("geoip:$arg"))
-            "DST-PORT" -> JsonObject().apply { addProperty("port", arg.replace(":", "-")) }
-            "SRC-PORT" -> JsonObject().apply { addProperty("srcPort", arg.replace(":", "-")) }
+            "DST-PORT" -> JsonObject().apply { addProperty("port", portField(arg)) }
+            "SRC-PORT" -> JsonObject().apply { addProperty("srcPort", portField(arg)) }
             "NETWORK" -> JsonObject().apply { addProperty("network", arg.lowercase()) }
             "PROCESS-NAME" -> {
                 // Android packages (dotted, not .exe) map to app uid rules;
@@ -615,9 +651,11 @@ object ClashRules {
     /**
      * NextClave: seed the bundled ruleset from assets on first use, so the
      * clash-r toggle works out of the box — no subscription update needed.
-     * Runs only when rules.json does not exist yet: once any Clash
-     * subscription is updated, its rules replace the bundled set (delete
-     * app data to return to the bundled default).
+     * Runs only when rules.json does not exist yet. With the default
+     * "rules from subscription = off" the bundled set stays in force no
+     * matter what subscriptions deliver; when the user opts in, the last
+     * updated Clash subscription replaces the bundled set, and turning the
+     * opt-in off again (clearStoredRules) restores it.
      */
     private fun ensureSeeded() {
         if (rulesFile.exists()) return
@@ -720,7 +758,7 @@ object ClashRules {
                         out.add(V2RayConfig.RoutingObject.RuleObject().apply {
                             type = "field"
                             outboundTag = targetTag(target, tagProxy)
-                            port = p.replace(":", "-")
+                            port = portField(p)
                         })
                     }
                     for (p in frags.getStringArray("srcPorts") ?: emptyList()) {
@@ -728,7 +766,7 @@ object ClashRules {
                         out.add(V2RayConfig.RoutingObject.RuleObject().apply {
                             type = "field"
                             outboundTag = targetTag(target, tagProxy)
-                            sourcePort = p.replace(":", "-")
+                            sourcePort = portField(p)
                         })
                     }
                     for (n in frags.getStringArray("networks") ?: emptyList()) {
@@ -755,7 +793,7 @@ object ClashRules {
                         out.add(V2RayConfig.RoutingObject.RuleObject().apply {
                             type = "field"
                             outboundTag = targetTag(target, tagProxy)
-                            port = it.replace(":", "-")
+                            port = portField(it)
                         })
                     }
                     m.getString("srcPort")?.let {
@@ -763,7 +801,7 @@ object ClashRules {
                         out.add(V2RayConfig.RoutingObject.RuleObject().apply {
                             type = "field"
                             outboundTag = targetTag(target, tagProxy)
-                            sourcePort = it.replace(":", "-")
+                            sourcePort = portField(it)
                         })
                     }
                     m.getString("network")?.let {

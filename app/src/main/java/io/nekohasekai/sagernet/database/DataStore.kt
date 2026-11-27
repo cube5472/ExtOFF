@@ -193,6 +193,10 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     // NextClave: clash-r — apply Clash rules from the last updated subscription
     var clashRules by configurationStore.boolean(Key.CLASH_RULES)
 
+    // NextClave: clash-r — explicit opt-in for subscription rules (default
+    // off: subscription updates never touch the stored clash-r rule block)
+    var clashRulesFromSubscription by configurationStore.boolean(Key.CLASH_RULES_FROM_SUBSCRIPTION)
+
     // NextClave: globally disable TLS certificate verification for all nodes
     var disableCertVerification by configurationStore.boolean(Key.DISABLE_CERT_VERIFICATION)
 

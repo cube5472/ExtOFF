@@ -469,6 +469,20 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
             true
         }
 
+        // NextClave: clash-r — subscription rules are an explicit opt-in.
+        // Switching it off wipes the stored rule block so the bundled seed
+        // from assets is re-applied on the next config build; no app data
+        // clear is needed to get the bundled clash-r rules back.
+        findPreference<SwitchPreference>(Key.CLASH_RULES_FROM_SUBSCRIPTION)!!.setOnPreferenceChangeListener { _, newValue ->
+            if (newValue == false) {
+                runOnDefaultDispatcher {
+                    runCatching { ClashRules.clearStoredRules() }
+                }
+            }
+            needReload()
+            true
+        }
+
         // protocol settings
         findPreference<SwitchPreference>(Key.REALITY_DISABLE_X25519MLKEM768)!!.onPreferenceChangeListener = reloadListener
         findPreference<SwitchPreference>(Key.HYSTERIA2_OMIT_MAX_DATAGRAM_FRAME_SIZE)!!.onPreferenceChangeListener = reloadListener
